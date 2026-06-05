@@ -1,4 +1,4 @@
-# Implement zam-tts doctor diagnostic engine
+# Implement mery doctor diagnostic engine
 
 Status: ready-for-agent
 
@@ -9,7 +9,7 @@ ADR-0002 — `docs/adr/ADR-0002-helper-shape.md`
 ## What to build
 
 Implement `diagnostics/doctor.py` with the `DoctorCheck` ABC and all runtime
-checks, wire them to the `zam-tts doctor` CLI command with Rich output, and
+checks, wire them to the `mery doctor` CLI command with Rich output, and
 persist the latest result to `diagnostics/last-doctor.json`.
 
 **`DoctorCheck` ABC — `diagnostics/doctor.py`**
@@ -60,10 +60,10 @@ class DoctorResult(BaseModel):
 - [ ] `DoctorCheck` ABC and `DoctorResult` model are defined in `diagnostics/doctor.py`
       with no imports from `api/`, `ws/`, or WebSocket schemas.
 - [ ] All eight checks from the table above are implemented and run when
-      `zam-tts doctor` is invoked.
+      `mery doctor` is invoked.
 - [ ] Each failed or warned check includes a `recommended_action` drawn from
       the error taxonomy (ADR-0010).
-- [ ] `zam-tts doctor` renders a Rich table and exits with the correct code:
+- [ ] `mery doctor` renders a Rich table and exits with the correct code:
       0 (all ok), 1 (any fail), 2 (any warn, no fail).
 - [ ] The result is persisted to `last-doctor.json` after every run.
 - [ ] `GET /v1/diagnostics` returns the contents of `last-doctor.json`; if the

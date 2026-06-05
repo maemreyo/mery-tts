@@ -51,16 +51,16 @@ This ensures `uv tool install` (ADR-0008 Phase 1) works without any extra binary
 
 ```toml
 # pyproject.toml
-[project.entry-points."zam_tts.engines"]
-piper-plus = "zam_tts.engines.piper_plus.adapter:PiperPlusAdapter"
-kokoro     = "zam_tts.engines.kokoro.adapter:KokoroAdapter"
+[project.entry-points."mery_tts.engines"]
+piper-plus = "mery_tts.engines.piper_plus.adapter:PiperPlusAdapter"
+kokoro     = "mery_tts.engines.kokoro.adapter:KokoroAdapter"
 ```
 
 ```python
 # engines/base.py — EngineRegistry startup
 from importlib.metadata import entry_points
 
-for ep in entry_points(group="zam_tts.engines"):
+for ep in entry_points(group="mery_tts.engines"):
     try:
         adapter_cls = ep.load()
         self._register(adapter_cls())

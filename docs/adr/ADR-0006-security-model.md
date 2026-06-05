@@ -20,7 +20,7 @@ token + origin allowlist + request hardening.
 ```text
 Network
   bind only 127.0.0.1 / ::1 — never 0.0.0.0
-  default port: 8765 (override via ZAM_TTS_PORT env var)
+  default port: 8765 (override via MERY_TTS_PORT env var)
   on port conflict: emit structured error, do NOT silently fall back to random port
   actual bound port written to config.json on every startup
 
@@ -28,8 +28,8 @@ Authentication
   generate per-install auth token at first run (secrets.token_urlsafe(32))
   store in config.json (mode 0600)
   require on every REST request: Authorization: Bearer <token>
-  require on every WS connection: Sec-WebSocket-Protocol: zam-tts-v1, <token>
-  support token rotation: zam-tts pair --rotate
+  require on every WS connection: Sec-WebSocket-Protocol: mery-v1, <token>
+  support token rotation: mery pair --rotate
 
 CORS / Origin
   allowlist: configured extension origins (e.g. moz-extension://..., chrome-extension://...)
@@ -67,7 +67,7 @@ authentication is already explicit at the bridge boundary.
 - Token is never logged, never sent in error payloads, never shown in normal UI
 - Zam Reader stores connection config (port + token) in `browser.storage.local`,
   not in content-script `localStorage`
-- Token rotation: `zam-tts pair --rotate` generates a new token; Zam Reader must
+- Token rotation: `mery pair --rotate` generates a new token; Zam Reader must
   re-pair to reconnect
 
 ## Diagnostics rules

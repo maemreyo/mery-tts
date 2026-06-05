@@ -12,7 +12,7 @@ Implement token rotation through the pairing workflow so users can invalidate a 
 
 ## Acceptance criteria
 
-- [ ] `zam-tts pair --rotate` generates a new long-lived token and invalidates the old one.
+- [ ] `mery pair --rotate` generates a new long-lived token and invalidates the old one.
 - [ ] Existing clients with the old token receive structured `auth.invalid_token` responses.
 - [ ] Re-pairing succeeds with a fresh one-time code and leaves helper ID/model storage intact.
 - [ ] Tests cover rotation, old-token rejection, helper restart, and successful re-pair.

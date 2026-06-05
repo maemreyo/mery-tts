@@ -1,16 +1,16 @@
 # Folder Structure
 
-Complete annotated layout of the `zam-local-tts-helper` repository and Python package.
+Complete annotated layout of the `mery-tts-server` repository and Python package.
 
 ---
 
 ## Repository root
 
 ```text
-zam-local-tts-helper/
+mery-tts-server/
 │
 ├── src/                        # Source root (PEP 518 src-layout)
-│   └── zam_tts/                # Python package (importable as `zam_tts`)
+│   └── mery_tts/                # Python package (importable as `mery_tts`)
 │
 ├── tests/                      # Test suite (mirrors src/ structure)
 │
@@ -35,17 +35,17 @@ zam-local-tts-helper/
 
 ---
 
-## Python package: `src/zam_tts/`
+## Python package: `src/mery_tts/`
 
 The package follows **hexagonal architecture**: domain/core is pure Python with no
 I/O; infrastructure (filesystem, network, audio, server) lives in adapters at the
 edges. Every layer boundary is enforced by `depcruise` rules in CI.
 
 ```text
-src/zam_tts/
+src/mery_tts/
 │
 ├── __init__.py                 # Package version, public surface (minimal)
-├── __main__.py                 # `python -m zam_tts` → `zam-tts serve`
+├── __main__.py                 # `python -m mery_tts` → `mery serve`
 ├── py.typed                    # PEP 561: declares this package ships inline types
 │
 ├── api/                        # FastAPI application + routes + WS handlers
@@ -96,7 +96,7 @@ src/zam_tts/
 │   │                           # ABC: health(), voices(), synthesize() → AsyncIterator[PCMChunk]
 │   │                           # CancelToken: shared dataclass for session cancellation
 │   │                           # EngineRegistry discovers adapters via entry-points group
-│   │                           # "zam_tts.engines" — this is the SINGLE discovery mechanism.
+│   │                           # "mery_tts.engines" — this is the SINGLE discovery mechanism.
 │   │                           # No dev-mode fallback, no conditional imports, no env-branching.
 │   │                           # Prerequisite: package must be installed (uv sync / pip install -e .)
 │   │                           # If no adapters found: doctor emits structured diagnostic,
@@ -176,16 +176,16 @@ src/zam_tts/
 │
 └── cli/                        # typer CLI entry points
     ├── __init__.py
-    ├── main.py                 # zam-tts root app; registers sub-commands
-    ├── serve.py                # zam-tts serve [--port N] [--reload]
-    ├── pair.py                 # zam-tts pair
-    ├── doctor.py               # zam-tts doctor
-    ├── engines.py              # zam-tts engines list
-    ├── voices.py               # zam-tts voices list [--engine ENGINE]
-    ├── catalog.py              # zam-tts catalog list [--locale LOCALE]
-    ├── models.py               # zam-tts models install|delete|list
-    ├── storage.py              # zam-tts storage show|move|repair
-    └── speak.py                # zam-tts speak --text TEXT [--play] [--output FILE]
+    ├── main.py                 # mery root app; registers sub-commands
+    ├── serve.py                # mery serve [--port N] [--reload]
+    ├── pair.py                 # mery pair
+    ├── doctor.py               # mery doctor
+    ├── engines.py              # mery engines list
+    ├── voices.py               # mery voices list [--engine ENGINE]
+    ├── catalog.py              # mery catalog list [--locale LOCALE]
+    ├── models.py               # mery models install|delete|list
+    ├── storage.py              # mery storage show|move|repair
+    └── speak.py                # mery speak --text TEXT [--play] [--output FILE]
 ```
 
 ---
@@ -313,7 +313,7 @@ These rules are enforced by `depcruise` configuration and CI.
 | `security/` may import `schemas/v1/`, `settings/` only | Security has no engine or model dependency |
 | `diagnostics/` may import `schemas/v1/`, `engines/`, `models/`, `security/`, `settings/` | Doctor checks read but do not write |
 | `cli/` may import any module | CLI is the outermost shell; it may call anything |
-| `schemas/` imports nothing from `zam_tts` | Schemas are pure Pydantic; no circular deps |
+| `schemas/` imports nothing from `mery_tts` | Schemas are pure Pydantic; no circular deps |
 | No module imports from `tests/` or `scripts/` | Test code never leaks into production |
 
 ---
@@ -321,7 +321,7 @@ These rules are enforced by `depcruise` configuration and CI.
 ## Storage layout (runtime, macOS default)
 
 ```text
-~/Library/Application Support/Zam Local TTS/
+~/Library/Application Support/Mery TTS/
 │
 ├── config.json                 # Port, token, allowed origins, model dir override
 │
@@ -346,11 +346,11 @@ These rules are enforced by `depcruise` configuration and CI.
 │   └── helper.log              # Rotating JSON logs (structlog)
 │
 └── diagnostics/
-    └── last-doctor.json        # Result of most recent `zam-tts doctor` run
+    └── last-doctor.json        # Result of most recent `mery doctor` run
 ```
 
-Linux default: `~/.local/share/Zam Local TTS/`
-Windows default: `%APPDATA%\Zam Local TTS\`
+Linux default: `~/.local/share/Mery TTS/`
+Windows default: `%APPDATA%\Mery TTS\`
 
 These paths are resolved at runtime by `settings/config.py` via `platformdirs`.
 They are never hardcoded in tests; tests use `tmp_path` fixtures.

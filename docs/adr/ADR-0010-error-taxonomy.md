@@ -77,7 +77,7 @@ the diagnostic field is omitted entirely.
 **Enables:**
 - Zam Reader can map every error code to the correct i18n key + user action
 - Tests can snapshot every error shape and assert the code/category/fallback
-- CLI `zam-tts doctor` can emit the same structured errors with Rich formatting
+- CLI `mery doctor` can emit the same structured errors with Rich formatting
 - Security: raw user text can never leak through error payloads
 
 **Constrains:**

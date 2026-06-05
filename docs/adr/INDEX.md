@@ -1,11 +1,29 @@
 # Architecture Decision Records
 
-All major architectural decisions for `zam-local-tts-helper` are recorded here.
+All major architectural decisions for `mery-tts-server` are recorded here.
 Each ADR captures the context, the decision made, the rationale, and the
 consequences. Once accepted, an ADR is immutable; superseded ADRs are marked as such.
 
 These ADRs distill the 27 design decisions from
 [`reports/local-tts-helper-design-decisions.md`](../reports/local-tts-helper-design-decisions.md).
+
+### Design decision coverage
+
+| Decision | ADR | Notes |
+|---|---|---|
+| Decision 1 (product boundary) | ADR-0001 | Also covers Decision 22 (development location) |
+| Decision 2 (helper shape) | ADR-0002 | |
+| Decision 7 (Python runtime) | ADR-0003 | |
+| Decision 8 (engine strategy) | ADR-0004 | Also covers Decisions 26–27 (VoiceRegistry concurrency, EngineRegistry discovery) |
+| Decision 9 (API protocol) | ADR-0005 | |
+| Decision 10 (audio delivery mode) | ADR-0012 | |
+| Decision 12 (security model) | ADR-0006 | Also covers Decision 24 (default port) |
+| Decision 13 (storage architecture) | ADR-0011 | |
+| Decision 14 (catalog integrity) | ADR-0007 | Also covers Decision 25 (catalog signing) |
+| Decision 17 (packaging) | ADR-0008 | |
+| Decision 18 (pairing flow) | ADR-0009 | |
+| Decision 19 (error taxonomy) | ADR-0010 | |
+| Decisions 3–6, 11, 15–16, 20–23 | — | Operational/guidance decisions; recorded in the design-decisions report only |
 
 ---
 
@@ -23,7 +41,8 @@ These ADRs distill the 27 design decisions from
 | [ADR-0008](ADR-0008-packaging.md) | Budget-aware phased packaging | ✅ Accepted |
 | [ADR-0009](ADR-0009-pairing-flow.md) | Pairing code + setup URL | ✅ Accepted |
 | [ADR-0010](ADR-0010-error-taxonomy.md) | Full structured error taxonomy | ✅ Accepted |
-| [ADR-0011](ADR-0011-storage-architecture.md) | Helper-owned storage with platformdirs and user override | ✅ Accepted |
+| [ADR-0011](ADR-0011-storage-architecture.md) | Server-owned storage with platformdirs and user override | ✅ Accepted |
+| [ADR-0012](ADR-0012-audio-delivery-mode.md) | Hybrid audio delivery mode | ✅ Accepted |
 
 ---
 

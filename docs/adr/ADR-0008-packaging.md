@@ -18,17 +18,17 @@ Use **phased packaging** without blocking on Apple signing for Phase 1.
 ### Phase 1 — Developer / early adopter install (current target)
 
 ```bash
-uv tool install zam-local-tts-helper
+uv tool install mery-tts-server
 # or
-pipx install zam-local-tts-helper
+pipx install mery-tts-server
 
-zam-tts doctor
-zam-tts serve
+mery doctor
+mery serve
 ```
 
-- `zam-tts` CLI is available in `$PATH` after install
+- `mery` CLI is available in `$PATH` after install
 - No system-level changes; no Gatekeeper prompts for the package itself
-- Engine binaries downloaded on first use via `zam-tts models install`
+- Engine binaries downloaded on first use via `mery models install`
 - Clear setup docs in README and Options page
 
 ### Phase 2 — Unsigned standalone bundle

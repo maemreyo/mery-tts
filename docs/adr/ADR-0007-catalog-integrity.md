@@ -18,7 +18,7 @@ download host allowlist.
 
 ```json
 {
-  "catalogId": "zam-tts-curated-v1",
+  "catalogId": "mery-curated-v1",
   "schemaVersion": "1.0",
   "catalogVersion": "1.0.0",
   "createdAt": "2026-06-05T00:00:00Z",
@@ -129,7 +129,7 @@ Bundled catalog (checked into repo, ships with the package)
 Remote catalog (explicit user action only)
   -> trust model: untrusted until Ed25519 signature verified against bundled public key
   -> verification: Ed25519 signature + schema + expiry — ALL three required
-  -> triggered by: zam-tts catalog refresh or Zam Reader Options "Refresh catalog"
+  -> triggered by: mery catalog refresh or Zam Reader Options "Refresh catalog"
   -> stored as remote-catalog.json alongside bundled
   -> never fetched automatically — always explicit user action
 ```

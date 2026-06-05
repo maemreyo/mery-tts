@@ -13,7 +13,7 @@ Add the strict Python quality gates that prevent the helper from becoming loose 
 ## Acceptance criteria
 
 - [ ] Ruff lint and format checks are configured for source and tests.
-- [ ] `mypy --strict` runs against `src/zam_tts`.
+- [ ] `mypy --strict` runs against `src/mery_tts`.
 - [ ] Pytest has unit/contract/engine/integration/CLI marker conventions.
 - [ ] Local task commands run lint, typecheck, tests, and a combined check gate.
 

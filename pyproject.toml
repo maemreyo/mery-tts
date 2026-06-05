@@ -1,12 +1,12 @@
 [project]
-name = "zam-local-tts-helper"
+name = "mery-tts-server"
 version = "0.1.0"
-description = "Standalone local TTS helper app for Zam Reader"
+description = "Standalone local TTS server — offline-first, any-client, localhost API"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
 requires-python = ">=3.12"
 authors = [{ name = "zaob-dev" }]
-keywords = ["tts", "text-to-speech", "local", "offline", "piper", "kokoro"]
+keywords = ["tts", "text-to-speech", "local", "offline", "piper", "kokoro", "speech-synthesis", "voice", "localhost"]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Intended Audience :: End Users/Desktop",
@@ -45,7 +45,7 @@ dependencies = [
 # Engine adapters — install per need
 piper-plus = ["piper-plus[inference]>=1.0"]
 kokoro     = ["kokoro-onnx>=0.4"]
-all        = ["zam-local-tts-helper[piper-plus,kokoro]"]
+all        = ["mery-tts-server[piper-plus,kokoro]"]
 
 # Development toolchain
 dev = [
@@ -60,18 +60,18 @@ dev = [
 ]
 
 [project.scripts]
-zam-tts = "zam_tts.cli.main:app"
+mery = "mery_tts.cli.main:app"
 
 # Engine adapters register here — EngineRegistry discovers them at startup
-# via importlib.metadata.entry_points(group="zam_tts.engines").
+# via importlib.metadata.entry_points(group="mery_tts.engines").
 # To add a new engine: new subdirectory + one line here. EngineRegistry never changes.
-[project.entry-points."zam_tts.engines"]
-piper-plus = "zam_tts.engines.piper_plus.adapter:PiperPlusAdapter"
-kokoro     = "zam_tts.engines.kokoro.adapter:KokoroAdapter"
+[project.entry-points."mery_tts.engines"]
+piper-plus = "mery_tts.engines.piper_plus.adapter:PiperPlusAdapter"
+kokoro     = "mery_tts.engines.kokoro.adapter:KokoroAdapter"
 
 [project.urls]
-Repository = "https://github.com/zaob-dev/zam-local-tts-helper"
-Issues     = "https://github.com/zaob-dev/zam-local-tts-helper/issues"
+Repository = "https://github.com/zaob-dev/mery-tts-server"
+Issues     = "https://github.com/zaob-dev/mery-tts-server/issues"
 
 # ---------------------------------------------------------------------------
 # Build
@@ -81,7 +81,7 @@ requires      = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/zam_tts"]
+packages = ["src/mery_tts"]
 
 # ---------------------------------------------------------------------------
 # Ruff — lint + format
@@ -123,7 +123,7 @@ skip-magic-trailing-comma = false
 [tool.mypy]
 strict             = true
 python_version     = "3.12"
-files              = ["src/zam_tts"]
+files              = ["src/mery_tts"]
 plugins            = ["pydantic.mypy"]
 exclude            = ["tests/"]
 
@@ -147,11 +147,11 @@ markers      = [
 # Coverage
 # ---------------------------------------------------------------------------
 [tool.coverage.run]
-source  = ["zam_tts"]
+source  = ["mery_tts"]
 branch  = true
 omit    = [
-  "src/zam_tts/__main__.py",
-  "src/zam_tts/cli/*",         # CLI tested separately via subprocess
+  "src/mery_tts/__main__.py",
+  "src/mery_tts/cli/*",         # CLI tested separately via subprocess
 ]
 
 [tool.coverage.report]

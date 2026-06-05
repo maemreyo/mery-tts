@@ -18,8 +18,8 @@ code (or opens URL) in Zam Reader Options to claim the connection.
 
 ```text
 1. User installs helper (uv/pipx).
-2. User runs: zam-tts serve  (or server starts automatically on login in Phase 2+)
-3. User runs: zam-tts pair
+2. User runs: mery serve  (or server starts automatically on login in Phase 2+)
+3. User runs: mery pair
 4. Helper generates a one-time code (6-8 alphanumeric chars) with 10-minute TTL.
 5. Helper prints to terminal:
      Zam Reader Pairing
@@ -94,11 +94,11 @@ type LocalTTSConnectionConfig = {
 ## Consequences
 
 **Enables:**
-- Clear user-confirmed trust boundary (user must physically run `zam-tts pair`)
+- Clear user-confirmed trust boundary (user must physically run `mery pair`)
 - Works with Phase 1 CLI-first packaging (no companion GUI needed)
 - Testable without a browser (curl can claim the pairing code)
-- Token rotation: `zam-tts pair --rotate` generates a new long-lived token;
-  extension re-discovers via new `zam-tts pair` flow
+- Token rotation: `mery pair --rotate` generates a new long-lived token;
+  extension re-discovers via new `mery pair` flow
 
 **Constrains:**
 - Pairing must be re-done if the user uninstalls/reinstalls the helper

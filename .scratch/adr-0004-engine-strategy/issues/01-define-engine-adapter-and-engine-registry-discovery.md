@@ -8,7 +8,7 @@ ADR-0004 — `docs/adr/ADR-0004-engine-strategy.md`
 
 ## What to build
 
-Define the common engine adapter contract and an `EngineRegistry` that discovers adapters only through the `zam_tts.engines` entry-point group, degrading gracefully when optional engine dependencies fail to load.
+Define the common engine adapter contract and an `EngineRegistry` that discovers adapters only through the `mery_tts.engines` entry-point group, degrading gracefully when optional engine dependencies fail to load.
 
 ## Acceptance criteria
 

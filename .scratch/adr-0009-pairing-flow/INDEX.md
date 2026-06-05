@@ -4,7 +4,7 @@ Source ADR: `docs/adr/ADR-0009-pairing-flow.md`
 
 ## Goal
 
-Implement deliberate user-confirmed pairing where `zam-tts pair` creates a one-time code and setup URL, and `/v1/pair/claim` exchanges it for a long-lived helper auth token.
+Implement deliberate user-confirmed pairing where `mery pair` creates a one-time code and setup URL, and `/v1/pair/claim` exchanges it for a long-lived helper auth token.
 
 ## Issues
 

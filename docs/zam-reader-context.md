@@ -1,6 +1,6 @@
 # Zam Reader — Context for the Helper Repo
 
-This file exists so anyone reading `zam-local-tts-helper` understands what Zam Reader is and why this helper exists.
+This file exists so anyone reading `mery-tts-server` understands what Zam Reader is and why this helper exists.
 
 ## What is Zam Reader?
 
@@ -39,7 +39,7 @@ Zam Reader (browser extension)
   -> LocalTTSProvider
   -> LocalTTSBridge
   -> LocalhostTransport / future NativeMessagingTransport
-  -> Zam Local TTS Helper (this repo)
+  -> Mery TTS Server (this repo)
 ```
 
 Rules:

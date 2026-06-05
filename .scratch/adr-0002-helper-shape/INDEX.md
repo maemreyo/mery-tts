@@ -4,7 +4,7 @@ Source ADR: `docs/adr/ADR-0002-helper-shape.md`
 
 ## Goal
 
-Build one Python helper package that exposes both `zam-tts` CLI workflows and long-running daemon/server mode, while sharing engine, model, catalog, and diagnostics logic.
+Build one Python helper package that exposes both `mery` CLI workflows and long-running daemon/server mode, while sharing engine, model, catalog, and diagnostics logic.
 
 ## Issues
 

@@ -11,8 +11,8 @@ and debug, and Zam Reader which needs a long-running low-latency API.
 
 ## Decision
 
-Build a **hybrid helper**: one Python package that exposes both a `zam-tts` CLI
-and a daemon/server mode via `zam-tts serve`.
+Build a **hybrid helper**: one Python package that exposes both a `mery` CLI
+and a daemon/server mode via `mery serve`.
 
 ## Rationale
 
@@ -21,13 +21,13 @@ and a daemon/server mode via `zam-tts serve`.
   and the low-latency UX Zam Reader needs.
 - A hybrid avoids shipping two separate packages and keeps model management,
   catalog, and diagnostics in a single place.
-- `zam-tts doctor` and `zam-tts speak --play` are critical for user support: they
+- `mery doctor` and `mery speak --play` are critical for user support: they
   let users verify the helper works before touching Zam Reader settings.
 
 ## Consequences
 
 **Enables:**
-- `zam-tts doctor` is a self-contained diagnostic that works with zero Zam Reader.
+- `mery doctor` is a self-contained diagnostic that works with zero Zam Reader.
 - CLI tests can run in CI without a real browser or extension.
 - The same engine adapters serve both CLI playback and WS streaming.
 

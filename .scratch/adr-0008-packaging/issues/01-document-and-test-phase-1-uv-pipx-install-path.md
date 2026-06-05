@@ -13,7 +13,7 @@ Make the Phase 1 developer/early-adopter install path reliable and documented fo
 ## Acceptance criteria
 
 - [ ] README or setup docs explain `uv` and `pipx` install paths and first-run commands.
-- [ ] Package metadata exposes the `zam-tts` CLI after installation.
+- [ ] Package metadata exposes the `mery` CLI after installation.
 - [ ] CI or smoke tests verify install-equivalent behavior, CLI entrypoint, server startup, and teardown.
 - [ ] Docs clearly label Phase 1 as early access requiring Terminal.
 

@@ -14,7 +14,7 @@ Generate and persist a per-install auth token and helper config with secure file
 
 - [ ] First run creates a stable helper ID and auth token using cryptographically secure randomness.
 - [ ] Config is stored in the configured app data location with owner-only permissions where supported.
-- [ ] Default port is `8765`, overridable by `ZAM_TTS_PORT`, and the actual bound port is written on startup.
+- [ ] Default port is `8765`, overridable by `MERY_TTS_PORT`, and the actual bound port is written on startup.
 - [ ] Token rotation invalidates the previous long-lived token and requires clients to re-pair.
 
 ## Blocked by

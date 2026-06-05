@@ -46,7 +46,7 @@ Build backend: **hatchling** (PEP 517/518 compliant, fast, minimal config).
 - `uv tool install` / `pipx install` as the Phase 1 distribution path
 
 **Constrains:**
-- Python startup time adds ~100–200ms to first `zam-tts` invocation; mitigated by
+- Python startup time adds ~100–200ms to first `mery` invocation; mitigated by
   daemon mode (warm, long-running server).
 - Packaging for end-users requires explicit steps (Phase 2: standalone binary;
   Phase 3: signed installer). See ADR-0008.

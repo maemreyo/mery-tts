@@ -1,6 +1,6 @@
 # Zam Reader Readiness Contract
 
-**Purpose:** Define the minimum requirements before Zam Reader is allowed to integrate with Zam Local TTS Helper as a real local TTS provider.
+**Purpose:** Define the minimum requirements before Zam Reader is allowed to integrate with Mery TTS Server as a real local TTS provider.
 
 This is an acceptance contract, not an implementation plan. If any required item is missing, Zam Reader must treat the helper as unavailable and keep Web Speech as the working fallback.
 
@@ -8,14 +8,14 @@ This is an acceptance contract, not an implementation plan. If any required item
 
 ## 1. Boundary contract
 
-Zam Local TTS Helper is a standalone app/package. Zam Reader must not import helper internals.
+Mery TTS Server is a standalone app/package. Zam Reader must not import helper internals.
 
 ```text
 Zam Reader
   -> LocalTTSProvider
   -> LocalTTSBridge
   -> LocalhostTransport / future NativeMessagingTransport
-  -> Zam Local TTS Helper /v1 contract
+  -> Mery TTS Server /v1 contract
 ```
 
 Allowed coupling:
@@ -192,7 +192,7 @@ The helper must not be used by Zam Reader until paired.
 Required pairing flow:
 
 ```text
-zam-tts pair
+mery pair
   -> prints one-time code
   -> prints setup URL
   -> exposes claim endpoint bound to localhost
@@ -253,8 +253,8 @@ Minimum audio chunk metadata:
 The helper must support:
 
 ```bash
-zam-tts speak --text "Hello" --play
-zam-tts speak --text "Hello" --output out.wav
+mery speak --text "Hello" --play
+mery speak --text "Hello" --output out.wav
 ```
 
 ---
@@ -305,20 +305,20 @@ No diagnostic payload may include raw article text, selected text, lookup text, 
 The helper must provide these commands before Zam Reader can depend on it:
 
 ```bash
-zam-tts --version
-zam-tts doctor
-zam-tts serve
-zam-tts pair
-zam-tts engines list
-zam-tts voices list
-zam-tts catalog list
-zam-tts models install <modelId>
-zam-tts models delete <modelId>
-zam-tts storage show
-zam-tts speak --text "Hello" --play
+mery --version
+mery doctor
+mery serve
+mery pair
+mery engines list
+mery voices list
+mery catalog list
+mery models install <modelId>
+mery models delete <modelId>
+mery storage show
+mery speak --text "Hello" --play
 ```
 
-`zam-tts doctor` must check at least:
+`mery doctor` must check at least:
 
 - Python/runtime version;
 - config directory;
@@ -353,8 +353,8 @@ Zam Reader integration may begin with a fake helper that implements the same `/v
 
 A real-helper smoke test must prove:
 
-1. `zam-tts serve` starts and binds localhost only.
-2. `zam-tts pair` creates a valid short-lived code.
+1. `mery serve` starts and binds localhost only.
+2. `mery pair` creates a valid short-lived code.
 3. Extension/fake client can claim pairing.
 4. At least one Piper-plus fixture or real model can synthesize.
 5. At least one Kokoro fixture or real model can synthesize.

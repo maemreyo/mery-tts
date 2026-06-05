@@ -13,7 +13,7 @@ helper app.
 ## Decision
 
 Use an **extension-managed companion helper** in a **separate repository**
-(`zam-local-tts-helper`). Zam Reader integrates only through a versioned `/v1`
+(`mery-tts-server`). Zam Reader integrates only through a versioned `/v1`
 bridge contract.
 
 ## Rationale

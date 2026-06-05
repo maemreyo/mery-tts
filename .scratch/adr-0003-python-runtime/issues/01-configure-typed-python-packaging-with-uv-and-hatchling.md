@@ -13,7 +13,7 @@ Configure the helper as a Python 3.12+ `src/` layout package managed by `uv` and
 ## Acceptance criteria
 
 - [ ] Project metadata declares Python 3.12+ and hatchling build backend.
-- [ ] Source lives under a PEP 518 `src/` layout with package name `zam_tts`.
+- [ ] Source lives under a PEP 518 `src/` layout with package name `mery_tts`.
 - [ ] The package includes `py.typed` and exposes minimal version metadata.
 - [ ] `uv sync` installs development dependencies without requiring engine extras by default.
 

@@ -8,7 +8,7 @@ ADR-0009 — `docs/adr/ADR-0009-pairing-flow.md`
 
 ## What to build
 
-Implement `zam-tts pair` so the helper generates a short-lived one-time pairing code and prints a clear setup URL and user instructions for Zam Reader Options.
+Implement `mery pair` so the helper generates a short-lived one-time pairing code and prints a clear setup URL and user instructions for Zam Reader Options.
 
 ## Acceptance criteria
 

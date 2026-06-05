@@ -1,4 +1,4 @@
-# Zam Local TTS Helper — task runner
+# Mery TTS Server — task runner
 # Usage: just <task>    (install: https://github.com/casey/just)
 
 # Show all available tasks
@@ -22,10 +22,10 @@ install-dev:
 
 # Start dev server with hot reload (port 8765, dev env)
 dev:
-    ZAM_TTS_ENV=development \
-    ZAM_TTS_PORT=8765 \
-    ZAM_TTS_LOG_LEVEL=DEBUG \
-    uv run uvicorn zam_tts.api.app:create_app \
+    MERY_TTS_ENV=development \
+    MERY_TTS_PORT=8765 \
+    MERY_TTS_LOG_LEVEL=DEBUG \
+    uv run uvicorn mery_tts.api.app:create_app \
       --reload \
       --port 8765 \
       --factory \
@@ -33,19 +33,19 @@ dev:
 
 # Start server in production mode
 serve:
-    uv run zam-tts serve
+    uv run mery serve
 
 # Run doctor checks
 doctor:
-    uv run zam-tts doctor
+    uv run mery doctor
 
 # Pair with Zam Reader
 pair:
-    uv run zam-tts pair
+    uv run mery pair
 
 # Quick speak test (requires piper-plus model installed)
 speak text="Hello from Zam local TTS":
-    uv run zam-tts speak --text "{{text}}" --play
+    uv run mery speak --text "{{text}}" --play
 
 # Open OpenAPI docs in browser (dev server must be running)
 docs:
@@ -98,7 +98,7 @@ fix:
 
 # Type check
 typecheck:
-    uv run mypy src/zam_tts
+    uv run mypy src/mery_tts
 
 # Full quality gate: lint + format + typecheck + tests
 check:
@@ -110,7 +110,7 @@ check:
 # Coverage report (HTML + terminal)
 coverage:
     uv run pytest -m "not engine and not integration" \
-      --cov=zam_tts \
+      --cov=mery_tts \
       --cov-report=html \
       --cov-report=term-missing \
       -q

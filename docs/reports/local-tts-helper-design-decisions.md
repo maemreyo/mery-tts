@@ -51,11 +51,11 @@ Zam Reader extension
 **Architecture implication:**
 
 ```text
-zam-tts ping
-zam-tts voices
-zam-tts models
-zam-tts speak
-zam-tts doctor
+mery ping
+mery voices
+mery models
+mery speak
+mery doctor
 
 helper daemon/server
   -> health/status
@@ -193,15 +193,15 @@ Reading/synthesis remains local. Model/catalog download is a separate explicit s
 - Python must be treated as a real app runtime, not loose scripts.
 - Use a typed package layout with clear modules: `api`, `engines`, `models`, `catalog`, `audio`, `diagnostics`, `settings`, `cli`.
 - Keep engine-specific dependencies behind adapters so the core does not become a Kokoro/Piper monolith.
-- Provide a CLI (`zam-tts`) and server mode from the same package.
+- Provide a CLI (`mery`) and server mode from the same package.
 - Use contract tests for the bridge API so Zam Reader is not coupled to Python internals.
 - Packaging must be solved explicitly later: uv/standalone bundle first, then signed/notarized macOS app or pkg when productizing.
 
 **Architecture implication:**
 
 ```text
-zam-local-tts-helper/          # separate app/repo/package candidate
-  src/zam_tts/
+mery-tts-server/          # separate app/repo/package candidate
+  src/mery_tts/
     api/                       # FastAPI/WebSocket or HTTP routes
     bridge_contract/           # versioned request/response schemas
     engines/                   # PiperPlusEngine, KokoroEngine, MacSayEngine
@@ -210,7 +210,7 @@ zam-local-tts-helper/          # separate app/repo/package candidate
     audio/                     # playback/export/stream chunks
     diagnostics/               # doctor checks and structured errors
     settings/                  # helper config paths and persistence
-    cli/                       # zam-tts commands
+    cli/                       # mery commands
 ```
 
 ---
@@ -320,7 +320,7 @@ WebSocket
 
 **Rationale:**
 
-- The helper must support direct playback for standalone CLI/manual testing: `zam-tts speak --play`.
+- The helper must support direct playback for standalone CLI/manual testing: `mery speak --play`.
 - Zam Reader should control playback for product UX: pause, stop, progress, highlighting, follow mode, reader state, and future karaoke/word-boundary behavior.
 - Streaming audio back to the extension keeps UI state and audio state in one place.
 - Direct helper playback alone would make the extension blind to real playback timing and failure states.
@@ -330,7 +330,7 @@ WebSocket
 
 ```text
 Helper CLI/manual mode
-  zam-tts speak --text "Hello" --play
+  mery speak --text "Hello" --play
   -> helper plays through system audio
 
 Zam Reader mode
@@ -350,7 +350,7 @@ Zam Reader mode
 
 - Helper unit/integration tests verify generated audio metadata and CLI playback command paths.
 - Zam Reader bridge tests verify chunk buffering, stop/cancel, stream completion, and fallback behavior.
-- Manual QA must include both `zam-tts speak --play` and extension-triggered playback.
+- Manual QA must include both `mery speak --play` and extension-triggered playback.
 
 ---
 
@@ -482,7 +482,7 @@ Observability
 **Default macOS layout:**
 
 ```text
-~/Library/Application Support/Zam Local TTS/
+~/Library/Application Support/Mery TTS/
   config.json
   catalog/
     bundled-catalog.json
@@ -509,10 +509,10 @@ Observability
 **CLI implication:**
 
 ```text
-zam-tts storage show
-zam-tts storage move --to <directory>
-zam-tts storage repair
-zam-tts models delete <modelId>
+mery storage show
+mery storage move --to <directory>
+mery storage repair
+mery models delete <modelId>
 ```
 
 **Testing implication:**
@@ -706,7 +706,7 @@ Manual QA
 ```text
 Phase 1 — Developer / early adopter install
   -> uv tool install or pipx install
-  -> `zam-tts` CLI available
+  -> `mery` CLI available
   -> helper server launched by CLI
   -> clear setup docs
 
@@ -730,12 +730,12 @@ Phase 3 — Optional signed/notarized distribution
 **Recommended v1 install options:**
 
 ```text
-uv tool install zam-local-tts-helper
+uv tool install mery-tts-server
 # or
-pipx install zam-local-tts-helper
+pipx install mery-tts-server
 
-zam-tts doctor
-zam-tts serve
+mery doctor
+mery serve
 ```
 
 **Testing implication:**
@@ -765,7 +765,7 @@ zam-tts serve
 ```text
 1. User installs helper via uv/pipx.
 2. User runs:
-     zam-tts pair
+     mery pair
 3. Helper starts or confirms local server is running.
 4. Helper prints:
      - localhost URL
@@ -1022,7 +1022,7 @@ Testing
 
 **Question:** Should the Local TTS Helper be developed in the Zam Reader repo, under a same-repo app subdirectory, or in a separate repository?
 
-**Verdict:** Develop the helper in a **separate repository** from day one: `zam-local-tts-helper`.
+**Verdict:** Develop the helper in a **separate repository** from day one: `mery-tts-server`.
 
 **Rationale:**
 
@@ -1037,10 +1037,10 @@ Testing
 ```text
 zaob-dev/
   zreader/                 # WXT browser extension
-  zam-local-tts-helper/    # standalone Python helper app/package
+  mery-tts-server/    # standalone Python helper app/package
 ```
 
-**Zam Local TTS Helper owns:**
+**Mery TTS Server owns:**
 
 - Python package and CLI.
 - REST/WebSocket API.
@@ -1063,7 +1063,7 @@ zaob-dev/
 
 **Documentation implication:**
 
-- Helper-specific design docs must be copied/moved into `zam-local-tts-helper/docs/`.
+- Helper-specific design docs must be copied/moved into `mery-tts-server/docs/`.
 - Zam Reader may keep references or summaries, but the helper repo becomes the canonical home for helper architecture and readiness requirements.
 
 ---
@@ -1079,7 +1079,7 @@ zaob-dev/
 **Rationale:**
 
 - Every other module (`engines/`, `api/`, `models/`, `catalog/`, `security/`) imports from `schemas/`. Building schemas first gives all later layers a concrete contract to implement against.
-- `settings/config.py` is required by every layer (path resolution, port, env). It has no upstream deps inside `zam_tts` — it is the safest first module.
+- `settings/config.py` is required by every layer (path resolution, port, env). It has no upstream deps inside `mery_tts` — it is the safest first module.
 - `diagnostics/errors.py` defines `LocalTTSError` and error codes used across all layers. Building it early means error handling is consistent from day one, not retrofitted.
 - Foundation layer is **fully unit-testable with no server, no engine, no model download** — keeps CI fast from the first PR.
 - Avoids "implement first, schema later" drift that forces downstream rewrites.
@@ -1123,24 +1123,24 @@ Slice 4 — API + CLI
 
 **Question:** Should the default port be fixed, random, or fixed-with-random-fallback?
 
-**Verdict:** **Fixed default `8765`**, overridable via `ZAM_TTS_PORT` env var. Actual bound port written to `config.json` on startup.
+**Verdict:** **Fixed default `8765`**, overridable via `MERY_TTS_PORT` env var. Actual bound port written to `config.json` on startup.
 
 **Rationale:**
 
 - **Standalone testability**: contract tests need a deterministic port; random port requires every test to read config before connecting.
 - **Debuggability**: `curl http://127.0.0.1:8765/v1/health` works immediately with no config lookup.
 - **Pairing flow already handles port distribution** — `POST /v1/pair/claim` returns the real port to Zam Reader. Zam Reader never hardcodes the port. A fixed default does not create coupling.
-- **Env var override** (`ZAM_TTS_PORT=9000`) provides sufficient flexibility for dev, CI isolation, and multi-instance scenarios.
+- **Env var override** (`MERY_TTS_PORT=9000`) provides sufficient flexibility for dev, CI isolation, and multi-instance scenarios.
 - Random-port-on-every-start adds a config-read step for every CLI subcommand that needs to connect to a running server — unnecessary complexity.
 
 **Behavior:**
 
 ```text
-1. Helper reads ZAM_TTS_PORT env var (default: 8765).
+1. Helper reads MERY_TTS_PORT env var (default: 8765).
 2. Attempts to bind 127.0.0.1:<port>.
 3. On success: writes bound port to config.json, starts server.
 4. On failure (port in use): emits structured error engine.port_in_use with
-   recommended_action: set ZAM_TTS_PORT or stop conflicting process.
+   recommended_action: set MERY_TTS_PORT or stop conflicting process.
    Does NOT silently fall back to a random port — that would hide conflicts.
 5. CLI tools that need to connect to a running server read port from config.json.
 ```
@@ -1165,7 +1165,7 @@ class HelperSettings(BaseSettings):
     log_level: str = "INFO"
     data_dir: Path | None = None  # None → resolved by platformdirs at runtime
 
-    model_config = SettingsConfigDict(env_prefix="ZAM_TTS_")
+    model_config = SettingsConfigDict(env_prefix="MERY_TTS_")
 ```
 
 ---
@@ -1295,22 +1295,22 @@ class VoiceRegistry:
 - **Identical code path in production and development.** A dev-mode fallback (env-branching, conditional imports, DI bypass) creates two diverging code paths. Bugs can appear in one and be invisible in the other.
 - **Entry-points is the scalability mechanism.** Third-party engines self-register via entry-points. That mechanism only works reliably if it is *the* mechanism — not one of several competing paths.
 - **Friction is intentional.** Running the helper without installing is a misconfigured environment. Making it silently "work" would mask setup errors and give developers a false sense that their changes are working against production-equivalent conditions.
-- **`zam-tts doctor` is the explicit failure surface.** If no engines are found (because package not installed), `doctor` emits a structured `engine.unavailable` diagnostic with a clear recommended action, not a cryptic import error. Failure is explicit, not silent.
+- **`mery doctor` is the explicit failure surface.** If no engines are found (because package not installed), `doctor` emits a structured `engine.unavailable` diagnostic with a clear recommended action, not a cryptic import error. Failure is explicit, not silent.
 - **Tests are hermetic regardless.** Unit and contract tests inject `FakeEngineAdapter` directly via `conftest.py` fixtures — they never depend on entry-points being registered. Tests run fast and correctly even before `just install`.
 
 **`pyproject.toml` entry-point registration:**
 
 ```toml
-[project.entry-points."zam_tts.engines"]
-piper-plus = "zam_tts.engines.piper_plus.adapter:PiperPlusAdapter"
-kokoro     = "zam_tts.engines.kokoro.adapter:KokoroAdapter"
+[project.entry-points."mery_tts.engines"]
+piper-plus = "mery_tts.engines.piper_plus.adapter:PiperPlusAdapter"
+kokoro     = "mery_tts.engines.kokoro.adapter:KokoroAdapter"
 ```
 
 **`EngineRegistry` discovery flow:**
 
 ```text
 startup
-  → importlib.metadata.entry_points(group="zam_tts.engines")
+  → importlib.metadata.entry_points(group="mery_tts.engines")
   → for each entry-point:
       try: load + instantiate adapter
       on ImportError (optional-extra not installed): skip with WARNING log
@@ -1322,7 +1322,7 @@ startup
 
 **Doctor check added:**
 
-`zam-tts doctor` checks `engine availability` — verifies `EngineRegistry` loaded at least
+`mery doctor` checks `engine availability` — verifies `EngineRegistry` loaded at least
 one adapter. Failure message: `"No engine adapters found. Did you run 'just install'?"`
 with `recommendedAction: "run_just_install"`.
 

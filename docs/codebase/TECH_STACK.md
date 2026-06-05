@@ -1,7 +1,7 @@
 # Tech Stack
 
 Package choices, logging strategy, developer experience (DevEX), and UX patterns
-for `zam-local-tts-helper`.
+for `mery-tts-server`.
 
 ---
 
@@ -32,7 +32,7 @@ for `zam-local-tts-helper`.
 [project.optional-dependencies]
 piper-plus = ["piper-plus[inference]>=1.0"]
 kokoro     = ["kokoro-onnx>=0.4"]
-all        = ["zam-local-tts-helper[piper-plus,kokoro]"]
+all        = ["mery-tts-server[piper-plus,kokoro]"]
 ```
 
 **Why `piper-plus` over original `piper-tts`:**
@@ -84,7 +84,7 @@ dev = [
 
 ```toml
 [project]
-name = "zam-local-tts-helper"
+name = "mery-tts-server"
 version = "0.1.0"
 description = "Standalone local TTS helper for Zam Reader"
 license = { text = "GPL-3.0-or-later" }
@@ -107,14 +107,14 @@ dependencies = [
 ]
 
 [project.scripts]
-zam-tts = "zam_tts.cli.main:app"
+mery = "mery_tts.cli.main:app"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/zam_tts"]
+packages = ["src/mery_tts"]
 
 [tool.ruff]
 line-length = 100
@@ -133,7 +133,7 @@ indent-style = "space"
 [tool.mypy]
 strict = true
 python_version = "3.12"
-files = ["src/zam_tts"]
+files = ["src/mery_tts"]
 plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
@@ -145,9 +145,9 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["zam_tts"]
+source = ["mery_tts"]
 branch = true
-omit = ["src/zam_tts/__main__.py"]
+omit = ["src/mery_tts/__main__.py"]
 
 [tool.coverage.report]
 exclude_lines = [
@@ -171,7 +171,7 @@ exclude_lines = [
 ### Structlog setup
 
 ```python
-# zam_tts/settings/logging.py
+# mery_tts/settings/logging.py
 
 import logging
 import sys
@@ -292,7 +292,7 @@ install:
 
 # Start dev server with hot reload
 dev:
-    uv run uvicorn zam_tts.api.app:create_app --reload --port 8765 --factory
+    uv run uvicorn mery_tts.api.app:create_app --reload --port 8765 --factory
 
 # Run all tests (skip engine tests that need binaries)
 test:
@@ -314,11 +314,11 @@ fix:
 
 # Type check
 typecheck:
-    uv run mypy src/zam_tts
+    uv run mypy src/mery_tts
 
 # Coverage report
 coverage:
-    uv run pytest -m "not engine and not integration" --cov=zam_tts --cov-report=html --cov-report=term-missing
+    uv run pytest -m "not engine and not integration" --cov=mery_tts --cov-report=html --cov-report=term-missing
 
 # Full gate: lint + typecheck + tests
 check:
@@ -328,15 +328,15 @@ check:
 
 # CLI: run doctor
 doctor:
-    uv run zam-tts doctor
+    uv run mery doctor
 
 # CLI: start server (no reload)
 serve:
-    uv run zam-tts serve
+    uv run mery serve
 
 # CLI: pair
 pair:
-    uv run zam-tts pair
+    uv run mery pair
 
 # Generate fixture catalog
 fixtures:
@@ -373,8 +373,8 @@ Recommended extensions: `charliermarsh.ruff`, `ms-python.mypy-type-checker`,
 ### First-run setup (for new contributors)
 
 ```bash
-git clone https://github.com/zaob-dev/zam-local-tts-helper
-cd zam-local-tts-helper
+git clone https://github.com/zaob-dev/mery-tts-server
+cd mery-tts-server
 
 # Install uv (if needed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -400,10 +400,10 @@ automatically by `uv` in the project root. No manual `pip install` needed.
 
 ```bash
 # .env (gitignored)
-ZAM_TTS_ENV=development          # Enables console logging, hot reload hints
-ZAM_TTS_PORT=8765                # Default: 8765. On conflict: structured error, no silent fallback
-ZAM_TTS_LOG_LEVEL=DEBUG          # Verbose logs
-ZAM_TTS_DATA_DIR=/tmp/zam-tts   # Isolated data dir for dev (avoids clobbering real data)
+MERY_TTS_ENV=development          # Enables console logging, hot reload hints
+MERY_TTS_PORT=8765                # Default: 8765. On conflict: structured error, no silent fallback
+MERY_TTS_LOG_LEVEL=DEBUG          # Verbose logs
+MERY_TTS_DATA_DIR=/tmp/mery   # Isolated data dir for dev (avoids clobbering real data)
 ```
 
 `pydantic-settings` reads these automatically. No extra config files needed.
@@ -414,10 +414,10 @@ ZAM_TTS_DATA_DIR=/tmp/zam-tts   # Isolated data dir for dev (avoids clobbering r
 
 ### CLI output with Rich
 
-All `zam-tts` commands use Rich for output. Consistent patterns:
+All `mery` commands use Rich for output. Consistent patterns:
 
 ```python
-# zam-tts doctor output
+# mery doctor output
 from rich.console import Console
 from rich.table import Table
 
@@ -435,7 +435,7 @@ def print_doctor_results(checks: list[DoctorCheck]) -> None:
 ```
 
 ```python
-# zam-tts models install — progress bar
+# mery models install — progress bar
 from rich.progress import Progress, DownloadColumn, BarColumn, TimeRemainingColumn
 
 with Progress(
@@ -454,7 +454,7 @@ with Progress(
 All errors are printed to stderr; exit code 1 on failure.
 
 ```python
-# zam_tts/cli/utils.py
+# mery_tts/cli/utils.py
 import sys
 import typer
 
@@ -469,13 +469,13 @@ def fatal(msg: str, error: LocalTTSError | None = None) -> None:
 ### Server startup output
 
 ```text
-  Zam Local TTS Helper  v0.1.0
+  Mery TTS Server  v0.1.0
   ──────────────────────────────
   Status    healthy
   Engines   piper-plus ✓  kokoro ✓
   Port      8765
   Paired    yes (1 client)
-  Logs      ~/Library/Application Support/Zam Local TTS/logs/helper.log
+  Logs      ~/Library/Application Support/Mery TTS/logs/helper.log
 
   Press Ctrl+C to stop.
 ```
@@ -492,7 +492,7 @@ in Zam Reader contract test generation.
 In production (non-dev env), the docs endpoint is disabled:
 ```python
 app = FastAPI(
-    title="Zam Local TTS Helper",
+    title="Mery TTS Server",
     docs_url="/docs" if settings.env == "development" else None,
     redoc_url=None,
 )
@@ -505,7 +505,7 @@ In development, the `/v1/events` WebSocket can be inspected with:
 ```bash
 # Using websocat (brew install websocat)
 websocat "ws://127.0.0.1:8765/v1/events" \
-  -H "Authorization: Bearer $(cat ~/.config/zam-tts/token)"
+  -H "Authorization: Bearer $(cat ~/.config/mery/token)"
 ```
 
 All events include `schemaVersion`, `requestId`, and `timestamp` for correlation.

@@ -13,12 +13,12 @@ by the underlying domain logic in `models/manager.py` and `settings/config.py`.
 All file paths are resolved internally; raw paths are never accepted from the user
 at the API level nor accepted as model identifiers.
 
-**`zam-tts storage show`**
+**`mery storage show`**
 Read the current storage layout from `HelperSettings`, compute per-engine model
 sizes and total disk usage, and display a Rich table with: model store path,
 per-model name + size, total models size, cache size, and available disk space.
 
-**`zam-tts storage move --to <directory>`**
+**`mery storage move --to <directory>`**
 Migrate the model store to a new directory:
 1. Validate the target path is accessible and has enough free space.
 2. Copy all installed model files to the new directory (preserve engine subdirectory structure).
@@ -27,7 +27,7 @@ Migrate the model store to a new directory:
 5. Emit a structured `storage.migration_complete` diagnostic on success, or roll
    back and emit `storage.permission_denied` / `storage.disk_full` on failure.
 
-**`zam-tts storage repair`**
+**`mery storage repair`**
 Repair the model store and cache:
 1. List all files under `cache/downloads/` and `cache/temp/`; delete any partial
    or stale files (modification time older than 24 hours, or zero-byte files).
@@ -38,14 +38,14 @@ Repair the model store and cache:
 
 ## Acceptance criteria
 
-- [ ] `zam-tts storage show` prints a Rich table of model store path, per-model
+- [ ] `mery storage show` prints a Rich table of model store path, per-model
       size, total installed size, cache size, and available disk space.
-- [ ] `zam-tts storage move --to <dir>` migrates models to the new directory and
+- [ ] `mery storage move --to <dir>` migrates models to the new directory and
       updates `modelDirOverride` in `config.json`; old files are only removed after
       the config is persisted.
 - [ ] A crash mid-migration leaves the helper in a consistent state: either the
       old directory is intact or the new directory is complete with config updated.
-- [ ] `zam-tts storage repair` removes stale partial downloads, reports deleted
+- [ ] `mery storage repair` removes stale partial downloads, reports deleted
       files, and flags installed models with checksum mismatches.
 - [ ] Repair never deletes a successfully installed model — it only flags and
       reports; the user must explicitly reinstall a flagged model.

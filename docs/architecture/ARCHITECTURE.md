@@ -1,6 +1,6 @@
 # Architecture
 
-`zam-local-tts-helper` is a **standalone Python application** with a strict layered
+`mery-tts-server` is a **standalone Python application** with a strict layered
 architecture. It is designed to be: **SoC-clean, modular, standalone, scalable, and
 adaptive** — meaning it works independently of Zam Reader, supports multiple engines
 without coupling, runs on CPU/GPU/ANE hardware, and can be packaged in multiple ways
@@ -15,7 +15,7 @@ without changing its internal structure.
 | **Separation of Concerns** | Each module has one explicit job. API routes do not own domain logic. Engines do not own storage. Security does not know about engines. |
 | **Hexagonal / Ports & Adapters** | Domain core (engine adapters, model manager, catalog, diagnostics) has no dependency on FastAPI, CLI, or filesystem paths. Infrastructure adapters (API, CLI, audio, storage) live at the edges. |
 | **Modular engines** | Each TTS engine is a self-contained adapter behind a common `EngineAdapter` ABC. Adding a new engine means adding one subdirectory under `engines/`; nothing else changes. |
-| **Standalone** | The helper is fully testable and usable without Zam Reader. `zam-tts speak --play` works with no extension present. Contract tests run against a fake engine with no model download. |
+| **Standalone** | The helper is fully testable and usable without Zam Reader. `mery speak --play` works with no extension present. Contract tests run against a fake engine with no model download. |
 | **Scalable** | New engines, voices, locales, and catalog sources can be added without modifying existing code. `EngineRegistry` and `ModelManager` are open for extension, closed for modification. |
 | **Adaptive** | The transport layer (localhost HTTP now, Native Messaging later) is behind an abstraction. The packaging method (uv, standalone binary, signed installer) does not affect internal structure. The hardware backend (CPU/ANE/GPU) is chosen by the engine adapter, invisible to callers. |
 
@@ -26,9 +26,9 @@ without changing its internal structure.
 ```text
 ┌────────────────────────────────────────────────────────┐
 │  Layer 0 — Entry Points                                │
-│  cli/            (typer commands: zam-tts serve, ...)  │
+│  cli/            (typer commands: mery serve, ...)  │
 │  api/app.py      (FastAPI app factory)                 │
-│  __main__.py     (python -m zam_tts)                   │
+│  __main__.py     (python -m mery_tts)                   │
 └──────────────────────────┬─────────────────────────────┘
                            │  calls
 ┌──────────────────────────▼─────────────────────────────┐
@@ -74,8 +74,8 @@ models/         → schemas/v1/, catalog/, settings/
 catalog/        → schemas/v1/, settings/
 security/       → schemas/v1/, settings/
 diagnostics/    → schemas/v1/, engines/, models/, security/, settings/
-schemas/        → (nothing inside zam_tts)
-settings/       → (nothing inside zam_tts)
+schemas/        → (nothing inside mery_tts)
+settings/       → (nothing inside mery_tts)
 audio/          → settings/
 ```
 
@@ -85,7 +85,7 @@ audio/          → settings/
 - `api/ws/` never imports `engines/base` directly — routes through `VoiceRegistry` only
 - `models/` never imports `engines/` — model storage is engine-agnostic
 - `catalog/` never imports `engines/` or `models/` — catalog is pure data
-- `schemas/` never imports anything from `zam_tts` — no circular deps
+- `schemas/` never imports anything from `mery_tts` — no circular deps
 - No module imports from `tests/` or `scripts/`
 - `engines/voice_registry` never imports `api/` or `models/` — it is a pure routing index
 
@@ -100,7 +100,7 @@ interface; they never know whether they are using Piper-plus or Kokoro.
 # engines/base.py (simplified)
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
-from zam_tts.schemas.v1 import EngineDescriptor, PCMChunk, VoiceDescriptor
+from mery_tts.schemas.v1 import EngineDescriptor, PCMChunk, VoiceDescriptor
 
 class EngineAdapter(ABC):
 
@@ -171,7 +171,7 @@ class PiperPlusModelRunner:
 Concurrent sessions do not conflict: each `session_id` gets its own `CancelToken`.
 
 `EngineRegistry` discovers adapters at startup via Python **entry-points** (group
-`"zam_tts.engines"`). Each adapter registers itself in `pyproject.toml`; the
+`"mery_tts.engines"`). Each adapter registers itself in `pyproject.toml`; the
 registry never imports any adapter directly — it loads them via
 `importlib.metadata.entry_points`. This means:
 
@@ -182,7 +182,7 @@ registry never imports any adapter directly — it loads them via
 **Entry-points is the single discovery mechanism — no dev-mode fallback.**
 Entry-points are only registered once the package is installed (`uv sync` / `pip install -e .`).
 Running the helper without installing first is a misconfigured environment, not a supported
-shortcut. `zam-tts doctor` checks for available engines and emits a clear structured diagnostic
+shortcut. `mery doctor` checks for available engines and emits a clear structured diagnostic
 if none are found — the failure is explicit, not silent.
 
 This keeps production and development on an identical code path. No env-branching, no
@@ -307,7 +307,7 @@ The helper is **packaging-agnostic**. The same code runs in:
 
 | Mode | How it is launched | Notes |
 |---|---|---|
-| `uv tool install` / `pipx` | `zam-tts serve` in terminal | Phase 1 default |
+| `uv tool install` / `pipx` | `mery serve` in terminal | Phase 1 default |
 | Standalone binary (PyInstaller/Nuitka) | Double-click or CLI path | Phase 2 |
 | Signed `.pkg` / `.dmg` | macOS installer with launchd | Phase 3 (optional) |
 
@@ -320,11 +320,11 @@ Engine adapter dependencies are **optional extras** in `pyproject.toml`:
 [project.optional-dependencies]
 piper-plus = ["piper-plus[inference]>=1.0"]
 kokoro     = ["kokoro-onnx>=0.4"]
-all        = ["zam-local-tts-helper[piper-plus,kokoro]"]
+all        = ["mery-tts-server[piper-plus,kokoro]"]
 ```
 
 This means the helper core can be installed without any engine. Engines are pulled
-in per-user need. `zam-tts doctor` reports which engines are available.
+in per-user need. `mery doctor` reports which engines are available.
 
 ---
 
