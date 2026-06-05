@@ -44,7 +44,7 @@ pair:
     uv run mery pair
 
 # Quick speak test (requires piper-plus model installed)
-speak text="Hello from Zam local TTS":
+speak text="Hello from Mery":
     uv run mery speak --text "{{text}}" --play
 
 # Open OpenAPI docs in browser (dev server must be running)

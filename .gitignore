@@ -20,7 +20,7 @@ coverage.xml
 htmlcov/
 
 # Local helper runtime data
-.zam-tts/
+.mery-tts/
 models/
 cache/
 logs/
