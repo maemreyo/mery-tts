@@ -1,6 +1,6 @@
 # Implement WebSocket event stream protocol
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

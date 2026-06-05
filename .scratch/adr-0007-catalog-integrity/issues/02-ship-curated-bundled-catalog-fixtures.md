@@ -1,6 +1,6 @@
 # Ship curated bundled catalog fixtures
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

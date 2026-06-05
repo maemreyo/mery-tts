@@ -1,6 +1,6 @@
 # Implement VoiceRegistry routing and refresh semantics
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

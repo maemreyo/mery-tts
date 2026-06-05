@@ -1,6 +1,6 @@
 # Implement normalized catalog and flat voice card projection
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

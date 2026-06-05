@@ -1,6 +1,6 @@
 # Define VoiceDescriptor payload union and adapter kind validation
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

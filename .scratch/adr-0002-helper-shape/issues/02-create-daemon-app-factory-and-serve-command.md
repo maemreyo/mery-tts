@@ -1,6 +1,6 @@
 # Create daemon app factory and serve command
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

@@ -1,6 +1,6 @@
 # Expose loaded engine runtime health status
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

@@ -1,6 +1,6 @@
 # Apply bundled and remote catalog trust tiers
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

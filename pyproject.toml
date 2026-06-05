@@ -56,7 +56,6 @@ dev = [
   "pytest-httpx>=0.32",
   "respx>=0.21",
   "coverage[toml]>=7.6",
-  "types-soundfile",
 ]
 
 [project.scripts]
@@ -104,13 +103,12 @@ select = [
   "RUF",            # Ruff-specific rules
 ]
 ignore = [
-  "ANN101",  # missing self annotation
-  "ANN102",  # missing cls annotation
   "S101",    # assert in tests is fine (see per-file-ignores)
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "ANN", "S105", "S106"]  # test files don't need full type annotation
+"tests/**" = ["S101", "ANN", "S105", "S106", "S108"]  # test files don't need full type annotation
+"src/mery_tts/errors/taxonomy.py" = ["S105"]  # stable machine-readable auth error codes, not secrets
 
 [tool.ruff.format]
 quote-style = "double"
@@ -137,6 +135,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths    = ["tests"]
+pythonpath   = ["src"]
 addopts      = "-ra --tb=short"
 markers      = [
   "engine: tests that require a real engine binary/package installed (skip with -m 'not engine')",

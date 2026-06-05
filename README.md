@@ -59,12 +59,14 @@ See [`docs/use-cases.md`](docs/use-cases.md) for the full breakdown.
 
 ---
 
-## Quick start (once implemented)
+## Quick start — Phase 1 early access
+
+Phase 1 early access requires Terminal. Install with either `uv` or `pipx`, then run the first-run diagnostics and pairing commands locally.
 
 ```bash
-# Install
+# Install with uv
 uv tool install mery-tts-server
-# or
+# or install with pipx
 pipx install mery-tts-server
 
 # Check environment

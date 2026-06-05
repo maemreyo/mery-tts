@@ -1,6 +1,6 @@
 # Enforce bridge-only integration contract
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

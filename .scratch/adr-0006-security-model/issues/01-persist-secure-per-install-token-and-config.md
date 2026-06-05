@@ -1,6 +1,6 @@
 # Persist secure per-install token and config
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

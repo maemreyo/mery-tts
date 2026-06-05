@@ -1,6 +1,6 @@
 # Split artifact and voice storage identities
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

@@ -1,6 +1,6 @@
 # Define EngineAdapter and EngineRegistry discovery
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

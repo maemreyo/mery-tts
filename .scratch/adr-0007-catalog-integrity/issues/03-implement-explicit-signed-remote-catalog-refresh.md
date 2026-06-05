@@ -1,6 +1,6 @@
 # Implement explicit signed remote catalog refresh
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

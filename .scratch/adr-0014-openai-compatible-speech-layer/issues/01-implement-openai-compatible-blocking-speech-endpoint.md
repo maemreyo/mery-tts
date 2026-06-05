@@ -1,6 +1,6 @@
 # Implement OpenAI-compatible blocking speech endpoint
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

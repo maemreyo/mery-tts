@@ -1,6 +1,6 @@
 # Map domain failures to fallback policies
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

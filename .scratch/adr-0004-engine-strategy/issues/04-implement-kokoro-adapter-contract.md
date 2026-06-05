@@ -1,6 +1,6 @@
 # Implement Kokoro adapter contract
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

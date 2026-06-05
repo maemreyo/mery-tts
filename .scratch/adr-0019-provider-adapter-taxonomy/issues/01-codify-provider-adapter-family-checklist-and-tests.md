@@ -1,6 +1,6 @@
 # Codify provider adapter family checklist and tests
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

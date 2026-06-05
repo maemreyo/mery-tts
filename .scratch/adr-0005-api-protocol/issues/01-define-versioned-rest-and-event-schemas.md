@@ -1,6 +1,6 @@
 # Define versioned REST and event schemas
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

@@ -1,6 +1,6 @@
 # Claim pairing code for long-lived token
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

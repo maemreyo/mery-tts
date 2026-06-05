@@ -1,6 +1,6 @@
 # Define catalog schemas and verifier policy
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

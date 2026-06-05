@@ -1,6 +1,6 @@
 # Implement REST management endpoints
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

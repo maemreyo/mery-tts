@@ -1,6 +1,6 @@
 # Roll out Kokoro and Piper-plus as platform-integrated providers
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

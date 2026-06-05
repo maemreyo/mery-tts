@@ -1,6 +1,6 @@
 # Implement chunked HTTP PCM streaming for OpenAI speech
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

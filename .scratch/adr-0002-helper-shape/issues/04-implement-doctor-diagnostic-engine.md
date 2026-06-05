@@ -1,6 +1,6 @@
 # Implement mery doctor diagnostic engine
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

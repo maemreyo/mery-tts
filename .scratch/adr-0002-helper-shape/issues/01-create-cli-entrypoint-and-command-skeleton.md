@@ -1,6 +1,6 @@
 # Create CLI entrypoint and command skeleton
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

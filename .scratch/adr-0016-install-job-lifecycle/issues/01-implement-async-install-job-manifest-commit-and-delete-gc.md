@@ -1,6 +1,6 @@
 # Implement async install jobs, voice manifest commit, and delete GC
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

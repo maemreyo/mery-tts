@@ -1,6 +1,6 @@
 # Add OpenAI-compatible speech route to the v1 REST contract
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

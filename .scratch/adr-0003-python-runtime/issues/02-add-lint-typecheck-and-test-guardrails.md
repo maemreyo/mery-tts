@@ -1,6 +1,6 @@
 # Add lint typecheck and test guardrails
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

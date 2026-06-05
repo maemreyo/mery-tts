@@ -1,6 +1,6 @@
 # Install models with checksum and rollback
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

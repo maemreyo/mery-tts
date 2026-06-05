@@ -1,6 +1,6 @@
 # Add OpenAI-compatible chunked HTTP audio sink
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

@@ -1,6 +1,6 @@
 # Configure typed Python packaging with uv and hatchling
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

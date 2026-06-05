@@ -1,6 +1,6 @@
 # Reject unsafe model IDs and sensitive diagnostics
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

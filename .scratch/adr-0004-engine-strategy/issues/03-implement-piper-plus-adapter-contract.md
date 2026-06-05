@@ -1,6 +1,6 @@
 # Implement Piper-plus adapter contract
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

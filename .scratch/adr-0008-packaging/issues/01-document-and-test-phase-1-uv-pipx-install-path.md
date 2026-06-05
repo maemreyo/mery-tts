@@ -1,6 +1,6 @@
 # Document and test Phase 1 uv pipx install path
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

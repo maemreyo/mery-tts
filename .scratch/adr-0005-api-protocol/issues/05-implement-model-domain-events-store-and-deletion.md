@@ -1,6 +1,6 @@
 # Implement model domain — events, store, deletion, listing, and storage stats
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

@@ -1,6 +1,6 @@
 # Rotate pairing token and recover cleanly
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

@@ -1,6 +1,6 @@
 # Generate one-time pairing code and setup URL
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

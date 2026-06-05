@@ -1,6 +1,6 @@
 # Implement storage management CLI — show, move, and repair
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

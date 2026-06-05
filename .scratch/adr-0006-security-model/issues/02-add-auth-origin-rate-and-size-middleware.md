@@ -1,6 +1,6 @@
 # Add auth origin rate and size middleware
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

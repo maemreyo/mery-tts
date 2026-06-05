@@ -1,6 +1,6 @@
 # Define structured error taxonomy
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

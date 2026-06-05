@@ -1,6 +1,6 @@
 # Split CLI playback and streaming audio sinks
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

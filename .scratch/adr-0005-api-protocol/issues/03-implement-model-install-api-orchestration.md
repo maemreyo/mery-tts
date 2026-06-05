@@ -1,6 +1,6 @@
 # Implement model install API orchestration
 
-Status: ready-for-agent
+Status: completed
 
 ## Parent
 

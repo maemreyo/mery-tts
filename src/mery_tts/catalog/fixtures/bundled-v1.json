@@ -1,0 +1,41 @@
+{
+  "catalog_id": "bundled-v1",
+  "generated_at": "2026-06-05T00:00:00Z",
+  "expires_at": "2036-06-05T00:00:00Z",
+  "models": [
+    {
+      "model_id": "piper-plus.vi-vn.demo",
+      "engine_id": "piper-plus",
+      "locale": "vi-VN",
+      "quality_tier": "fixture",
+      "recommended_uses": ["offline-test", "vietnamese-reading"],
+      "files": [
+        {
+          "role": "model",
+          "filename": "vi_VN-demo.onnx",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "size_bytes": 1
+        }
+      ],
+      "license": "fixture-only",
+      "source": "bundled"
+    },
+    {
+      "model_id": "kokoro.en-us.af-heart.demo",
+      "engine_id": "kokoro",
+      "locale": "en-US",
+      "quality_tier": "fixture",
+      "recommended_uses": ["offline-test", "english-reading"],
+      "files": [
+        {
+          "role": "voice",
+          "filename": "af_heart.bin",
+          "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "size_bytes": 1
+        }
+      ],
+      "license": "fixture-only",
+      "source": "bundled"
+    }
+  ]
+}
