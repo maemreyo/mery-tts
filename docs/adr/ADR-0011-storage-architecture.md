@@ -86,11 +86,34 @@ resolves all storage locations internally from `settings/config.py`.
 - Storage migration (`storage move`) must be atomic enough that a crash leaves the
   helper in a consistent state (old directory intact or new directory complete).
 
+## Amendment — artifact and voice identity split
+
+**Date:** 2026-06-05  
+**Source:** Grill 03, Q34–Q38; ADR-0015/ADR-0016
+
+Installed storage uses two identity axes:
+
+```text
+artifactId -> stored bytes/package identity
+voiceId    -> installed/routable voice identity
+```
+
+Artifacts and voices are stored separately:
+
+```text
+artifacts/{engineId}/{artifactId}/artifact.json
+voices/{safeVoiceId}.json
+```
+
+A single artifact may be referenced by multiple installed voices, and one voice may reference multiple artifacts. Artifact garbage collection removes only artifacts with zero live voice-manifest references. Installed voice manifests persist logical artifact references and payload templates; runtime paths are hydrated by `VoiceRegistry.refresh()`.
+
 ## Related
 
 - ADR-0003 (Python runtime — `platformdirs` in dependencies)
 - ADR-0008 (packaging — packaging-agnostic path requirement)
 - ADR-0006 (security — `config.json` file permissions)
 - ADR-0007 (catalog integrity — bundled catalog path, model store path)
+- ADR-0015 (catalog model: normalized internal, flat external, artifact/voice identity)
+- ADR-0016 (install job lifecycle)
 - `docs/codebase/FOLDER_STRUCTURE.md` → storage layout section
 - `docs/integration/zam-reader-readiness-contract.md` §9

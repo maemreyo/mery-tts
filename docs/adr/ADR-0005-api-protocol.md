@@ -45,6 +45,7 @@ GET    /v1/health
 GET    /v1/engines
 GET    /v1/voices/installed
 GET    /v1/catalog/voices
+POST   /v1/audio/speech
 POST   /v1/models/install
 GET    /v1/models/install/{jobId}
 DELETE /v1/models/{modelId}
@@ -177,11 +178,22 @@ future desktop UI, or any other client without requiring WebSocket.
   `VoiceRegistry`; they assert every install event is emitted and
   `VoiceRegistry.refresh()` is called only after `InstallDone`.
 
+## Amendment — OpenAI-compatible speech route
+
+**Date:** 2026-06-05  
+**Source:** Grill 01, Q10; ADR-0014
+
+`POST /v1/audio/speech` is part of the REST surface. It is an OpenAI-compatible edge route mounted on the same `/v1` API, protected by the same auth model, and implemented as a transport adapter over native Mery voice resolution and synthesis.
+
+Only this route uses OpenAI-shaped request/error semantics. Native Mery routes keep native schemas and errors.
+
 ## Related
 
 - ADR-0001 — Product boundary and standalone helper ownership
 - ADR-0006 — Security model
 - ADR-0007 — Catalog integrity
+- ADR-0014 — OpenAI-compatible speech layer
+- ADR-0017 — PCM streaming protocol for `/v1/audio/speech`
 - `docs/architecture/ARCHITECTURE.md` — data flow: model install
 - `docs/codebase/FOLDER_STRUCTURE.md` — `api/orchestrators/` and `models/events.py`
 - `docs/integration/zam-reader-readiness-contract.md` §2

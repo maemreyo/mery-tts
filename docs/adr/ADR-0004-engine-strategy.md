@@ -108,9 +108,22 @@ Rules:
 - CI must run contract tests against both adapters (with fake engine stubs).
 - Documentation must explain the capability differences without exposing engine internals to Zam Reader.
 
+## Amendment — runtime health visibility
+
+**Date:** 2026-06-05  
+**Source:** Grill 01, Q4; ADR-0018/ADR-0019
+
+Import-time adapter failures keep the existing policy: the adapter load failure is logged as a warning, the adapter is skipped, and startup continues.
+
+Runtime health failures for adapters that loaded successfully are different. Loaded adapters whose dependencies, model files, or runtime checks fail should remain inspectable through `GET /v1/engines` with `status: degraded` or `status: unavailable` and a safe `status_reason`.
+
+This preserves startup resilience while making runtime health visible to the web console, diagnostics, and clients. Provider-specific health details stay inside the adapter; `/v1/engines` exposes only the stable engine descriptor/capability surface.
+
 ## Related
 
 - ADR-0001 (product boundary)
 - ADR-0005 (API protocol — engine descriptors)
+- ADR-0018 (provider rollout strategy)
+- ADR-0019 (provider adapter taxonomy)
 - `docs/FOLDER_STRUCTURE.md` → `engines/` module
 - `docs/reports/local-tts-solutions-research.md`

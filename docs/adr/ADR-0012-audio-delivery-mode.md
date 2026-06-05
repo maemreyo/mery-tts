@@ -126,10 +126,21 @@ would consume the same `AsyncIterator[PCMChunk]` and write to disk via
 `audio/exporter.py`. No changes to `EngineAdapter` or the WebSocket layer
 would be required.
 
+## Amendment — OpenAI-compatible chunked HTTP streaming
+
+**Date:** 2026-06-05  
+**Source:** Grill 01, Q7; Grill 02, Q20; ADR-0017
+
+The OpenAI-compatible `POST /v1/audio/speech` route uses chunked HTTP streaming for `stream=true + response_format=pcm`. This is distinct from the native `WS /v1/events` audio delivery path.
+
+WebSocket streaming remains the native event path for clients that speak Mery's event protocol. Chunked HTTP streaming serves OpenAI-compatible clients that expect audio bytes from the speech endpoint. Both consume the same `AsyncIterator[PCMChunk]` engine contract.
+
 ## Related
 
 - ADR-0002 (CLI + daemon hybrid shape — the two modes that motivated this split)
 - ADR-0005 (API protocol — `audio.chunk` / `audio.done` WebSocket event types)
 - ADR-0004 (Engine adapter contract — `AsyncIterator[PCMChunk]` return type)
+- ADR-0014 (OpenAI-compatible speech layer)
+- ADR-0017 (PCM streaming protocol for `/v1/audio/speech`)
 - `docs/architecture/ARCHITECTURE.md` → Layer 3 (audio/player.py, audio/encoder.py)
 - Design Decision 10 in `docs/reports/local-tts-helper-design-decisions.md`

@@ -159,7 +159,17 @@ package integrity (checksums at the package manager level, e.g. uv lockfile hash
 - `CatalogVerifier` must be tested with: valid signature, invalid signature, wrong key,
   expired catalog, schema mismatch, wrong-host, wrong-checksum, wrong-size scenarios
 
+## Amendment — catalog trust tiers
+
+**Date:** 2026-06-05  
+**Source:** Grill 03, Q31; ADR-0015
+
+The bundled-vs-remote trust split is retained and generalized for the normalized catalog model. Bundled catalog trust derives from package distribution and requires schema/graph validation but no mandatory runtime signature check. Remote catalog data is untrusted network input and must pass Ed25519 signature verification, schema/graph validation, expiry/freshness checks, and source/download allowlist checks before it is exposed or used for install.
+
+The catalog signature proves metadata integrity. Per-file SHA256 and size checks prove downloaded artifact integrity. Both layers are required for remote installs.
+
 ## Related
 
 - ADR-0001 (helper owns downloads, not Zam Reader)
+- ADR-0015 (catalog model: normalized internal, flat external, artifact/voice identity)
 - `docs/integration/zam-reader-readiness-contract.md` §5, §14

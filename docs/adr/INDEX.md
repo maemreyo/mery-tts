@@ -24,6 +24,14 @@ These ADRs distill the 27 design decisions from
 | Decision 18 (pairing flow) | ADR-0009 | |
 | Decision 19 (error taxonomy) | ADR-0010 | |
 | Decisions 3–6, 11, 15–16, 20–23 | — | Operational/guidance decisions; recorded in the design-decisions report only |
+| Grill 01, Q1 | ADR-0013 | VoiceDescriptor discriminated union |
+| Grill 01, Q3/Q7–Q11/Q17 | ADR-0014 | OpenAI-compatible speech layer |
+| Grill 01 Q5/Q6 + Grill 03 Q29/Q30/Q31/Q34/Q38 | ADR-0015 | Catalog model, artifact/voice identity |
+| Grill 03, Q32/Q33/Q35/Q36/Q37 | ADR-0016 | Install job lifecycle |
+| Grill 02, Q20–Q24 | ADR-0017 | PCM streaming protocol |
+| Grill 04, Q41–Q46 | ADR-0018 | Provider rollout strategy |
+| Grill 06 | ADR-0019 | Provider adapter taxonomy |
+| Grill 05, Q47–Q55 | ADR-0020 | Web console architecture |
 
 ---
 
@@ -43,6 +51,14 @@ These ADRs distill the 27 design decisions from
 | [ADR-0010](ADR-0010-error-taxonomy.md) | Full structured error taxonomy | ✅ Accepted |
 | [ADR-0011](ADR-0011-storage-architecture.md) | Server-owned storage with platformdirs and user override | ✅ Accepted |
 | [ADR-0012](ADR-0012-audio-delivery-mode.md) | Hybrid audio delivery mode | ✅ Accepted |
+| [ADR-0013](ADR-0013-voice-descriptor-discriminated-union.md) | VoiceDescriptor discriminated union | ⏳ Proposed |
+| [ADR-0014](ADR-0014-openai-compatible-speech-layer.md) | OpenAI-compatible speech layer | ⏳ Proposed |
+| [ADR-0015](ADR-0015-catalog-model-artifact-voice-identity.md) | Catalog model: normalized internal, flat external, artifact/voice identity | ⏳ Proposed |
+| [ADR-0016](ADR-0016-install-job-lifecycle.md) | Install job lifecycle | ⏳ Proposed |
+| [ADR-0017](ADR-0017-pcm-streaming-protocol.md) | PCM streaming protocol for `/v1/audio/speech` | ⏳ Proposed |
+| [ADR-0018](ADR-0018-provider-rollout-strategy.md) | Provider rollout strategy | ⏳ Proposed |
+| [ADR-0019](ADR-0019-provider-adapter-taxonomy.md) | Provider adapter taxonomy | ⏳ Proposed |
+| [ADR-0020](ADR-0020-web-console-architecture.md) | Web console architecture | ⏳ Proposed |
 
 ---
 
