@@ -222,22 +222,32 @@ Zam Reader
   ← { jobId: "...", status: "queued" }
 
 API routes/models.py
-  → ModelManager.start_install(modelId)
-    → CatalogManager.resolve(modelId)         # get URL, sha256, sizeBytes
-    → security: verify URL against allowlist
-    → download to cache/temp/  via httpx streaming
-    → ModelVerifier.verify(file, sha256, size)
-      → on fail: delete temp, emit install.failed
-    → atomic move to models/piper-plus/en-us.lessac.medium/
-    → update model store index
+  → delegates request to api/orchestrators/model_install.py
 
-WS /v1/events emits:
-  install.progress { jobId, bytesDownloaded, totalBytes, percent }
-  ...
-  install.done { jobId, modelId }
-  # or
-  install.failed { jobId, error: LocalTTSError }
+API orchestrator model_install.py
+  → async for event in ModelManager.install(modelId):
+      → translate InstallEvent domain event to WS /v1/events schema
+      → emit install.progress / install.done / install.failed
+      → on InstallDone: VoiceRegistry.refresh()
+
+models/manager.py
+  → exposes AsyncIterator[InstallEvent]
+  → CatalogManager.resolve(modelId)           # get URL, sha256, sizeBytes
+  → security: verify URL against allowlist
+  → download to cache/temp/ via httpx streaming
+  → yield InstallProgress(jobId, modelId, phase, percent, bytesDownloaded, totalBytes)
+  → ModelVerifier.verify(file, sha256, size)
+    → on fail: delete temp, yield InstallFailed(jobId, modelId, error)
+  → atomic move to models/piper-plus/en-us.lessac.medium/
+  → update model store index
+  → yield InstallDone(jobId, modelId, installedPath)
 ```
+
+**Boundary rule:** `ModelManager` owns the install state machine and emits a standalone
+`AsyncIterator[InstallEvent]` domain stream. It does not import `api/`, WebSocket
+schemas, or `VoiceRegistry`. The API orchestrator is the only component that knows
+both `ModelManager` and WS concerns; it performs protocol translation and refreshes
+`VoiceRegistry` after `InstallDone`.
 
 ---
 

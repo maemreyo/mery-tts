@@ -59,10 +59,15 @@ src/zam_tts/
 │   │   ├── voices.py           # GET /v1/voices/installed
 │   │   ├── catalog.py          # GET /v1/catalog/voices
 │   │   ├── models.py           # POST /v1/models/install, GET /v1/models/install/{jobId}
-│   │   │                       # DELETE /v1/models/{modelId}
+│   │   │                       # DELETE /v1/models/{modelId}; delegates install side effects
+│   │   │                       # to orchestrators/model_install.py
 │   │   ├── storage.py          # GET /v1/storage
 │   │   ├── diagnostics.py      # GET /v1/diagnostics
 │   │   └── pair.py             # POST /v1/pair/claim
+│   ├── orchestrators/
+│   │   └── model_install.py    # Consumes ModelManager.install() AsyncIterator[InstallEvent]
+│   │                           # Emits WS install.* schemas and calls VoiceRegistry.refresh()
+│   │                           # after InstallDone; routes stay thin, models stay WS-agnostic
 │   └── ws/
 │       └── events.py           # WS /v1/events — install.progress, audio.chunk, etc.
 │
@@ -120,7 +125,10 @@ src/zam_tts/
 │
 ├── models/                     # Model lifecycle: install, verify, delete, cache
 │   ├── __init__.py
-│   ├── manager.py              # ModelManager: orchestrates install/delete/list
+│   ├── events.py               # InstallEvent domain union: InstallProgress, InstallDone,
+│   │                           # InstallFailed; standalone contract for CLI/API/tests
+│   ├── manager.py              # ModelManager: install/delete/list; install() returns
+│   │                           # AsyncIterator[InstallEvent] and never imports api/ or WS
 │   ├── installer.py            # Download → temp → verify → atomic move
 │   ├── verifier.py             # SHA256 + sizeBytes check; rolls back on failure
 │   └── store.py                # Filesystem model store; path resolution by modelId
