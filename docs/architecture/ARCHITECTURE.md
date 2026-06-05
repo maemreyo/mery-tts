@@ -179,6 +179,20 @@ registry never imports any adapter directly — it loads them via
 - Third-party engines can be installed as separate packages and self-register.
 - Adapters that fail to load (missing optional-extra) are skipped with a warning; the registry degrades gracefully.
 
+**Entry-points is the single discovery mechanism — no dev-mode fallback.**
+Entry-points are only registered once the package is installed (`uv sync` / `pip install -e .`).
+Running the helper without installing first is a misconfigured environment, not a supported
+shortcut. `zam-tts doctor` checks for available engines and emits a clear structured diagnostic
+if none are found — the failure is explicit, not silent.
+
+This keeps production and development on an identical code path. No env-branching, no
+conditional imports, no DI bypass. `just install` is documented as step one of first-run setup
+precisely because it is a hard prerequisite.
+
+**Tests use `FakeEngineAdapter` injected directly via `conftest.py` fixtures** — they bypass
+`EngineRegistry` discovery entirely. Tests never depend on entry-points being registered,
+which keeps unit/contract tests fast and hermetic.
+
 After discovery, `EngineRegistry` checks health of each loaded adapter, caches
 their descriptors, and returns them without exposing internals.
 

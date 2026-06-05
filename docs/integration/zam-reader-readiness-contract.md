@@ -324,7 +324,8 @@ zam-tts speak --text "Hello" --play
 - config directory;
 - storage directory;
 - catalog validity;
-- engine availability;
+- **engine availability** — `EngineRegistry` loaded at least one adapter via entry-points;
+  failure message: `"No engine adapters found. Did you run 'just install'?"`;
 - model store integrity;
 - localhost bind availability;
 - pairing status;

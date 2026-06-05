@@ -379,13 +379,14 @@ cd zam-local-tts-helper
 # Install uv (if needed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install all deps including engines
+# Install all deps including engines  ← REQUIRED before running anything
+# Entry-points (EngineRegistry discovery) are only registered after this step.
 just install
 
 # Verify environment
 just doctor
 
-# Run tests (no engine required)
+# Run tests (no engine required — tests inject FakeEngineAdapter directly)
 just test
 
 # Start dev server

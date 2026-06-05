@@ -7,11 +7,14 @@ default:
 
 # ─── Setup ──────────────────────────────────────────────────────────────────
 
-# Install all deps (core + dev + all engines)
+# Install all deps (core + dev + all engines). REQUIRED before running anything.
+# Entry-points (EngineRegistry discovery) are only registered after this step.
+# Skipping this = no engines found. Run `just doctor` to verify.
 install:
     uv sync --all-extras
 
-# Install core + dev only (no engine binaries)
+# Install core + dev only (no engine binaries). Entry-points still registered;
+# engine adapters will be skipped at load time (ImportError → WARNING, not crash).
 install-dev:
     uv sync --extra dev
 

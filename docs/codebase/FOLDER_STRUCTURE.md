@@ -96,7 +96,12 @@ src/zam_tts/
 │   │                           # ABC: health(), voices(), synthesize() → AsyncIterator[PCMChunk]
 │   │                           # CancelToken: shared dataclass for session cancellation
 │   │                           # EngineRegistry discovers adapters via entry-points group
-│   │                           # "zam_tts.engines" — open for extension, closed for modification
+│   │                           # "zam_tts.engines" — this is the SINGLE discovery mechanism.
+│   │                           # No dev-mode fallback, no conditional imports, no env-branching.
+│   │                           # Prerequisite: package must be installed (uv sync / pip install -e .)
+│   │                           # If no adapters found: doctor emits structured diagnostic,
+│   │                           # registry degrades gracefully (engines list empty, not a crash).
+│   │                           # Tests inject FakeEngineAdapter directly — never touch entry-points.
 │   │                           # Adding a new engine = new subdirectory + one entry-point line;
 │   │                           # EngineRegistry code never changes
 │   ├── voice_registry.py       # VoiceRegistry — voice_id → (EngineAdapter, VoiceDescriptor)

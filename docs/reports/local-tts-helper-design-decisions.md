@@ -1283,10 +1283,62 @@ class VoiceRegistry:
 
 ---
 
+## Decision 27 — `EngineRegistry` discovery mechanism
+
+**Question:** How should `EngineRegistry` discover engine adapters in dev mode before the package is installed? Should there be a fallback?
+
+**Verdict:** **Entry-points is the single discovery mechanism. No dev-mode fallback.**
+`uv sync` / `pip install -e .` is a hard prerequisite before running anything.
+
+**Rationale:**
+
+- **Identical code path in production and development.** A dev-mode fallback (env-branching, conditional imports, DI bypass) creates two diverging code paths. Bugs can appear in one and be invisible in the other.
+- **Entry-points is the scalability mechanism.** Third-party engines self-register via entry-points. That mechanism only works reliably if it is *the* mechanism — not one of several competing paths.
+- **Friction is intentional.** Running the helper without installing is a misconfigured environment. Making it silently "work" would mask setup errors and give developers a false sense that their changes are working against production-equivalent conditions.
+- **`zam-tts doctor` is the explicit failure surface.** If no engines are found (because package not installed), `doctor` emits a structured `engine.unavailable` diagnostic with a clear recommended action, not a cryptic import error. Failure is explicit, not silent.
+- **Tests are hermetic regardless.** Unit and contract tests inject `FakeEngineAdapter` directly via `conftest.py` fixtures — they never depend on entry-points being registered. Tests run fast and correctly even before `just install`.
+
+**`pyproject.toml` entry-point registration:**
+
+```toml
+[project.entry-points."zam_tts.engines"]
+piper-plus = "zam_tts.engines.piper_plus.adapter:PiperPlusAdapter"
+kokoro     = "zam_tts.engines.kokoro.adapter:KokoroAdapter"
+```
+
+**`EngineRegistry` discovery flow:**
+
+```text
+startup
+  → importlib.metadata.entry_points(group="zam_tts.engines")
+  → for each entry-point:
+      try: load + instantiate adapter
+      on ImportError (optional-extra not installed): skip with WARNING log
+      on any other error: skip with ERROR log + structured diagnostic
+  → health-check each loaded adapter
+  → cache descriptors
+  → if zero adapters loaded: log WARNING; doctor check will surface this
+```
+
+**Doctor check added:**
+
+`zam-tts doctor` checks `engine availability` — verifies `EngineRegistry` loaded at least
+one adapter. Failure message: `"No engine adapters found. Did you run 'just install'?"`
+with `recommendedAction: "run_just_install"`.
+
+**Testing contract:**
+
+- Unit: `EngineRegistry` with mocked entry-points returning `FakeEngineAdapter` → loads correctly
+- Unit: entry-point that raises `ImportError` → skipped with warning, other adapters load
+- Unit: entry-point that raises unexpected error → skipped with error, registry does not crash
+- Unit: zero adapters loaded → `EngineRegistry.adapters` returns empty list, no exception
+- Contract: `GET /v1/engines` with zero adapters → returns empty list + `degraded` health status
+
+---
+
 ## Open Decision Queue
 
 The following branches still need grilling:
 
-1. `EngineRegistry` entry-points discovery — dev-mode fallback before package is installed.
-2. Final implementation slice breakdown → GitHub issues.
-3. Zam Reader bridge issue breakdown.
+1. Final implementation slice breakdown → GitHub issues.
+2. Zam Reader bridge issue breakdown.
