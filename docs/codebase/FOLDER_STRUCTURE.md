@@ -87,18 +87,36 @@ src/zam_tts/
 │
 ├── engines/                    # TTS engine adapters (isolated, swappable)
 │   ├── __init__.py
-│   ├── base.py                 # EngineAdapter ABC + EngineRegistry
+│   ├── base.py                 # EngineAdapter ABC + EngineRegistry + CancelToken
 │   │                           # ABC: health(), voices(), synthesize() → AsyncIterator[PCMChunk]
+│   │                           # CancelToken: shared dataclass for session cancellation
+│   │                           # EngineRegistry discovers adapters via entry-points group
+│   │                           # "zam_tts.engines" — open for extension, closed for modification
+│   │                           # Adding a new engine = new subdirectory + one entry-point line;
+│   │                           # EngineRegistry code never changes
+│   ├── voice_registry.py       # VoiceRegistry — voice_id → (EngineAdapter, VoiceDescriptor)
+│   │                           # SRP: EngineRegistry owns adapters; VoiceRegistry owns routing
+│   │                           # Built by querying all loaded adapters; refresh() called on
+│   │                           # model install/delete events (voice list may change)
 │   ├── piper_plus/
 │   │   ├── __init__.py
 │   │   ├── adapter.py          # PiperPlusAdapter implements EngineAdapter
-│   │   └── process.py          # Manages piper-plus subprocess lifecycle
+│   │   │                       # Owns session_id lifecycle; delegates synthesis to model_runner
+│   │   └── model_runner.py     # Blocking→async bridge: ThreadPoolExecutor + asyncio.Queue
+│   │                           # Uses piper_plus.PiperPlus(...) — no subprocess, no binary on PATH
+│   │                           # Owns: thread pool, CancelToken registry keyed by session_id
 │   └── kokoro/
 │       ├── __init__.py
-│       └── adapter.py          # KokoroAdapter implements EngineAdapter
+│       ├── adapter.py          # KokoroAdapter implements EngineAdapter
+│       │                       # Owns session_id lifecycle; delegates synthesis to model_runner
+│       └── model_runner.py     # Blocking→async bridge: ThreadPoolExecutor + asyncio.Queue
+│                               # Uses kokoro_onnx directly — no subprocess, no binary on PATH
+│                               # Owns: thread pool, CancelToken registry keyed by session_id
 │
 │   RULE: No engine-specific code may appear outside its own subdirectory.
 │   RULE: engine adapters import from `schemas/` and `models/`; never from `api/`.
+│   RULE: VoiceRegistry is the single source of truth for voice→engine routing;
+│         no route handler or WS handler resolves voiceId directly.
 │
 ├── models/                     # Model lifecycle: install, verify, delete, cache
 │   ├── __init__.py

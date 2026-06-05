@@ -62,6 +62,13 @@ dev = [
 [project.scripts]
 zam-tts = "zam_tts.cli.main:app"
 
+# Engine adapters register here — EngineRegistry discovers them at startup
+# via importlib.metadata.entry_points(group="zam_tts.engines").
+# To add a new engine: new subdirectory + one line here. EngineRegistry never changes.
+[project.entry-points."zam_tts.engines"]
+piper-plus = "zam_tts.engines.piper_plus.adapter:PiperPlusAdapter"
+kokoro     = "zam_tts.engines.kokoro.adapter:KokoroAdapter"
+
 [project.urls]
 Repository = "https://github.com/zaob-dev/zam-local-tts-helper"
 Issues     = "https://github.com/zaob-dev/zam-local-tts-helper/issues"

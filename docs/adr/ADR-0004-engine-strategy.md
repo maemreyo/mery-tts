@@ -33,6 +33,47 @@ Ship **at least two TTS engine adapters from the first usable milestone**:
 | `piper-plus` | Lightweight local voice | Fast, low-RAM, multilingual, Vietnamese-capable |
 | `kokoro` | Quality local voice | More natural English listening |
 
+## Engine adapter implementation pattern
+
+**Verdict (Grill Q1):** Engine adapters call engine Python libraries directly — **no subprocess**.
+
+- `PiperPlusAdapter` uses `piper_plus.PiperPlus(onnx_path)` Python API
+- `KokoroAdapter` uses `kokoro_onnx` Python API
+- Each adapter's `model_runner.py` manages **Python object lifecycle**: model loading, warmup, inference thread-pool — not an OS process
+- No engine binary is required on `$PATH`; inference is pure Python + ONNX Runtime
+- Principle: adapters must be **flexible, scalable, SoC, modular, extensible** — all engine-specific logic is fully contained inside its subdirectory; nothing outside changes when an engine is added
+
+This ensures `uv tool install` (ADR-0008 Phase 1) works without any extra binary install step.
+
+## EngineRegistry discovery pattern
+
+**Verdict (Grill Q2):** `EngineRegistry` uses **entry-point plugin discovery** — not hardcoded imports.
+
+```toml
+# pyproject.toml
+[project.entry-points."zam_tts.engines"]
+piper-plus = "zam_tts.engines.piper_plus.adapter:PiperPlusAdapter"
+kokoro     = "zam_tts.engines.kokoro.adapter:KokoroAdapter"
+```
+
+```python
+# engines/base.py — EngineRegistry startup
+from importlib.metadata import entry_points
+
+for ep in entry_points(group="zam_tts.engines"):
+    try:
+        adapter_cls = ep.load()
+        self._register(adapter_cls())
+    except Exception:
+        logger.warning("engine %s failed to load, skipping", ep.name)
+```
+
+Rules:
+- `EngineRegistry` **never** imports any adapter class directly
+- Adding a new engine = new subdirectory + one entry-point line in `pyproject.toml`
+- Third-party engines can self-register from separate packages
+- Failed load → logged warning, adapter skipped; registry does not crash
+
 ## Engine selection rules
 
 - `piper-plus` uses `piper-plus[inference]` Python package (MIT license)

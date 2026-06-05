@@ -65,25 +65,29 @@ without changing its internal structure.
 ## Module dependency graph (allowed → arrows)
 
 ```text
-cli/       → api/, engines/, models/, catalog/, security/, diagnostics/, settings/, schemas/
-api/       → engines/, models/, catalog/, security/, diagnostics/, settings/, schemas/
-engines/   → schemas/v1/, models/, settings/
-models/    → schemas/v1/, catalog/, settings/
-catalog/   → schemas/v1/, settings/
-security/  → schemas/v1/, settings/
-diagnostics/ → schemas/v1/, engines/, models/, security/, settings/
-schemas/   → (nothing inside zam_tts)
-settings/  → (nothing inside zam_tts)
-audio/     → settings/
+cli/            → api/, engines/, models/, catalog/, security/, diagnostics/, settings/, schemas/
+api/routes/     → engines/, models/, catalog/, security/, diagnostics/, settings/, schemas/
+api/ws/         → engines/voice_registry, security/, schemas/   ← WS handler via VoiceRegistry only
+engines/base    → schemas/v1/, settings/
+engines/voice_registry → engines/base, schemas/v1/             ← routing concern, separate from adapter mgmt
+models/         → schemas/v1/, catalog/, settings/
+catalog/        → schemas/v1/, settings/
+security/       → schemas/v1/, settings/
+diagnostics/    → schemas/v1/, engines/, models/, security/, settings/
+schemas/        → (nothing inside zam_tts)
+settings/       → (nothing inside zam_tts)
+audio/          → settings/
 ```
 
 **Strict prohibitions:**
 
 - `engines/` never imports `api/` — engines do not know the server exists
+- `api/ws/` never imports `engines/base` directly — routes through `VoiceRegistry` only
 - `models/` never imports `engines/` — model storage is engine-agnostic
 - `catalog/` never imports `engines/` or `models/` — catalog is pure data
 - `schemas/` never imports anything from `zam_tts` — no circular deps
 - No module imports from `tests/` or `scripts/`
+- `engines/voice_registry` never imports `api/` or `models/` — it is a pure routing index
 
 ---
 
@@ -122,8 +126,61 @@ class EngineAdapter(ABC):
     async def cancel(self, session_id: str) -> None: ...
 ```
 
-`EngineRegistry` is a simple container that holds registered adapters, checks
-their health at startup, and returns descriptors without exposing internals.
+### Async synthesis bridge (blocking inference → `AsyncIterator[PCMChunk]`)
+
+Engine libraries (piper-plus, kokoro-onnx) are **synchronous**. The adapter bridges
+this to the async interface via `run_in_executor` + `asyncio.Queue`:
+
+```python
+# engines/piper_plus/model_runner.py (pattern)
+class PiperPlusModelRunner:
+    def __init__(self) -> None:
+        self._thread_pool = ThreadPoolExecutor(max_workers=2)
+        self._cancel_tokens: dict[str, CancelToken] = {}
+
+    async def synthesize_stream(
+        self, text: str, voice_id: str, session_id: str
+    ) -> AsyncIterator[PCMChunk]:
+        token = CancelToken()
+        self._cancel_tokens[session_id] = token
+        queue: asyncio.Queue[PCMChunk | None] = asyncio.Queue()
+        loop = asyncio.get_event_loop()
+
+        def _blocking() -> None:
+            for chunk in self._model.synthesize(text, voice_id):   # blocking
+                if token.is_cancelled:
+                    break
+                loop.call_soon_threadsafe(queue.put_nowait, chunk)
+            loop.call_soon_threadsafe(queue.put_nowait, None)      # sentinel
+
+        loop.run_in_executor(self._thread_pool, _blocking)
+        while (item := await queue.get()) is not None:
+            yield item
+        self._cancel_tokens.pop(session_id, None)
+
+    def cancel(self, session_id: str) -> None:
+        if token := self._cancel_tokens.get(session_id):
+            token.cancel()
+```
+
+**SoC split:**
+- `model_runner.py` — owns threading, `ThreadPoolExecutor`, `CancelToken` registry
+- `adapter.py` — owns `EngineAdapter` protocol, `session_id` lifecycle, delegates to runner
+- `base.py` — owns `CancelToken` dataclass (shared across all engine adapters)
+
+Concurrent sessions do not conflict: each `session_id` gets its own `CancelToken`.
+
+`EngineRegistry` discovers adapters at startup via Python **entry-points** (group
+`"zam_tts.engines"`). Each adapter registers itself in `pyproject.toml`; the
+registry never imports any adapter directly — it loads them via
+`importlib.metadata.entry_points`. This means:
+
+- Adding a new engine = new subdirectory + one line in `pyproject.toml`. Zero changes to `EngineRegistry`.
+- Third-party engines can be installed as separate packages and self-register.
+- Adapters that fail to load (missing optional-extra) are skipped with a warning; the registry degrades gracefully.
+
+After discovery, `EngineRegistry` checks health of each loaded adapter, caches
+their descriptors, and returns them without exposing internals.
 
 ---
 
@@ -137,9 +194,10 @@ Zam Reader
 
 API ws/events.py
   → authenticate request (token in WS handshake header)
-  → resolve voiceId → engineId via VoiceRegistry
-  → call EngineRegistry.get(engineId).synthesize(text, voiceId, sessionId)
-  → async for chunk in adapter.synthesize(...):
+  → VoiceRegistry.resolve(voiceId) → (EngineAdapter, VoiceDescriptor)
+      VoiceRegistry is injected; ws/events.py never touches EngineRegistry directly
+  → adapter.synthesize(text, voiceId, sessionId) → AsyncIterator[PCMChunk]
+  → async for chunk in stream:
       emit audio.chunk event with base64 PCM16 payload
   → emit audio.done event
 
@@ -148,6 +206,11 @@ Zam Reader
   → plays via Web Audio / offscreen document
   → emits PlaybackEvent.utteranceStarted / wordBoundary / done
 ```
+
+**SRP split:**
+- `EngineRegistry` — owns adapter lifecycle (discovery, health, load/unload)
+- `VoiceRegistry` — owns voice→engine routing; refreshed on model install/delete
+- `ws/events.py` — owns WS protocol; depends on `VoiceRegistry` only, not `EngineRegistry`
 
 ---
 
