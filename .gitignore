@@ -39,3 +39,4 @@ diagnostics/
 *.pth
 *.wav
 *.mp3
+.omo/
