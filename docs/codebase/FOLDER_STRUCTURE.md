@@ -101,6 +101,9 @@ src/zam_tts/
 │   │                           # EngineRegistry code never changes
 │   ├── voice_registry.py       # VoiceRegistry — voice_id → (EngineAdapter, VoiceDescriptor)
 │   │                           # SRP: EngineRegistry owns adapters; VoiceRegistry owns routing
+│   │                           # Refresh model: copy-on-write — refresh() builds new dict,
+│   │                           # atomically swaps _routing; active sessions retain old adapter
+│   │                           # reference via Python object lifetime (lock-free reads)
 │   │                           # Built by querying all loaded adapters; refresh() called on
 │   │                           # model install/delete events (voice list may change)
 │   ├── piper_plus/
@@ -135,9 +138,12 @@ src/zam_tts/
 │
 ├── catalog/                    # Catalog: load, validate, sign, refresh
 │   ├── __init__.py
-│   ├── loader.py               # Load bundled or cached remote catalog
-│   ├── verifier.py             # Signature + schema + expiry validation
-│   ├── refresher.py            # Explicit user-triggered remote refresh
+│   ├── loader.py               # CatalogLoader: file I/O only — reads bundled or cached remote JSON
+│   ├── verifier.py             # CatalogVerifier: two-method interface —
+│   │                           #   load_bundled(): schema + expiry only (trusted by installation)
+│   │                           #   verify_remote(): Ed25519 sig + schema + expiry (all required)
+│   │                           # SoC: owns cryptographic verification; no I/O, no api/, no models/
+│   ├── refresher.py            # Explicit user-triggered remote refresh (fetches + calls verifier)
 │   └── bundled/
 │       └── catalog-v1.json     # Curated bundled catalog (checked into repo)
 │
@@ -150,7 +156,9 @@ src/zam_tts/
 │   ├── __init__.py
 │   ├── token.py                # Per-install token generation, rotation, validation
 │   ├── pairing.py              # One-time code generation, claim, expiry
-│   └── guard.py                # Rate limiter, request-size guard, path rejection
+│   ├── guard.py                # Rate limiter, request-size guard, path rejection
+│   └── catalog_pubkey.py       # Ed25519 public key constant for remote catalog verification
+│                               # Key is hardcoded bytes; rotation requires a package release
 │
 ├── diagnostics/                # Doctor checks and structured error types
 │   ├── __init__.py

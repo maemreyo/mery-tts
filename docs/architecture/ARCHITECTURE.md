@@ -210,6 +210,9 @@ Zam Reader
 **SRP split:**
 - `EngineRegistry` — owns adapter lifecycle (discovery, health, load/unload)
 - `VoiceRegistry` — owns voice→engine routing; refreshed on model install/delete
+  - **Refresh model: copy-on-write.** `refresh()` builds a new routing dict then atomically
+    swaps `_routing`. Active synthesis sessions retain their adapter reference (Python object
+    lifetime) until the stream completes — no lock, no session tracking, correct by construction.
 - `ws/events.py` — owns WS protocol; depends on `VoiceRegistry` only, not `EngineRegistry`
 
 ---

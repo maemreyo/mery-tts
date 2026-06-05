@@ -24,6 +24,7 @@ for `zam-local-tts-helper`.
 | `soundfile` | `≥0.12` | Read/write WAV/AIFF for `--output` CLI mode |
 | `numpy` | `≥1.26` | PCM buffer handling; required by both sounddevice and ONNX engines |
 | `anyio` | `≥4.6` | Async primitives (cancel scopes, task groups) used by uvicorn/FastAPI |
+| `cryptography` | `≥43` | Ed25519 signature verification for remote catalog; `secrets` module handles auth tokens |
 
 ### Engine optional dependencies (installed per-user need)
 
@@ -102,6 +103,7 @@ dependencies = [
   "soundfile>=0.12",
   "numpy>=1.26",
   "anyio>=4.6",
+  "cryptography>=43",
 ]
 
 [project.scripts]
@@ -398,7 +400,7 @@ automatically by `uv` in the project root. No manual `pip install` needed.
 ```bash
 # .env (gitignored)
 ZAM_TTS_ENV=development          # Enables console logging, hot reload hints
-ZAM_TTS_PORT=8765                # Override default port
+ZAM_TTS_PORT=8765                # Default: 8765. On conflict: structured error, no silent fallback
 ZAM_TTS_LOG_LEVEL=DEBUG          # Verbose logs
 ZAM_TTS_DATA_DIR=/tmp/zam-tts   # Isolated data dir for dev (avoids clobbering real data)
 ```

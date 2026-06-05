@@ -20,6 +20,9 @@ token + origin allowlist + request hardening.
 ```text
 Network
   bind only 127.0.0.1 / ::1 — never 0.0.0.0
+  default port: 8765 (override via ZAM_TTS_PORT env var)
+  on port conflict: emit structured error, do NOT silently fall back to random port
+  actual bound port written to config.json on every startup
 
 Authentication
   generate per-install auth token at first run (secrets.token_urlsafe(32))

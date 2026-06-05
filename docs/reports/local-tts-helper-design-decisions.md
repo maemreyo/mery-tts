@@ -1068,9 +1068,225 @@ zaob-dev/
 
 ---
 
+---
+
+## Decision 23 — Implementation starting point
+
+**Question:** When starting runtime implementation, which layer should be built first?
+
+**Verdict:** Build the **foundation layer first**: `schemas/v1/`, `settings/config.py`, `diagnostics/errors.py`.
+
+**Rationale:**
+
+- Every other module (`engines/`, `api/`, `models/`, `catalog/`, `security/`) imports from `schemas/`. Building schemas first gives all later layers a concrete contract to implement against.
+- `settings/config.py` is required by every layer (path resolution, port, env). It has no upstream deps inside `zam_tts` — it is the safest first module.
+- `diagnostics/errors.py` defines `LocalTTSError` and error codes used across all layers. Building it early means error handling is consistent from day one, not retrofitted.
+- Foundation layer is **fully unit-testable with no server, no engine, no model download** — keeps CI fast from the first PR.
+- Avoids "implement first, schema later" drift that forces downstream rewrites.
+
+**Implementation order:**
+
+```text
+Slice 0 — Foundation (no I/O, no deps outside stdlib + pydantic)
+  schemas/v1/           → all Pydantic request/response/event models
+  settings/config.py    → HelperSettings, path resolution via platformdirs
+  diagnostics/errors.py → LocalTTSError, ErrorCategory, error code factory
+
+Slice 1 — Security + Catalog (pure logic, minimal I/O)
+  security/token.py, pairing.py, guard.py
+  catalog/loader.py, verifier.py, bundled/catalog-v1.json
+
+Slice 2 — Model lifecycle
+  models/store.py, verifier.py, installer.py, manager.py
+
+Slice 3 — Engine adapters
+  engines/base.py (EngineAdapter ABC, EngineRegistry, CancelToken)
+  engines/piper_plus/
+  engines/kokoro/
+  engines/voice_registry.py
+
+Slice 4 — API + CLI
+  api/app.py, middleware.py, dependencies.py
+  api/routes/*, api/ws/events.py, api/orchestrators/model_install.py
+  cli/*
+```
+
+**Guardrails:**
+
+- Each slice must have unit/contract tests before moving to the next.
+- No slice may introduce a dep on a later slice.
+- `depcruise` rules enforced from Slice 0.
+
+---
+
+## Decision 24 — Default port
+
+**Question:** Should the default port be fixed, random, or fixed-with-random-fallback?
+
+**Verdict:** **Fixed default `8765`**, overridable via `ZAM_TTS_PORT` env var. Actual bound port written to `config.json` on startup.
+
+**Rationale:**
+
+- **Standalone testability**: contract tests need a deterministic port; random port requires every test to read config before connecting.
+- **Debuggability**: `curl http://127.0.0.1:8765/v1/health` works immediately with no config lookup.
+- **Pairing flow already handles port distribution** — `POST /v1/pair/claim` returns the real port to Zam Reader. Zam Reader never hardcodes the port. A fixed default does not create coupling.
+- **Env var override** (`ZAM_TTS_PORT=9000`) provides sufficient flexibility for dev, CI isolation, and multi-instance scenarios.
+- Random-port-on-every-start adds a config-read step for every CLI subcommand that needs to connect to a running server — unnecessary complexity.
+
+**Behavior:**
+
+```text
+1. Helper reads ZAM_TTS_PORT env var (default: 8765).
+2. Attempts to bind 127.0.0.1:<port>.
+3. On success: writes bound port to config.json, starts server.
+4. On failure (port in use): emits structured error engine.port_in_use with
+   recommended_action: set ZAM_TTS_PORT or stop conflicting process.
+   Does NOT silently fall back to a random port — that would hide conflicts.
+5. CLI tools that need to connect to a running server read port from config.json.
+```
+
+**Config implication:**
+
+```json
+{
+  "port": 8765,
+  "token": "<per-install token>",
+  "allowedOrigins": [],
+  "modelDirOverride": null
+}
+```
+
+**Settings implication:**
+
+```python
+class HelperSettings(BaseSettings):
+    port: int = 8765
+    env: Literal["development", "production"] = "production"
+    log_level: str = "INFO"
+    data_dir: Path | None = None  # None → resolved by platformdirs at runtime
+
+    model_config = SettingsConfigDict(env_prefix="ZAM_TTS_")
+```
+
+---
+
+## Decision 25 — Catalog signing mechanism
+
+**Question:** What cryptographic mechanism should sign the remote catalog? And should the bundled catalog be verified the same way?
+
+**Verdict:**
+- **Remote catalog:** Ed25519 signature, verified against a public key hardcoded in `security/catalog_pubkey.py`.
+- **Bundled catalog:** No signature check — trusted by installation. Schema + expiry validation only.
+
+**Rationale:**
+
+- **Ed25519 over HMAC-SHA256:** HMAC is symmetric — the verify key and sign key are the same secret. Distributing it in the package would mean anyone with the package can forge a catalog. Ed25519 is asymmetric: public key in package, private key only on maintainer CI/machine.
+- **Ed25519 over RSA:** Smaller keys (32 bytes), no padding choices, no parameter tuning. `cryptography` library handles both equally well.
+- **Bundled catalog needs no signature:** If an attacker can tamper `catalog-v1.json` inside an installed package, they already own the installation — adding signature verification for bundled gains nothing. Package integrity is already enforced at the package manager level (uv lockfile hashes, pip hash-checking mode).
+- **`CatalogVerifier` two-method interface** maintains SoC: `load_bundled()` (schema + expiry only) vs `verify_remote()` (Ed25519 + schema + expiry). Callers can't accidentally skip verification on remote catalogs — the API makes it structurally impossible.
+
+**Key management:**
+
+```text
+Private key  → maintainer machine / CI secrets only; never in repo
+Public key   → hardcoded bytes constant in security/catalog_pubkey.py
+               rotation requires a package release (intentional — trust event)
+```
+
+**Signing process (offline, maintainer):**
+
+```text
+1. Build catalog-v1.json without the "signature" field
+2. Serialize: json.dumps(catalog, sort_keys=True, ensure_ascii=False).encode("utf-8")
+3. Sign with Ed25519 private key → signature bytes
+4. Encode signature as lowercase hex string
+5. Write back to catalog-v1.json with "signature": "<hex>"
+```
+
+**Verification process (`catalog/verifier.py`):**
+
+```text
+verify_remote(catalog_json: bytes) → CatalogData:
+1. Parse JSON, extract and remove "signature" field
+2. Re-serialize canonical form (sort_keys=True)
+3. Load Ed25519 public key from security/catalog_pubkey.py
+4. Verify signature — raises catalog.signature_invalid on failure
+5. Validate schema (Pydantic)
+6. Check expiresAt — raises catalog.expired if past
+7. Return CatalogData
+```
+
+**Testing implication:**
+
+- `conftest.py` generates a test Ed25519 keypair in memory; fixture catalog is signed with it.
+- `security/catalog_pubkey.py` is monkeypatched to the test public key in unit/contract tests.
+- Test cases required: valid signature, invalid signature, wrong public key, truncated signature,
+  expired catalog, schema mismatch, missing signature field.
+
+**Architecture implication:**
+
+- Add `cryptography>=43` to runtime dependencies in `pyproject.toml`.
+- `catalog/verifier.py` imports from `security/catalog_pubkey.py` — this is the only allowed
+  cross-module dep from `catalog/` to `security/` (data dep, not behavior dep).
+- `catalog/loader.py` owns file I/O only; `catalog/verifier.py` owns verification only.
+
+---
+
+## Decision 26 — `VoiceRegistry.refresh()` concurrency model
+
+**Question:** When `refresh()` runs while active synthesis sessions hold references to adapters, how do we prevent races without blocking audio streaming?
+
+**Verdict:** **Copy-on-write refresh** — `refresh()` builds a new routing dict, then atomically swaps the `_routing` attribute. Active sessions retain their existing adapter reference until the stream completes naturally.
+
+**Rationale:**
+
+- **Lock-free reads are required.** `ws/events.py` calls `resolve()` on every audio stream setup — potentially hundreds of concurrent sessions at low latency. An `asyncio.Lock` on every read is a latency regression with no correctness benefit after the initial lookup.
+- **Correctness by construction.** After `resolve()` returns `(adapter, voice)`, the caller owns a Python object reference. Even if `_routing` is swapped, the GC keeps the old adapter alive until zero references remain. No explicit session tracking required.
+- **SoC stays clean.** `VoiceRegistry` does not need to know about active WS sessions, session counts, or synthesis state. It only swaps a pointer.
+- **Testable in isolation.** Test can: grab a reference via `resolve()`, call `refresh()`, assert old reference is still valid, assert new `resolve()` returns the updated adapter.
+
+**Implementation contract:**
+
+```python
+class VoiceRegistry:
+    def __init__(self) -> None:
+        self._routing: dict[str, tuple[EngineAdapter, VoiceDescriptor]] = {}
+
+    def resolve(self, voice_id: str) -> tuple[EngineAdapter, VoiceDescriptor]:
+        # Lock-free read — one atomic Python attribute load.
+        # Caller holds the returned reference; GC handles lifetime.
+        routing = self._routing
+        if voice_id not in routing:
+            raise LocalTTSError(code="synthesis.voice_not_found", ...)
+        return routing[voice_id]
+
+    async def refresh(self, adapters: Sequence[EngineAdapter]) -> None:
+        # Build entirely new dict before touching _routing.
+        new_routing: dict[str, tuple[EngineAdapter, VoiceDescriptor]] = {}
+        for adapter in adapters:
+            for voice in await adapter.voices():
+                new_routing[voice.voiceId] = (adapter, voice)
+        self._routing = new_routing   # atomic swap; old dict lives until all refs drop
+```
+
+**SRP split (unchanged from ARCHITECTURE.md):**
+- `EngineRegistry` — owns adapter lifecycle (discovery, health, load/unload)
+- `VoiceRegistry` — owns voice→engine routing; refresh called by `api/orchestrators/model_install.py` after `InstallDone` / `DeleteDone`
+- `ws/events.py` — holds adapter reference only for the duration of one stream; never touches `EngineRegistry` directly
+
+**Testing requirements:**
+- Unit: resolve before refresh → old adapter still valid after refresh
+- Unit: resolve after refresh → returns new adapter
+- Unit: unknown voice_id → `LocalTTSError(code="synthesis.voice_not_found")`
+- Unit: empty adapter list → resolve raises, does not panic
+- Contract: WS synthesize mid-refresh does not corrupt audio stream
+
+---
+
 ## Open Decision Queue
 
 The following branches still need grilling:
 
-1. Final architecture synthesis / PRD handoff.
-2. Issue breakdown for standalone helper app and Zam Reader bridge.
+1. `EngineRegistry` entry-points discovery — dev-mode fallback before package is installed.
+2. Final implementation slice breakdown → GitHub issues.
+3. Zam Reader bridge issue breakdown.
