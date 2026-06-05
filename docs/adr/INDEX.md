@@ -4,7 +4,7 @@ All major architectural decisions for `zam-local-tts-helper` are recorded here.
 Each ADR captures the context, the decision made, the rationale, and the
 consequences. Once accepted, an ADR is immutable; superseded ADRs are marked as such.
 
-These ADRs distill the 22 design decisions from
+These ADRs distill the 27 design decisions from
 [`reports/local-tts-helper-design-decisions.md`](../reports/local-tts-helper-design-decisions.md).
 
 ---
@@ -23,6 +23,7 @@ These ADRs distill the 22 design decisions from
 | [ADR-0008](ADR-0008-packaging.md) | Budget-aware phased packaging | ✅ Accepted |
 | [ADR-0009](ADR-0009-pairing-flow.md) | Pairing code + setup URL | ✅ Accepted |
 | [ADR-0010](ADR-0010-error-taxonomy.md) | Full structured error taxonomy | ✅ Accepted |
+| [ADR-0011](ADR-0011-storage-architecture.md) | Helper-owned storage with platformdirs and user override | ✅ Accepted |
 
 ---
 
