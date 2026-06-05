@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+.env
+.env.*
+
+# Build/package artifacts
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local helper runtime data
+.zam-tts/
+models/
+cache/
+logs/
+diagnostics/
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+
+# Large model files
+*.onnx
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.wav
+*.mp3
