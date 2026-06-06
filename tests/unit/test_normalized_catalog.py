@@ -1,5 +1,6 @@
 import pytest
 
+from mery_tts.catalog import bundled_catalog_voice_summaries, load_bundled_catalog
 from mery_tts.catalog.normalized import (
     ArtifactEntry,
     CatalogEntry,
@@ -8,6 +9,21 @@ from mery_tts.catalog.normalized import (
     EngineEntry,
     catalog_voice_cards,
 )
+
+
+def test_bundled_catalog_loads_from_package_resources() -> None:
+    catalog = load_bundled_catalog()
+    voices = bundled_catalog_voice_summaries(catalog)
+
+    assert catalog.catalog_id == "bundled-v1"
+    assert {model.model_id for model in catalog.models} == {
+        "piper-plus.vi-vn.demo",
+        "kokoro.en-us.af-heart.demo",
+    }
+    assert [voice.voice_id for voice in voices] == [
+        "catalog.piper-plus.vi-vn.demo",
+        "catalog.kokoro.en-us.af-heart.demo",
+    ]
 
 
 def test_normalized_catalog_projects_flat_voice_cards_without_raw_urls() -> None:
@@ -91,5 +107,45 @@ def test_normalized_catalog_rejects_missing_refs_and_duplicate_ids() -> None:
                     commercial_use=False,
                     capabilities=[],
                 )
+            ],
+        )
+
+    with pytest.raises(ValueError, match="duplicate voiceId"):
+        CatalogGraph(
+            engines=[EngineEntry(engine_id="kokoro", display_name="Kokoro")],
+            entries=[CatalogEntry(catalog_entry_id="entry", engine_id="kokoro")],
+            artifacts=[
+                ArtifactEntry(
+                    artifact_id="artifact",
+                    catalog_entry_id="entry",
+                    engine_id="kokoro",
+                    size_bytes=1,
+                    sha256="0" * 64,
+                    download_url="https://allowed.example/a",
+                )
+            ],
+            voices=[
+                CatalogVoice(
+                    voice_id="voice",
+                    catalog_entry_id="entry",
+                    artifact_id="artifact",
+                    engine_id="kokoro",
+                    language="en-US",
+                    display_name="Voice A",
+                    license="fixture",
+                    commercial_use=False,
+                    capabilities=[],
+                ),
+                CatalogVoice(
+                    voice_id="voice",
+                    catalog_entry_id="entry",
+                    artifact_id="artifact",
+                    engine_id="kokoro",
+                    language="en-US",
+                    display_name="Voice B",
+                    license="fixture",
+                    commercial_use=False,
+                    capabilities=[],
+                ),
             ],
         )

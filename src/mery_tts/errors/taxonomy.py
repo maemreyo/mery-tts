@@ -52,6 +52,7 @@ class ErrorCode(StrEnum):
     CONNECTION_TIMEOUT = "connection.timeout"
     AUTH_TOKEN_MISSING = "auth.token_missing"
     AUTH_TOKEN_INVALID = "auth.token_invalid"
+    AUTH_RATE_LIMITED = "auth.rate_limited"
     CATALOG_SIGNATURE_INVALID = "catalog.signature_invalid"
     CATALOG_SCHEMA_INVALID = "catalog.schema_invalid"
     MODEL_DELETE_FAILED = "model.delete_failed"

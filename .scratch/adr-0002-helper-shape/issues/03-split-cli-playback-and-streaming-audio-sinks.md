@@ -1,6 +1,6 @@
 # Split CLI playback and streaming audio sinks
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -20,5 +20,12 @@ Define the shared PCM data contract and separate output adapters for CLI direct 
 ## Blocked by
 
 - ADR-0005 issue 01-define-versioned-rest-and-event-schemas
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Wire CLI playback and WebSocket/HTTP streaming to the same real adapter `PCMChunk` source while keeping player-only dependencies out of API modules.
+- [ ] Add import-boundary tests plus a fake-stream real-surface test proving playback/export/streaming consume identical PCM metadata.
 
 ## Comments

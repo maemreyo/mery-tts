@@ -63,10 +63,13 @@ class CatalogGraph(BaseModel):
         engine_ids = {engine.engine_id for engine in self.engines}
         entry_ids = [entry.catalog_entry_id for entry in self.entries]
         artifact_ids = [artifact.artifact_id for artifact in self.artifacts]
+        voice_ids = [voice.voice_id for voice in self.voices]
         if len(entry_ids) != len(set(entry_ids)):
             raise ValueError("duplicate catalogEntryId")
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("duplicate artifactId")
+        if len(voice_ids) != len(set(voice_ids)):
+            raise ValueError("duplicate voiceId")
         entries = set(entry_ids)
         artifacts = set(artifact_ids)
         for entry in self.entries:

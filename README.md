@@ -43,25 +43,25 @@ See [`docs/use-cases.md`](docs/use-cases.md) for the full breakdown.
 
 ## Status
 
-> Design/bootstrap phase. No runtime implementation yet.
+> Early runtime implementation. Core CLI/API scaffolding, pairing, local security controls, catalog/voice fixtures, OpenAI-compatible speech stubs, WAV export, and the local `make check` gate are implemented and tested. Real engine audio validation, durable install lifecycle, packaging smoke, and production hardening remain in progress.
 
 - [x] Design decisions finalized (27 decisions, see `docs/reports/local-tts-helper-design-decisions.md`)
 - [x] Readiness contract defined (see `docs/integration/zam-reader-readiness-contract.md`)
 - [x] Engine research complete (see `docs/reports/local-tts-solutions-research.md`)
 - [x] Architecture backbone docs (see `docs/architecture/`)
 - [x] ADRs 0001–0012 (see `docs/adr/`)
-- [ ] Runtime implementation
-- [ ] Engine adapters (Piper-plus, Kokoro)
-- [ ] REST + WebSocket API
-- [ ] CLI (`mery`)
-- [ ] Test suite
-- [ ] Packaging (uv/pipx Phase 1)
+- [x] Early runtime implementation slices
+- [ ] Real engine adapters audio validation (Piper-plus, Kokoro)
+- [x] REST + WebSocket API scaffolding and core contract tests
+- [x] CLI (`mery`) core commands and local export path
+- [x] Core test suite and `make check` gate
+- [ ] Packaging smoke (uv/pipx Phase 1)
 
 ---
 
 ## Quick start — Phase 1 early access
 
-Phase 1 early access requires Terminal. Install with either `uv` or `pipx`, then run the first-run diagnostics and pairing commands locally.
+Phase 1 early access requires Terminal. Install with either `uv` or `pipx`, then run the first-run diagnostics and pairing commands locally. The packaged core starts, serves `/v1`, and supports deterministic CLI/API smoke paths without optional engine downloads; the bundled catalog is package data and can be browsed offline. Explicit model installation and remote catalog refresh are separate user-triggered network actions, and real Piper-plus or Kokoro audio requires installing the matching optional engine extra and remains gated by real-runtime validation.
 
 ```bash
 # Install with uv
@@ -81,11 +81,11 @@ mery pair
 # Install a voice model
 mery models install piper-plus.en-us.lessac.medium
 
-# Speak directly (CLI / local playback)
-mery speak --text "Hello from Mery" --play
+# Submit text through the CLI stub path
+mery speak --text "Hello from Mery"
 
-# Batch export to file (once implemented)
-mery speak --text "Hello" --output hello.wav
+# Export deterministic local WAV audio without optional engine downloads
+mery speak --file input.txt --output hello.wav
 ```
 
 ---
@@ -122,7 +122,7 @@ mery speak --text "Hello" --output hello.wav
 │    doctor                  /v1/voices, /v1/catalog               │
 │    engines / voices        /v1/models, /v1/storage               │
 │    models / storage        /v1/diagnostics, /v1/pair             │
-│    speak [--play|--output] WS /v1/events                         │
+│    speak [--text|--file --output] WS /v1/events                  │
 │                                                                  │
 │  ┌──────────────┐  ┌────────────────┐  ┌──────────────────┐     │
 │  │EngineRegistry│  │  ModelManager  │  │ CatalogManager   │     │

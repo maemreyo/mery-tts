@@ -21,10 +21,10 @@ htmlcov/
 
 # Local helper runtime data
 .mery-tts/
-models/
-cache/
-logs/
-diagnostics/
+/models/
+/cache/
+/logs/
+/diagnostics/
 
 # OS/editor
 .DS_Store

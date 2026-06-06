@@ -53,5 +53,7 @@ class HelperConfigStore:
         self.config_dir.mkdir(parents=True, exist_ok=True)
         payload = config.model_dump(mode="json")
         serialized = json.dumps(payload, indent=2, sort_keys=True) + "\n"
-        self.config_path.write_text(serialized)
-        self.config_path.chmod(0o600)
+        temp_path = self.config_path.with_name(f"{self.config_path.name}.tmp")
+        temp_path.write_text(serialized)
+        temp_path.chmod(0o600)
+        temp_path.replace(self.config_path)

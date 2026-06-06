@@ -82,6 +82,17 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/mery_tts"]
 
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/.scratch",
+  "/.omo",
+  "/.mery-tts",
+  "/models",
+  "/cache",
+  "/logs",
+  "/diagnostics",
+]
+
 # ---------------------------------------------------------------------------
 # Ruff — lint + format
 # ---------------------------------------------------------------------------
@@ -138,6 +149,9 @@ testpaths    = ["tests"]
 pythonpath   = ["src"]
 addopts      = "-ra --tb=short"
 markers      = [
+  "unit: fast tests for isolated package units",
+  "contract: API and schema contract tests using local fakes",
+  "cli: command-line interface tests that avoid real engine downloads",
   "engine: tests that require a real engine binary/package installed (skip with -m 'not engine')",
   "integration: tests that start a real server or may trigger model downloads",
 ]

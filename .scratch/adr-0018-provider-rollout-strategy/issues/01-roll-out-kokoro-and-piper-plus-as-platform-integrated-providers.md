@@ -1,6 +1,6 @@
 # Roll out Kokoro and Piper-plus as platform-integrated providers
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -22,5 +22,12 @@ Implement the first provider rollout sequence using catalog-first integration: K
 
 - ADR-0016 issue 01-implement-async-install-job-manifest-commit-and-delete-gc
 - ADR-0019 issue 01-codify-provider-adapter-family-checklist-and-tests
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Promote Kokoro and Piper-plus from platform-integrated stubs to audio-validated providers with real dependency detection and fixture smoke tests.
+- [ ] Publish diagnostics/status that distinguishes missing dependency, missing model, installed but unhealthy, and audio-validated states.
 
 ## Comments

@@ -1,6 +1,6 @@
 # Create CLI entrypoint and command skeleton
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -20,5 +20,12 @@ Create the `mery` CLI root and command skeletons needed for standalone support a
 ## Blocked by
 
 - ADR-0001 issue 01-create-standalone-helper-package-boundary
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Replace placeholder command output for `serve`, `engines`, `voices`, `catalog`, `models`, and `speak` with calls into shared runtime services.
+- [ ] Add CLI subprocess smoke tests for successful commands and failure exit codes using an isolated runtime directory.
 
 ## Comments

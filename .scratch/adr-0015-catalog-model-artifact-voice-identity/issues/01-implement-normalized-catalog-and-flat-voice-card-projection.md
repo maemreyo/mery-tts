@@ -1,6 +1,6 @@
 # Implement normalized catalog and flat voice card projection
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -15,10 +15,18 @@ Implement the catalog model that separates installable catalog entries, stored a
 - [ ] Catalog data is represented internally as engines, artifacts, and voices with distinct `catalogEntryId`, `artifactId`, `voiceId`, and `engineId` identities.
 - [ ] `GET /v1/catalog/voices` returns flat voice cards with install identity, voice identity, engine, language, license/commercial-use, size, installed state, and capabilities.
 - [ ] Catalog validation rejects missing graph references and duplicate catalog/artifact identities.
+  - Progress: normalized `CatalogGraph` validation now rejects duplicate `catalogEntryId`, duplicate `artifactId`, duplicate `voiceId`, missing catalog-entry references, missing artifact references, and missing engine references in focused unit tests.
 - [ ] Tests prove shared-artifact and model-file catalog shapes both project to flat voice cards without exposing raw install URL authority.
 
 ## Blocked by
 
 - ADR-0013 issue 01-define-voice-descriptor-payload-union-and-adapter-kind-validation
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Connect normalized catalog projections to runtime APIs and install jobs so flat voice cards are not just unit-test artifacts.
+- [ ] Prove artifact/voice identity survives install, delete, refresh, restart, and catalog updates without exposing filesystem paths.
 
 ## Comments

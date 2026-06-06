@@ -1,0 +1,68 @@
+name: check
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_real_runtime:
+        description: "Run engine/integration marked tests"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      run_extra_smoke:
+        description: "Run optional engine extra install smoke jobs"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  core:
+    name: core checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra dev
+      - run: make check
+
+  real-runtime:
+    name: real-runtime engine and integration tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.run_real_runtime == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra dev --extra all
+      - run: uv run pytest -m "engine or integration"
+
+  optional-engine-extra-smoke:
+    name: optional engine extra smoke (${{ matrix.extra }})
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.run_extra_smoke == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        extra: [piper-plus, kokoro, all]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra dev --extra ${{ matrix.extra }}
+      - run: uv run mery --help >/dev/null
+      - run: uv run mery --version >/dev/null
+      - run: uv run mery engines >/dev/null

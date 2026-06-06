@@ -1,6 +1,6 @@
 # Implement Kokoro adapter contract
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -21,5 +21,12 @@ Implement the `kokoro` adapter as the quality local voice engine, using the Pyth
 
 - 01-define-engine-adapter-and-engine-registry-discovery
 - ADR-0007 issue 02-ship-curated-bundled-catalog-fixtures
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Replace placeholder Kokoro PCM bytes with direct Python API synthesis, async streaming bridge, health checks, voices, and cancellation.
+- [ ] Add skipped-by-default real-runtime Kokoro smoke tests using a small fixture/model and verify audio metadata is valid.
 
 ## Comments

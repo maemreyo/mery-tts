@@ -1,6 +1,6 @@
 # Implement model install API orchestration
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -22,5 +22,12 @@ Implement the API orchestrator that consumes `ModelManager.install(modelId)` dom
 - 01-define-versioned-rest-and-event-schemas
 - ADR-0004 issue 02-implement-voice-registry-routing-and-refresh-semantics
 - ADR-0007 issue 04-install-models-with-checksum-and-rollback
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Implement a real API-agnostic model/install manager that emits queued, progress, done, and failed domain events.
+- [ ] Wire API orchestration to WebSocket/event emission and refresh `VoiceRegistry` exactly once after committed install success.
 
 ## Comments

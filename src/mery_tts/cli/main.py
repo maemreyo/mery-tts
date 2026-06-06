@@ -1,9 +1,17 @@
+import asyncio
+import json
 import shutil
+from collections.abc import AsyncIterator
+from pathlib import Path
+from typing import Annotated
 
 import typer
+import uvicorn
 
 from mery_tts import __version__
+from mery_tts.audio.exporter import AudioExporter
 from mery_tts.diagnostics.doctor import DoctorEngine
+from mery_tts.engines.base import PCMChunk
 from mery_tts.security.config import HelperConfigStore
 from mery_tts.security.pairing import PairingService
 from mery_tts.settings.paths import RuntimePaths
@@ -56,7 +64,17 @@ def doctor() -> None:
 
 @app.command()
 def serve() -> None:
-    typer.echo('{"status":"not_started","command":"serve"}')
+    paths = _runtime_paths()
+    store = HelperConfigStore(paths.config_dir)
+    config = store.load_or_create()
+    store.record_bound_port(config.port)
+    uvicorn.run(
+        "mery_tts.api.app:create_app",
+        factory=True,
+        host="127.0.0.1",
+        port=config.port,
+        log_level="info",
+    )
 
 
 @app.command()
@@ -127,6 +145,29 @@ def storage_repair() -> None:
     typer.echo(f"repaired: deleted={deleted}; flagged=0")
 
 
+async def _single_pcm_chunk(text: str) -> AsyncIterator[PCMChunk]:
+    payload = text.encode("utf-8") or b"silence"
+    yield PCMChunk(pcm=payload * 2, sample_rate_hz=24_000, channels=1)
+
+
 @app.command()
-def speak(text: str = typer.Option("", "--text")) -> None:
-    typer.echo(f'{{"command":"speak","accepted":{bool(text).__str__().lower()}}}')
+def speak(
+    text: Annotated[str, typer.Option("--text")] = "",
+    file: Annotated[Path | None, typer.Option("--file")] = None,
+    output: Annotated[Path | None, typer.Option("--output")] = None,
+) -> None:
+    input_text = file.read_text() if file is not None else text
+    if output is not None:
+        result = asyncio.run(AudioExporter().export(_single_pcm_chunk(input_text), output))
+        typer.echo(
+            json.dumps(
+                {
+                    "path": str(result.path),
+                    "duration_seconds": result.duration_seconds,
+                    "file_size_bytes": result.file_size_bytes,
+                },
+                sort_keys=True,
+            )
+        )
+        return
+    typer.echo(f'{{"command":"speak","accepted":{bool(input_text).__str__().lower()}}}')

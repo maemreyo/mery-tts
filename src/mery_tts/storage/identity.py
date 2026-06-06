@@ -53,18 +53,17 @@ class StorageIdentityStore:
 
     def hydrate_voice_descriptor(self, voice_id: str, *, engine_id: str) -> VoiceDescriptor:
         manifest = self._voice_manifest(voice_id)
-        artifact_refs = manifest["artifactRefs"]
-        for artifact_ref in artifact_refs:
-            if not self._artifact_exists(engine_id=engine_id, artifact_id=artifact_ref):
-                raise ValueError(f"missing artifact '{artifact_ref}'")
-        payload_template = manifest["payloadTemplate"]
-        if payload_template.get("kind") != "preset":
-            raise ValueError("unsupported payload template")
-        return VoiceDescriptor(
-            voice_id=voice_id,
-            engine_id=engine_id,
-            payload=PresetVoicePayload(preset_id=str(payload_template["preset_id"])),
-        )
+        return self._descriptor_from_manifest(manifest, engine_id=engine_id)
+
+    def hydrate_installed_voice_descriptors(self) -> list[VoiceDescriptor]:
+        if not self.voices_dir.exists():
+            return []
+        descriptors: list[VoiceDescriptor] = []
+        for manifest_path in sorted(self.voices_dir.glob("*.json")):
+            manifest = self._load_manifest(manifest_path)
+            engine_id = self._engine_id_for_manifest(manifest)
+            descriptors.append(self._descriptor_from_manifest(manifest, engine_id=engine_id))
+        return descriptors
 
     def delete_voice_and_collect_garbage(self, voice_id: str) -> list[str]:
         manifest_path = self.voices_dir / safe_voice_filename(voice_id)
@@ -84,8 +83,51 @@ class StorageIdentityStore:
         return collected
 
     def _voice_manifest(self, voice_id: str) -> dict[str, Any]:
-        loaded = json.loads((self.voices_dir / safe_voice_filename(voice_id)).read_text())
+        return self._load_manifest(self.voices_dir / safe_voice_filename(voice_id))
+
+    def _load_manifest(self, path: Path) -> dict[str, Any]:
+        loaded = json.loads(path.read_text())
         return cast("dict[str, Any]", loaded)
+
+    def _descriptor_from_manifest(
+        self,
+        manifest: dict[str, Any],
+        *,
+        engine_id: str,
+    ) -> VoiceDescriptor:
+        voice_id = str(manifest["voiceId"])
+        artifact_refs = list(manifest["artifactRefs"])
+        for artifact_ref in artifact_refs:
+            if not self._artifact_exists(engine_id=engine_id, artifact_id=str(artifact_ref)):
+                raise ValueError(f"missing artifact '{artifact_ref}'")
+        payload_template = manifest["payloadTemplate"]
+        if payload_template.get("kind") != "preset":
+            raise ValueError("unsupported payload template")
+        return VoiceDescriptor(
+            voice_id=voice_id,
+            engine_id=engine_id,
+            payload=PresetVoicePayload(preset_id=str(payload_template["preset_id"])),
+        )
+
+    def _engine_id_for_manifest(self, manifest: dict[str, Any]) -> str:
+        artifact_refs = list(manifest["artifactRefs"])
+        if not artifact_refs:
+            raise ValueError("voice manifest has no artifact refs")
+        engines = {
+            self._engine_id_for_artifact(str(artifact_ref)) for artifact_ref in artifact_refs
+        }
+        if len(engines) != 1:
+            raise ValueError("voice manifest spans multiple engines")
+        return engines.pop()
+
+    def _engine_id_for_artifact(self, artifact_id: str) -> str:
+        matches = sorted(self.artifacts_dir.glob(f"*/{artifact_id}/artifact.json"))
+        if not matches:
+            raise ValueError(f"missing artifact '{artifact_id}'")
+        if len(matches) > 1:
+            raise ValueError(f"ambiguous artifact '{artifact_id}'")
+        loaded = self._load_manifest(matches[0])
+        return str(loaded["engineId"])
 
     def _artifact_exists(self, *, engine_id: str, artifact_id: str) -> bool:
         return (self.artifacts_dir / engine_id / artifact_id / "artifact.json").exists()

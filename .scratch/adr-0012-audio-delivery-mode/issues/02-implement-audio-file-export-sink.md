@@ -34,14 +34,16 @@ When `--output` is given, `--play` is ignored and the file export sink is used.
 
 ## Acceptance criteria
 
-- [ ] `mery speak --text "Hello" --output hello.wav` produces a valid WAV file.
+- [x] `mery speak --text "Hello" --output hello.wav` produces a valid WAV file. Current implementation writes deterministic local PCM through the CLI-only WAV export sink without optional engine downloads.
 - [ ] `mery speak --file input.txt --output output.mp3` works end-to-end.
-- [ ] `ExportResult` includes duration (seconds) and file size (bytes).
+  - Progress: `mery speak --file input.txt --output output.wav` now reads text from disk and exports through the CLI-only WAV sink end-to-end; MP3 encoder support remains pending.
+- [x] `ExportResult` includes duration (seconds) and file size (bytes). `AudioExporter.export()` returns path, duration seconds, and file size bytes for WAV exports.
 - [ ] Export errors (disk full, permission denied) map to the structured error
       taxonomy from ADR-0010.
-- [ ] Unit tests cover: WAV export round-trip, unsupported format error,
-      disk-full simulation.
-- [ ] `audio/exporter.py` import graph: CLI-only, not importable from `api/`.
+  - Progress: `AudioExporter` routes unsupported formats and WAV write failures through the shared ADR-0010 `diagnostic_error()` factory. Unsupported formats map to central `synthesis.unsupported_format` no-action/no-fallback metadata; disk-full and permission-denied write failures map to `storage.write_failed` with `free_space` action and fail-closed diagnostics that omit embedded local paths. Non-WAV encoder paths remain pending.
+- [x] Unit tests cover: WAV export round-trip, unsupported format error,
+      disk-full simulation. `tests/unit/test_audio_sinks.py` covers valid WAV metadata/round-trip, unsupported format structured error mapping, and disk-full/write-failure simulation with sanitized diagnostics.
+- [x] `audio/exporter.py` import graph: CLI-only, not importable from `api/`. Package-boundary tests scan `src/mery_tts/api/**` and fail if any API module imports `mery_tts.audio.exporter`.
 
 ## Blocked by
 

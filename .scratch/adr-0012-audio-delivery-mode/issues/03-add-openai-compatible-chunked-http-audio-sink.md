@@ -1,6 +1,6 @@
 # Add OpenAI-compatible chunked HTTP audio sink
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -20,5 +20,14 @@ Add the OpenAI-compatible chunked HTTP audio sink as a separate delivery path fr
 ## Blocked by
 
 - ADR-0017 issue 01-implement-chunked-http-pcm-streaming-for-openai-speech
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Ensure chunked HTTP streaming propagates mid-stream adapter errors as documented and cleans up/cancels generator work on client disconnect.
+  - Progress: unsupported non-PCM streaming requests are now rejected before chunked HTTP response construction with OpenAI-shaped `400 invalid_request_error`; mid-stream adapter error propagation and disconnect cleanup remain pending.
+- [ ] Prove HTTP chunking and WebSocket audio events are independent real transports using client-level tests.
+  - Progress: client-level OpenAI streaming tests cover chunked HTTP PCM responses and preflight streaming-format rejection while `/v1/events` handshake tests remain separate; fuller transport-independence coverage remains pending.
 
 ## Comments

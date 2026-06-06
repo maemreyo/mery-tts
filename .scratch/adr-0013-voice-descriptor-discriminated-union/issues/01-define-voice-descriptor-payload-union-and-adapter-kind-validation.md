@@ -1,6 +1,6 @@
 # Define VoiceDescriptor payload union and adapter kind validation
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -20,5 +20,13 @@ Define the runtime voice descriptor contract that lets Mery route installed voic
 ## Blocked by
 
 None - can start immediately
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Validate descriptors loaded from catalog/storage manifests with strict payload-family rules and adapter compatibility before they become routable.
+- [ ] Add negative tests for malformed payloads, unsupported families, missing artifacts, duplicate voice IDs, and cross-engine mismatches.
+  - Progress: `ModelFileVoicePayload.relative_path` now rejects absolute paths, traversal, backslashes, and Windows drive paths with focused negative tests; unsupported adapter payload-family tests already cover one rejected family. Missing artifacts, duplicate voice IDs, cross-engine mismatches, and catalog/storage manifest validation remain pending.
 
 ## Comments

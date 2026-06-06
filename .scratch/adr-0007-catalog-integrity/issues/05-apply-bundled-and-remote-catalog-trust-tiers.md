@@ -1,6 +1,6 @@
 # Apply bundled and remote catalog trust tiers
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -20,5 +20,12 @@ Implement the amended catalog trust policy that treats bundled catalog data as p
 ## Blocked by
 
 - ADR-0015 issue 01-implement-normalized-catalog-and-flat-voice-card-projection
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Enforce separate trust tiers at runtime: bundled schema/graph validation, remote signature/freshness validation, and per-file install verification.
+- [ ] Expose active catalog provenance so diagnostics/API can distinguish bundled, remote, stale, and rejected catalogs.
 
 ## Comments

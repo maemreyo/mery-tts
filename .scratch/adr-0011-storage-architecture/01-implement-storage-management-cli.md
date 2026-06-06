@@ -1,6 +1,6 @@
 # Implement storage management CLI — show, move, and repair
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -60,5 +60,12 @@ Repair the model store and cache:
 - ADR-0008 issue 02-keep-runtime-paths-packaging-agnostic
 - ADR-0007 issue 05-implement-model-domain-events-store-and-deletion
 - ADR-0010 issue 01-define-structured-error-taxonomy
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Replace placeholder storage CLI output with real model/voice/artifact inventory, Rich table rendering, and structured nonzero failure exits.
+- [ ] Make move/repair crash-safe and prove repair never deletes committed models or live artifacts.
 
 ## Comments

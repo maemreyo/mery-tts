@@ -3,7 +3,13 @@ from collections.abc import AsyncIterator
 import pytest
 
 from mery_tts.engines.base import EngineAdapter, PCMChunk
-from mery_tts.voice import DesignedVoicePayload, PresetVoicePayload, VoiceDescriptor, VoiceRegistry
+from mery_tts.voice import (
+    DesignedVoicePayload,
+    ModelFileVoicePayload,
+    PresetVoicePayload,
+    VoiceDescriptor,
+    VoiceRegistry,
+)
 
 
 class FakePresetAdapter(EngineAdapter):
@@ -39,3 +45,18 @@ def test_voice_registry_rejects_adapter_unsupported_payload_kind() -> None:
 
     with pytest.raises(ValueError, match="does not accept voice kind 'designed'"):
         registry.resolve_for_adapter("voice.designed.test", FakePresetAdapter())
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "/tmp/voice.onnx",
+        "../voice.onnx",
+        "models/../voice.onnx",
+        "models\\voice.onnx",
+        "C:\\voice.onnx",
+    ],
+)
+def test_model_file_voice_payload_rejects_unsafe_relative_paths(relative_path: str) -> None:
+    with pytest.raises(ValueError, match="safe relative path"):
+        ModelFileVoicePayload(artifact_id="artifact", relative_path=relative_path)

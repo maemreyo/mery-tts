@@ -8,9 +8,11 @@ def test_pair_cli_prints_setup_instructions(monkeypatch, tmp_path):
     result = CliRunner().invoke(app, ["pair"])
 
     assert result.exit_code == 0
-    assert "Zam Reader Options" in result.stdout
-    assert "Setup URL:" in result.stdout
+    assert "Pairing code:" in result.stdout
+    assert "Setup URL: http://127.0.0.1:8765/pair" in result.stdout
     assert "Expires:" in result.stdout
+    assert "Zam Reader Options" in result.stdout
+    assert "paste the setup URL before the code expires" in result.stdout
 
 
 def test_pair_cli_rotate_prints_new_token_notice(monkeypatch, tmp_path):

@@ -1,6 +1,6 @@
 # Implement explicit signed remote catalog refresh
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -20,5 +20,12 @@ Implement explicit user-triggered remote catalog refresh that fetches a catalog,
 ## Blocked by
 
 - 01-define-catalog-schemas-and-verifier-policy
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Implement explicit CLI/API remote refresh entrypoints with network error handling, timeout policy, atomic storage, and no background auto-refresh.
+- [ ] Add tests for failed network/download cases and prove the previous catalog remains active after failure.
 
 ## Comments

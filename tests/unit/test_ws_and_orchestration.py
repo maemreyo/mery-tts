@@ -41,10 +41,14 @@ async def test_ws_synthesis_events_are_ordered() -> None:
     async def stream() -> AsyncIterator[PCMChunk]:
         yield PCMChunk(pcm=b"a", sample_rate_hz=24_000, channels=1)
 
-    events = [event async for event in synthesize_events("sess", stream())]
+    events = [event async for event in synthesize_events("sess", stream(), request_id="req")]
 
     assert [event["event_type"] for event in events] == [
         "synthesize.started",
         "audio.chunk",
-        "audio.done",
+        "audio.completed",
     ]
+    for event in events:
+        assert event["schema_version"] == "v1"
+        assert event["request_id"] == "req"
+        assert event["session_id"] == "sess"

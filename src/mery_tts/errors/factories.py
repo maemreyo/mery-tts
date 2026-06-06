@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import PurePosixPath, PureWindowsPath
 from typing import Any
 
 from mery_tts.errors.taxonomy import (
@@ -39,12 +40,12 @@ class ErrorPolicy:
 POLICIES: dict[ErrorCode, ErrorPolicy] = {
     ErrorCode.CONNECTION_DAEMON_UNREACHABLE: ErrorPolicy(
         recommended_action=RecommendedAction.RETRY,
-        fallback_policy=FallbackPolicy.RETRY_WITH_BACKOFF,
+        fallback_policy=FallbackPolicy.USE_CACHED_AUDIO,
         recoverability=ErrorRecoverability.RETRYABLE,
     ),
     ErrorCode.CONNECTION_TIMEOUT: ErrorPolicy(
         recommended_action=RecommendedAction.RETRY,
-        fallback_policy=FallbackPolicy.RETRY_WITH_BACKOFF,
+        fallback_policy=FallbackPolicy.USE_CACHED_AUDIO,
         recoverability=ErrorRecoverability.RETRYABLE,
     ),
     ErrorCode.MODEL_NOT_INSTALLED: ErrorPolicy(
@@ -57,10 +58,55 @@ POLICIES: dict[ErrorCode, ErrorPolicy] = {
         fallback_policy=FallbackPolicy.RETRY_WITH_BACKOFF,
         recoverability=ErrorRecoverability.RETRYABLE,
     ),
+    ErrorCode.MODEL_DELETE_FAILED: ErrorPolicy(
+        recommended_action=RecommendedAction.RETRY,
+        fallback_policy=FallbackPolicy.NONE,
+        recoverability=ErrorRecoverability.RETRYABLE,
+    ),
+    ErrorCode.CATALOG_SIGNATURE_INVALID: ErrorPolicy(
+        recommended_action=RecommendedAction.RETRY,
+        fallback_policy=FallbackPolicy.USE_CACHED_AUDIO,
+        recoverability=ErrorRecoverability.RETRYABLE,
+    ),
+    ErrorCode.CATALOG_SCHEMA_INVALID: ErrorPolicy(
+        recommended_action=RecommendedAction.CONTACT_SUPPORT,
+        fallback_policy=FallbackPolicy.DISABLE_FEATURE,
+        recoverability=ErrorRecoverability.UNRECOVERABLE,
+    ),
+    ErrorCode.ENGINE_UNAVAILABLE: ErrorPolicy(
+        recommended_action=RecommendedAction.CHECK_ENGINE,
+        fallback_policy=FallbackPolicy.USE_DEFAULT_VOICE,
+        recoverability=ErrorRecoverability.CONFIGURATION,
+    ),
+    ErrorCode.ENGINE_VOICE_UNSUPPORTED: ErrorPolicy(
+        recommended_action=RecommendedAction.INSTALL_MODEL,
+        fallback_policy=FallbackPolicy.USE_DEFAULT_VOICE,
+        recoverability=ErrorRecoverability.USER_ACTION,
+    ),
     ErrorCode.SYNTHESIS_FAILED: ErrorPolicy(
         recommended_action=RecommendedAction.RETRY,
         fallback_policy=FallbackPolicy.USE_DEFAULT_VOICE,
         recoverability=ErrorRecoverability.RETRYABLE,
+    ),
+    ErrorCode.SYNTHESIS_UNSUPPORTED_FORMAT: ErrorPolicy(
+        recommended_action=RecommendedAction.NONE,
+        fallback_policy=FallbackPolicy.NONE,
+        recoverability=ErrorRecoverability.UNRECOVERABLE,
+    ),
+    ErrorCode.PLAYBACK_DEVICE_UNAVAILABLE: ErrorPolicy(
+        recommended_action=RecommendedAction.CHECK_ENGINE,
+        fallback_policy=FallbackPolicy.USE_CACHED_AUDIO,
+        recoverability=ErrorRecoverability.CONFIGURATION,
+    ),
+    ErrorCode.STORAGE_MANIFEST_MISSING: ErrorPolicy(
+        recommended_action=RecommendedAction.INSTALL_MODEL,
+        fallback_policy=FallbackPolicy.USE_DEFAULT_VOICE,
+        recoverability=ErrorRecoverability.USER_ACTION,
+    ),
+    ErrorCode.STORAGE_WRITE_FAILED: ErrorPolicy(
+        recommended_action=RecommendedAction.FREE_SPACE,
+        fallback_policy=FallbackPolicy.NONE,
+        recoverability=ErrorRecoverability.USER_ACTION,
     ),
     ErrorCode.AUTH_TOKEN_INVALID: ErrorPolicy(
         recommended_action=RecommendedAction.PAIR_CLIENT,
@@ -72,12 +118,37 @@ POLICIES: dict[ErrorCode, ErrorPolicy] = {
         fallback_policy=FallbackPolicy.NONE,
         recoverability=ErrorRecoverability.USER_ACTION,
     ),
+    ErrorCode.AUTH_RATE_LIMITED: ErrorPolicy(
+        recommended_action=RecommendedAction.RETRY,
+        fallback_policy=FallbackPolicy.RETRY_WITH_BACKOFF,
+        recoverability=ErrorRecoverability.RETRYABLE,
+    ),
     ErrorCode.SECURITY_UNSAFE_IDENTIFIER: ErrorPolicy(
         recommended_action=RecommendedAction.NONE,
         fallback_policy=FallbackPolicy.NONE,
         recoverability=ErrorRecoverability.UNRECOVERABLE,
     ),
+    ErrorCode.SECURITY_REQUEST_TOO_LARGE: ErrorPolicy(
+        recommended_action=RecommendedAction.NONE,
+        fallback_policy=FallbackPolicy.NONE,
+        recoverability=ErrorRecoverability.UNRECOVERABLE,
+    ),
 }
+
+
+def _is_suspicious_diagnostic_string(value: str) -> bool:
+    lowered = value.lower()
+    if any(marker in lowered for marker in ("http://", "https://", "file://")):
+        return True
+    if "traceback (most recent call last)" in lowered:
+        return True
+    if lowered.startswith("file ") and ", line " in lowered:
+        return True
+    if "bearer " in lowered or "api_key" in lowered or "token=" in lowered:
+        return True
+    if "/users/" in lowered or "\\users\\" in lowered:
+        return True
+    return PurePosixPath(value).is_absolute() or PureWindowsPath(value).is_absolute()
 
 
 def sanitize_diagnostic(metadata: dict[str, Any]) -> dict[str, ScalarDiagnostic]:
@@ -86,7 +157,12 @@ def sanitize_diagnostic(metadata: dict[str, Any]) -> dict[str, ScalarDiagnostic]
         normalized_key = key.lower()
         if normalized_key in FORBIDDEN_DIAGNOSTIC_KEYS:
             continue
-        if isinstance(value, str | int | float | bool):
+        if isinstance(value, str):
+            if _is_suspicious_diagnostic_string(value):
+                continue
+            sanitized[key] = value
+            continue
+        if isinstance(value, int | float | bool):
             sanitized[key] = value
     return sanitized
 

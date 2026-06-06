@@ -1,6 +1,6 @@
 # Codify provider adapter family checklist and tests
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -21,5 +21,12 @@ Codify the provider adapter taxonomy as implementation guidance and reusable tes
 
 - ADR-0013 issue 01-define-voice-descriptor-payload-union-and-adapter-kind-validation
 - ADR-0015 issue 01-implement-normalized-catalog-and-flat-voice-card-projection
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Turn provider taxonomy into reusable checks used by catalog validation, install lifecycle, storage hydration, and API route tests.
+- [ ] Keep reference/zero-shot/dialogue families gated until governance and runtime semantics are implemented end-to-end.
 
 ## Comments

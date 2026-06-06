@@ -44,6 +44,29 @@ def test_shared_artifact_gc_only_removes_unreferenced_artifacts(tmp_path: Path) 
     assert store.delete_voice_and_collect_garbage("voice.two") == ["artifact.shared"]
 
 
+def test_hydrates_installed_voice_descriptors_from_manifests(tmp_path: Path) -> None:
+    store = StorageIdentityStore(tmp_path)
+    store.write_artifact_manifest(engine_id="kokoro", artifact_id="artifact.af", metadata={})
+    store.write_artifact_manifest(engine_id="piper-plus", artifact_id="artifact.vi", metadata={})
+    store.write_voice_manifest(
+        "voice.kokoro.af",
+        ["artifact.af"],
+        {"kind": "preset", "preset_id": "af_heart"},
+    )
+    store.write_voice_manifest(
+        "voice.piper.vi",
+        ["artifact.vi"],
+        {"kind": "preset", "preset_id": "vi_demo"},
+    )
+
+    descriptors = store.hydrate_installed_voice_descriptors()
+
+    assert [(voice.voice_id, voice.engine_id) for voice in descriptors] == [
+        ("voice.kokoro.af", "kokoro"),
+        ("voice.piper.vi", "piper-plus"),
+    ]
+
+
 def test_missing_artifact_diagnostic(tmp_path: Path) -> None:
     store = StorageIdentityStore(tmp_path)
     store.write_voice_manifest(

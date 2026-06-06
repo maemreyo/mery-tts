@@ -19,7 +19,7 @@ class SpeechAdapter(EngineAdapter):
         yield PCMChunk(pcm=f"pcm:{text}".encode(), sample_rate_hz=24_000, channels=1)
 
 
-def app_with_voice():
+def app_with_voice(*, max_body_bytes: int = 1_000_000, max_text_chars: int = 10_000):
     adapter = SpeechAdapter()
     voice = VoiceDescriptor(
         voice_id="voice.fake",
@@ -33,6 +33,8 @@ def app_with_voice():
         engine_registry=EngineRegistry(adapters={"fake": adapter}),
         voice_registry=voices,
         voice_aliases={"alloy": "voice.fake"},
+        max_body_bytes=max_body_bytes,
+        max_text_chars=max_text_chars,
     )
 
 
@@ -48,6 +50,93 @@ def test_openai_blocking_speech_returns_pcm_bytes() -> None:
     assert response.content == b"pcm:hello"
 
 
+def test_openai_blocking_speech_returns_wav_bytes() -> None:
+    with TestClient(app_with_voice()) as client:
+        response = client.post(
+            "/v1/audio/speech",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+            json={"model": "tts-1", "voice": "alloy", "input": "hello", "response_format": "wav"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/wav"
+    assert response.content[:4] == b"RIFF"
+    assert response.content[8:12] == b"WAVE"
+    assert b"pcm:hello" in response.content
+
+
+def test_openai_speech_requires_authentication() -> None:
+    with TestClient(app_with_voice()) as client:
+        response = client.post(
+            "/v1/audio/speech",
+            json={"model": "tts-1", "voice": "alloy", "input": "hello"},
+        )
+
+    assert response.status_code == 401
+    body = response.json()
+    assert body["code"] == "auth.token_missing"
+    assert body["request_id"] == "local"
+    assert body["category"] == "auth"
+    assert "recommended_action" in body
+
+
+def test_openai_speech_rejects_unsupported_method_and_unknown_route() -> None:
+    with TestClient(app_with_voice()) as client:
+        unsupported_method = client.get(
+            "/v1/audio/speech",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+        )
+        unknown_route = client.post(
+            "/v1/audio/unknown",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+            json={"model": "tts-1", "voice": "alloy", "input": "hello"},
+        )
+
+    assert unsupported_method.status_code == 405
+    assert unknown_route.status_code == 404
+
+
+def test_openai_errors_remain_separate_from_native_error_shape() -> None:
+    with TestClient(app_with_voice()) as client:
+        openai_response = client.post(
+            "/v1/audio/speech",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+            json={"model": "gpt-4o-mini-tts", "voice": "alloy", "input": "hello"},
+        )
+        native_response = client.post(
+            "/v1/models/install",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+            json={"schema_version": "v1", "request_id": "local", "model_id": "../secret"},
+        )
+
+    assert openai_response.status_code == 400
+    assert openai_response.json() == {
+        "error": {
+            "message": "unsupported model",
+            "type": "invalid_request_error",
+        }
+    }
+    assert native_response.status_code == 400
+    assert native_response.json() == {"error": "invalid_model_id"}
+
+
+def test_openai_speech_rejects_unsupported_model() -> None:
+    with TestClient(app_with_voice()) as client:
+        response = client.post(
+            "/v1/audio/speech",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+            json={"model": "gpt-4o-mini-tts", "voice": "alloy", "input": "hello"},
+        )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "error": {
+            "message": "unsupported model",
+            "type": "invalid_request_error",
+        }
+    }
+
+
 def test_openai_speech_rejects_unsupported_format() -> None:
     with TestClient(app_with_voice()) as client:
         response = client.post(
@@ -58,6 +147,23 @@ def test_openai_speech_rejects_unsupported_format() -> None:
 
     assert response.status_code == 400
     assert response.json()["error"]["type"] == "invalid_request_error"
+
+
+def test_openai_speech_rejects_too_long_input() -> None:
+    with TestClient(app_with_voice(max_body_bytes=1_000_000, max_text_chars=128)) as client:
+        response = client.post(
+            "/v1/audio/speech",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+            json={"model": "tts-1", "voice": "alloy", "input": "x" * 129},
+        )
+
+    assert response.status_code == 413
+    body = response.json()
+    assert body["code"] == "security.request_too_large"
+    assert body["category"] == "security"
+    assert body["recommended_action"] == "none"
+    assert body["fallback_policy"] == "none"
+    assert body["request_id"] == "local"
 
 
 def test_openai_streaming_speech_returns_ordered_pcm_chunks() -> None:
@@ -77,3 +183,26 @@ def test_openai_streaming_speech_returns_ordered_pcm_chunks() -> None:
     assert response.status_code == 200
     assert response.headers["content-type"] == "audio/pcm"
     assert response.content == b"pcm:hello"
+
+
+def test_openai_streaming_speech_rejects_non_pcm_format_before_streaming() -> None:
+    with TestClient(app_with_voice()) as client:
+        response = client.post(
+            "/v1/audio/speech",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+            json={
+                "model": "tts-1",
+                "voice": "alloy",
+                "input": "hello",
+                "response_format": "wav",
+                "stream": True,
+            },
+        )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "error": {
+            "message": "streaming only supports pcm",
+            "type": "invalid_request_error",
+        }
+    }

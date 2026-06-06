@@ -1,5 +1,9 @@
+import json
+import wave
+
 from typer.testing import CliRunner
 
+from mery_tts.cli import main as cli_main
 from mery_tts.cli.main import app
 
 runner = CliRunner()
@@ -28,3 +32,62 @@ def test_cli_registers_standalone_commands() -> None:
         "speak",
     ]:
         assert command in result.stdout
+
+
+def test_speak_writes_wav_output(tmp_path) -> None:
+    output_path = tmp_path / "hello.wav"
+
+    result = runner.invoke(app, ["speak", "--text", "Hello", "--output", str(output_path)])
+
+    assert result.exit_code == 0
+    assert output_path.exists()
+    with wave.open(str(output_path), "rb") as wav_file:
+        assert wav_file.getnchannels() == 1
+        assert wav_file.getframerate() == 24_000
+        assert wav_file.getnframes() > 0
+    assert "duration_seconds" in result.stdout
+    assert "file_size_bytes" in result.stdout
+
+
+def test_speak_reads_file_input_for_wav_output(tmp_path) -> None:
+    input_path = tmp_path / "input.txt"
+    output_path = tmp_path / "from-file.wav"
+    input_path.write_text("Hello from a file")
+
+    result = runner.invoke(app, ["speak", "--file", str(input_path), "--output", str(output_path)])
+
+    assert result.exit_code == 0
+    assert output_path.exists()
+    with wave.open(str(output_path), "rb") as wav_file:
+        assert wav_file.getframerate() == 24_000
+        assert wav_file.getnframes() > 0
+    assert "duration_seconds" in result.stdout
+
+
+def test_serve_starts_uvicorn_with_configured_port(monkeypatch, tmp_path) -> None:
+    calls = []
+
+    def fake_run(target: str, **kwargs: object) -> None:
+        calls.append((target, kwargs))
+
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("MERY_TTS_PORT", "9876")
+    monkeypatch.setattr(cli_main.uvicorn, "run", fake_run)
+
+    result = runner.invoke(app, ["serve"])
+
+    assert result.exit_code == 0
+    assert calls == [
+        (
+            "mery_tts.api.app:create_app",
+            {
+                "factory": True,
+                "host": "127.0.0.1",
+                "port": 9876,
+                "log_level": "info",
+            },
+        )
+    ]
+    config = json.loads((tmp_path / "config" / "config.json").read_text())
+    assert config["port"] == 9876
+    assert config["bound_port"] == 9876

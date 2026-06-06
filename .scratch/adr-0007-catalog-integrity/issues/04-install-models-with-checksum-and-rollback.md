@@ -1,6 +1,6 @@
 # Install models with checksum and rollback
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -21,5 +21,12 @@ Implement model installation by `modelId` only: resolve URLs from the catalog in
 
 - 02-ship-curated-bundled-catalog-fixtures
 - ADR-0006 issue 03-reject-unsafe-model-ids-and-sensitive-diagnostics
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Download from catalog-approved URLs only after host allowlist checks, stream to temp files, verify size/SHA256, then atomically promote.
+- [ ] Map checksum, size, host, network, disk, and rollback failures to structured install/job errors visible through API and events.
 
 ## Comments

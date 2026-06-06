@@ -43,6 +43,10 @@ def test_model_store_delete_nonexistent_model_raises_structured_error(tmp_path: 
     assert error.value.code == ErrorCode.MODEL_DELETE_FAILED
 
 
+def test_model_store_delete_by_model_id_is_idempotent_for_missing_model(tmp_path: Path) -> None:
+    assert ModelStore(tmp_path).delete_by_model_id("missing") is False
+
+
 def test_model_store_delete_permission_failure_raises_structured_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

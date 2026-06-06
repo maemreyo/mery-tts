@@ -1,6 +1,6 @@
 # Create daemon app factory and serve command
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -12,13 +12,20 @@ Create daemon/server mode through an app factory and `mery serve`, so the helper
 
 ## Acceptance criteria
 
-- [ ] The helper exposes an app factory suitable for local development, tests, and `mery serve`.
-- [ ] `mery serve` starts the daemon using configured host/port settings.
-- [ ] Startup does not require Zam Reader, real engine packages, or installed models.
-- [ ] A smoke test proves server construction and shutdown work cleanly.
+- [x] The helper exposes an app factory suitable for local development, tests, and `mery serve`.
+- [x] `mery serve` starts the daemon using configured host/port settings.
+- [x] Startup does not require Zam Reader, real engine packages, or installed models.
+- [x] A smoke test proves server construction and shutdown work cleanly.
 
 ## Blocked by
 
 - 01-create-cli-entrypoint-and-command-skeleton
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [x] Implement `mery serve` with uvicorn/FastAPI startup, configured host/port, bound-port reporting, signal handling, and clean shutdown.
+- [x] Capture real server smoke evidence: start daemon, call `/v1/health`, stop daemon, and verify no process/port is left behind.
 
 ## Comments

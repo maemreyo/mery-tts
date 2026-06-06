@@ -1,6 +1,6 @@
 # Implement mery doctor diagnostic engine
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -79,5 +79,12 @@ class DoctorResult(BaseModel):
 - ADR-0010 issue 01-define-structured-error-taxonomy
 - ADR-0004 issue 01-define-engine-adapter-and-engine-registry-discovery
 - ADR-0007 issue 05-implement-model-domain-events-store-and-deletion
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Replace hardcoded doctor checks with dependency-injected checks for config, auth token, engine discovery, catalog availability, model store, disk space, permissions, and audio device/runtime health.
+- [ ] Persist `last-doctor.json`; make `GET /v1/diagnostics` read it or return a structured stale/missing diagnostic.
 
 ## Comments

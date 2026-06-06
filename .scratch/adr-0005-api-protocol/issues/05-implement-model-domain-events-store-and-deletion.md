@@ -1,6 +1,6 @@
 # Implement model domain — events, store, deletion, listing, and storage stats
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -77,5 +77,13 @@ Add the remaining public methods alongside the existing `install()`:
 - ADR-0007 issue 02-ship-curated-bundled-catalog-fixtures
 - ADR-0010 issue 01-define-structured-error-taxonomy
 - ADR-0003 issue 01-configure-typed-python-packaging-with-uv-and-hatchling
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Persist install/delete domain events or job manifests durably enough for restart-safe status and cleanup.
+- [ ] Make delete idempotent, voice-aware, and garbage-collect only unreferenced artifacts after manifest updates commit.
+  - Progress: `ModelStore.delete_by_model_id()` and `DELETE /v1/models/{model_id}` are idempotent for already-missing models; voice-aware manifest updates and unreferenced-artifact GC remain pending.
 
 ## Comments

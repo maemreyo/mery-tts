@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -78,6 +79,21 @@ class PairingResponse(VersionedModel):
     auth_token: str | None = None
     contract_version: str | None = None
     capabilities: list[str] = Field(default_factory=list)
+
+
+class NativeErrorResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    code: str
+    category: str
+    severity: str
+    recoverability: str
+    user_message_key: str
+    recommended_action: str
+    fallback_policy: str
+    sanitized_diagnostic: str
+    request_id: str
+    timestamp: datetime
 
 
 class EventEnvelope(VersionedModel):

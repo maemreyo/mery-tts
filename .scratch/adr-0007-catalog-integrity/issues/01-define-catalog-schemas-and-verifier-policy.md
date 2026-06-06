@@ -1,6 +1,6 @@
 # Define catalog schemas and verifier policy
 
-Status: completed
+Status: scaffold-complete; runtime-follow-up
 
 ## Parent
 
@@ -20,5 +20,12 @@ Define catalog data schemas and `CatalogVerifier` behavior for bundled and remot
 ## Blocked by
 
 - ADR-0005 issue 01-define-versioned-rest-and-event-schemas
+
+## Production-ready runtime follow-up
+
+The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
+
+- [ ] Use real catalog source/download URL fields or an explicit artifact source model instead of hardcoded installer URLs.
+- [ ] Verify bundled and remote catalog graph integrity, duplicate IDs, supported engines, file roles, and schema version compatibility.
 
 ## Comments
