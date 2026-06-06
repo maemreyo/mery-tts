@@ -1,6 +1,7 @@
+import asyncio
 from collections.abc import Awaitable, Callable
 from importlib import resources
-from typing import Any
+from typing import Any, Literal, cast
 from urllib.parse import unquote, urlparse
 
 from fastapi import FastAPI, Request, Response, WebSocket, status
@@ -12,20 +13,26 @@ from mery_tts import __version__
 from mery_tts.api.openai.speech import (
     OpenAISpeechRequest,
     iter_openai_pcm,
-    synthesize_openai_speech,
     validate_openai_model,
 )
 from mery_tts.audio.encoder import encode_wav
-from mery_tts.catalog import bundled_catalog_voice_summaries
+from mery_tts.catalog import (
+    bundled_catalog_to_voice_pack_graph,
+    bundled_catalog_voice_summaries,
+    load_bundled_catalog,
+)
+from mery_tts.catalog.graph_adapter import legacy_catalog_to_graph
 from mery_tts.engines import EngineRegistry, discover_engine_registry
 from mery_tts.errors import ErrorCategory, ErrorCode, diagnostic_error
 from mery_tts.jobs.install import FileInstallJobStore, InstallJobService
 from mery_tts.jobs.worker import BundledInstallWorker
 from mery_tts.models.store import ModelStore
+from mery_tts.providers.installers import discover_provider_installers
 from mery_tts.readiness import (
     derive_engine_summary,
     derive_helper_status,
 )
+from mery_tts.readiness.health import EngineReadinessSummary
 from mery_tts.schemas.v1 import (
     CatalogVoicesResponse,
     DiagnosticsResponse,
@@ -41,12 +48,28 @@ from mery_tts.schemas.v1 import (
     ModelStatusResponse,
     NativeErrorResponse,
     PairingResponse,
+    ProviderRuntimesResponse,
+    ProviderRuntimeSummaryVo,
+    SetupRecommendationsResponse,
+    SetupRecommendationVo,
     StorageResponse,
+    VoicePackInstallResponse,
+    VoicePacksResponse,
+    VoicePackSummary,
     VoiceSummary,
 )
 from mery_tts.security.config import HelperConfig, HelperConfigStore
 from mery_tts.security.pairing import PairingService
 from mery_tts.settings.paths import RuntimePaths
+from mery_tts.setup.intent import SetupIntentError, validate_setup_intent
+from mery_tts.setup.services import (
+    ProviderRuntimeService,
+    SetupService,
+    SimpleInstalledRuntimeStore,
+    SimpleInstalledVoiceStore,
+    SimpleVoicePackCatalog,
+    VoicePackService,
+)
 from mery_tts.smoke.record import SmokeRecordStore
 from mery_tts.storage.identity import StorageIdentityStore
 from mery_tts.synthesis import (
@@ -157,7 +180,11 @@ def _engine_summary(engine_id: str, health: str) -> EngineSummary:
         safe_reason = _safe_reason(health.strip())
     else:
         safe_reason = _safe_reason(reason.strip()) if reason else None
-    return EngineSummary(engine_id=engine_id, status=normalized_status, reason=safe_reason)
+    return EngineSummary(
+        engine_id=engine_id,
+        status=cast(Literal["available", "degraded", "unavailable"], normalized_status),
+        reason=safe_reason,
+    )
 
 
 def _display_name(identifier: str) -> str:
@@ -216,6 +243,52 @@ def _request_too_large_response(*, limit: int, status_code: int = 413) -> JSONRe
         diagnostic={"limit": limit},
     )
     return JSONResponse(error.model_dump(mode="json"), status_code=status_code)
+
+
+def _setup_error_html(error: SetupIntentError | None, detail: str | None) -> str:
+    safe_error = str(error).replace("<", "&lt;") if error else "unknown"
+    safe_detail = (detail or "").replace("<", "&lt;")[:200]
+    return f"""<!DOCTYPE html>
+<html><head><title>Mery Setup</title></head>
+<body style="font-family:system-ui;max-width:600px;margin:40px auto;padding:0 20px">
+<h1>Setup Intent Error</h1>
+<p><strong>Error:</strong> {safe_error}</p>
+{"<p>" + safe_detail + "</p>" if safe_detail else ""}
+<p>Please check your setup URL and try again.</p>
+<p><a href="/console">Open Mery Console</a></p>
+</body></html>"""
+
+
+def _setup_packs_html(packs: list[dict[str, Any]]) -> str:
+    if not packs:
+        return "<p>No voice packs available yet.</p>"
+    items = []
+    for pack in packs:
+        status = pack.get("status", "available")
+        name = str(pack.get("display_name", "")).replace("<", "&lt;")
+        desc = str(pack.get("description", "")).replace("<", "&lt;")
+        size = pack.get("estimated_size_bytes", 0)
+        size_mb = size / (1024 * 1024) if size else 0
+        items.append(f"<li><strong>{name}</strong> — {desc} ({size_mb:.0f} MB) [{status}]</li>")
+    return "<ul>" + "".join(items) + "</ul>"
+
+
+def _setup_console_html(*, client: str, intent: str, locale: str | None, packs_html: str) -> str:
+    safe_client = client.replace("<", "&lt;")
+    safe_intent = intent.replace("<", "&lt;")
+    safe_locale = (locale or "any").replace("<", "&lt;")
+    return f"""<!DOCTYPE html>
+<html><head><title>Mery Setup</title></head>
+<body style="font-family:system-ui;max-width:600px;margin:40px auto;padding:0 20px">
+<h1>Mery Voice Setup</h1>
+<p><strong>Client:</strong> {safe_client}</p>
+<p><strong>Intent:</strong> {safe_intent}</p>
+<p><strong>Locale:</strong> {safe_locale}</p>
+<h2>Recommended Voice Packs</h2>
+{packs_html}
+<p>Setup is managed by Mery. Confirm installation in the Mery Console or CLI.</p>
+<p><a href="/console">Open Mery Console</a></p>
+</body></html>"""
 
 
 def create_app(
@@ -280,7 +353,27 @@ def create_app(
 
     if smoke_record_store is None:
         smoke_record_store = SmokeRecordStore(data_dir=paths.base_dir)
-    smoke_records = smoke_record_store.load_all()
+
+    bundled_catalog = load_bundled_catalog()
+    voice_pack_graph = bundled_catalog_to_voice_pack_graph(bundled_catalog)
+    catalog_graph = legacy_catalog_to_graph(bundled_catalog)
+    provider_installers = discover_provider_installers()
+    installed_voice_ids_set = {v.voice_id for v in installed_voice_descriptors}
+    setup_catalog = SimpleVoicePackCatalog(voice_pack_graph)
+    setup_installed_voices = SimpleInstalledVoiceStore(installed_voice_ids_set)
+    setup_installed_runtimes = SimpleInstalledRuntimeStore()
+    setup_service = SetupService(
+        catalog=setup_catalog,
+        installed_voices=setup_installed_voices,
+        installed_runtimes=setup_installed_runtimes,
+    )
+    voice_pack_service = VoicePackService(
+        catalog=setup_catalog,
+        installed_voices=setup_installed_voices,
+        installed_runtimes=setup_installed_runtimes,
+        catalog_graph=catalog_graph,
+    )
+    provider_runtime_service = ProviderRuntimeService(installers=provider_installers)
 
     synthesis_service = SpeechSynthesisService(
         voice_registry=voice_registry,
@@ -291,6 +384,8 @@ def create_app(
         voice_registry.register(voice)
 
     app = FastAPI(title="Mery TTS Server", version=__version__)
+
+    background_tasks: set[asyncio.Task[object]] = set()
 
     def current_auth_token() -> str:
         if should_reload_auth:
@@ -338,12 +433,8 @@ def create_app(
             response.headers["Access-Control-Allow-Headers"] = (
                 "Authorization, Content-Type, X-Requested-With"
             )
-            response.headers["Access-Control-Allow-Methods"] = (
-                "GET, POST, PUT, DELETE, OPTIONS"
-            )
-            response.headers["Access-Control-Expose-Headers"] = ", ".join(
-                MERY_DIAGNOSTIC_HEADERS
-            )
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+            response.headers["Access-Control-Expose-Headers"] = ", ".join(MERY_DIAGNOSTIC_HEADERS)
         if request.method == "OPTIONS":
             return Response(status_code=204, headers=response.headers)
         return response
@@ -355,6 +446,28 @@ def create_app(
     @app.get("/console/assets/{asset_path:path}", response_model=None)
     def console_asset(asset_path: str) -> Response | JSONResponse:
         return _console_asset_response(asset_path)
+
+    @app.get("/console/setup", response_model=None)
+    def console_setup(
+        client: str | None = None,
+        intent: str | None = None,
+        locale: str | None = None,
+    ) -> Response:
+        validation = validate_setup_intent(client=client, intent=intent, locale=locale)
+        if not validation.is_valid:
+            error_html = _setup_error_html(validation.error, validation.error_detail)
+            return Response(content=error_html, media_type="text/html; charset=utf-8")
+        assert validation.intent is not None
+        setup_intent = validation.intent
+        packs = voice_pack_service.list_packs()
+        packs_html = _setup_packs_html(packs)
+        html = _setup_console_html(
+            client=setup_intent.client,
+            intent=setup_intent.intent,
+            locale=setup_intent.locale,
+            packs_html=packs_html,
+        )
+        return Response(content=html, media_type="text/html; charset=utf-8")
 
     @app.get("/console/{spa_path:path}", response_model=None)
     def console_spa_fallback(spa_path: str) -> Response | JSONResponse:
@@ -370,7 +483,8 @@ def create_app(
     )
     def health() -> HealthResponse:
         current_smoke = smoke_record_store.load_all()
-        engine_summaries = []
+        engine_summaries: list[EngineReadinessSummary] = []
+        engine_summaries_vo: list[EngineReadinessSummaryVo] = []
         total_installed = 0
         total_usable = 0
 
@@ -387,7 +501,8 @@ def create_app(
             )
             total_installed += summary.installed_voice_count
             total_usable += summary.usable_voice_count
-            engine_summaries.append(
+            engine_summaries.append(summary)
+            engine_summaries_vo.append(
                 EngineReadinessSummaryVo(
                     engine_id=summary.engine_id,
                     dependency_status=summary.dependency_status.value,
@@ -396,7 +511,7 @@ def create_app(
                     smoked_voice_count=summary.smoked_voice_count,
                     smoke_passed_count=summary.smoke_passed_count,
                     smoke_failed_count=summary.smoke_failed_count,
-                    status=summary.status,
+                    status=cast(Literal["available", "degraded", "unavailable"], summary.status),
                     reason=summary.reason,
                 )
             )
@@ -417,11 +532,14 @@ def create_app(
 
         return HealthResponse(
             request_id="local",
-            status=mapped_status,
+            status=cast(
+                Literal["ok", "degraded", "unavailable", "ready", "unpaired", "incompatible"],
+                mapped_status,
+            ),
             helper_id=config.helper_id,
             helper_version=__version__,
             contract_version=CONTRACT_VERSION,
-            engines=engine_summaries,
+            engines=engine_summaries_vo,
             total_usable_voices=total_usable,
             total_installed_voices=total_installed,
         )
@@ -498,10 +616,13 @@ def create_app(
         checks = {result.check: result.status for result in results}
         return DiagnosticsResponse(request_id="local", checks=checks)
 
+    def _on_install_complete(_job_id: str) -> None:
+        smoke_record_store.load_all()
+
     install_worker = BundledInstallWorker(
         job_service=install_job_service,
         artifacts_dir=paths.base_dir / "models" / "artifacts",
-        on_complete=lambda job_id: smoke_record_store.load_all(),
+        on_complete=_on_install_complete,
     )
 
     @app.post(
@@ -521,9 +642,9 @@ def create_app(
             artifact_id=request.model_id,
         )
 
-        import asyncio
-
-        asyncio.create_task(install_worker.execute(job.job_id))
+        task = asyncio.create_task(install_worker.execute(job.job_id))
+        background_tasks.add(task)
+        task.add_done_callback(background_tasks.discard)
 
         return ModelInstallResponse(
             request_id="local",
@@ -581,6 +702,127 @@ def create_app(
         collected = install_job_service.delete_voice(model_id)
         deleted = bool(collected) or model_store.delete_by_model_id(model_id)
         return ModelDeleteResponse(request_id="local", model_id=model_id, deleted=deleted)
+
+    @app.get(
+        "/v1/voice-packs",
+        response_model=VoicePacksResponse,
+        responses=NATIVE_ERROR_RESPONSES,
+    )
+    def voice_packs() -> VoicePacksResponse:
+        packs = voice_pack_service.list_packs()
+        return VoicePacksResponse(
+            request_id="local",
+            voice_packs=[VoicePackSummary(**pack) for pack in packs],
+        )
+
+    @app.get(
+        "/v1/setup/recommendations",
+        response_model=SetupRecommendationsResponse,
+        responses=NATIVE_ERROR_RESPONSES,
+    )
+    def setup_recommendations(
+        client: str | None = None,
+        intent: str | None = None,
+        locale: str | None = None,
+    ) -> SetupRecommendationsResponse:
+        recommendations = setup_service.recommend(client=client, intent=intent, locale=locale)
+        return SetupRecommendationsResponse(
+            request_id="local",
+            recommendations=[
+                SetupRecommendationVo(
+                    voice_pack_id=r.voice_pack_id,
+                    display_name=r.display_name,
+                    description=r.description,
+                    locale=r.locale,
+                    use_case=r.use_case,
+                    estimated_size_bytes=r.estimated_size_bytes,
+                    status=r.status,
+                    reason=r.reason,
+                )
+                for r in recommendations
+            ],
+            client=client,
+            intent=intent,
+        )
+
+    @app.get(
+        "/v1/provider-runtimes",
+        response_model=ProviderRuntimesResponse,
+        responses=NATIVE_ERROR_RESPONSES,
+    )
+    def provider_runtimes() -> ProviderRuntimesResponse:
+        summaries = provider_runtime_service.check_all()
+        return ProviderRuntimesResponse(
+            request_id="local",
+            provider_runtimes=[
+                ProviderRuntimeSummaryVo(
+                    provider_id=s.provider_id,
+                    install_mode=s.install_mode,
+                    status=s.status,
+                    explanation=s.explanation,
+                    recommended_action=s.recommended_action,
+                )
+                for s in summaries
+            ],
+        )
+
+    @app.post(
+        "/v1/voice-packs/{voice_pack_id}/install",
+        response_model=VoicePackInstallResponse,
+        responses=NATIVE_ERROR_RESPONSES,
+    )
+    async def voice_pack_install(
+        voice_pack_id: str,
+    ) -> VoicePackInstallResponse | JSONResponse:
+        if not is_safe_model_id(voice_pack_id):
+            return _invalid_model_id_response()
+        pack = voice_pack_service.get_pack(voice_pack_id)
+        if pack is None:
+            return JSONResponse(
+                {"detail": f"voice pack {voice_pack_id!r} not found"},
+                status_code=404,
+            )
+        try:
+            plan = voice_pack_service.plan_install(voice_pack_id)
+        except Exception as exc:
+            return JSONResponse(
+                {"detail": f"install plan failed: {exc}"},
+                status_code=400,
+            )
+        return VoicePackInstallResponse(
+            request_id="local",
+            voice_pack_id=voice_pack_id,
+            status="queued",
+            plan_steps=len(plan.steps),
+        )
+
+    @app.get(
+        "/v1/install-jobs/{job_id}",
+        response_model=ModelJobStatusResponse,
+        responses=NATIVE_ERROR_RESPONSES,
+    )
+    def install_job_status(job_id: str) -> ModelJobStatusResponse | JSONResponse:
+        if not is_safe_model_id(job_id):
+            return _invalid_model_id_response()
+        try:
+            job = install_job_service.status(job_id)
+        except (KeyError, FileNotFoundError):
+            return JSONResponse(
+                {
+                    "schema_version": "v1",
+                    "request_id": "local",
+                    "job_id": job_id,
+                    "status": "failed",
+                },
+                status_code=404,
+            )
+        return ModelJobStatusResponse(
+            request_id="local",
+            job_id=job.job_id,
+            model_id=job.catalog_entry_id,
+            status=job.status.value,
+            error=job.error,
+        )
 
     @app.websocket("/v1/events")
     async def events(websocket: WebSocket) -> None:

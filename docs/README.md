@@ -24,9 +24,27 @@ This docs tree is the canonical home for the Mery TTS Server design.
 - [`reports/zam-reader-tts-feature-exploration.md`](reports/zam-reader-tts-feature-exploration.md) — context on Zam Reader's current Web Speech TTS feature.
 - [`reports/zam-reader-audio-grill-followup-decisions.md`](reports/zam-reader-audio-grill-followup-decisions.md) — context on Zam Reader audio-session contracts.
 
-## Integration contracts
+## Integration
 
+Start here if you are integrating a client with Mery. The integration docs are organized for fast onboarding — read in order for a new client, or jump to the specific topic you need.
+
+### Getting started
+
+1. [`integration/api-reference.md`](integration/api-reference.md) — **complete API reference**. Every HTTP and WebSocket endpoint with accurate request/response shapes. Read this first.
+2. [`integration/client-quickstart.md`](integration/client-quickstart.md) — **copy-paste integration patterns** for browser extensions, Electron, Tauri, CLI scripts, LLM assistants, Node.js, and Python. Use this to bootstrap a new client.
+3. [`integration/setup-integration-guide.md`](integration/setup-integration-guide.md) — **setup flow deep-dive**. How clients detect readiness, guide users through voice pack install, and poll for completion.
+
+### Contracts and policy
+
+- [`integration/client-boundary-and-readiness-policy.md`](integration/client-boundary-and-readiness-policy.md) — client responsibilities and fallback policy (what clients own vs what Mery owns).
 - [`integration/zam-reader-readiness-contract.md`](integration/zam-reader-readiness-contract.md) — requirements before Zam Reader may use Mery.
+- [`integration/zam-reader-readiness-polling-policy.md`](integration/zam-reader-readiness-polling-policy.md) — Zam Reader polling strategy.
+- [`integration/future-direct-install-permissions.md`](integration/future-direct-install-permissions.md) — future direct install model (not yet implemented).
+
+Add a `<client>-readiness-contract.md` here for each new integration partner.
+
+### Related ADRs
+
 - [`adr/ADR-0021-local-zam-reader-usable-milestone.md`](adr/ADR-0021-local-zam-reader-usable-milestone.md) — first HTTP local-usable Zam Reader milestone.
 - [`adr/ADR-0022-provider-fallback-and-synthesis-orchestration.md`](adr/ADR-0022-provider-fallback-and-synthesis-orchestration.md) — shared synthesis service and voice-level fallback.
 - [`adr/ADR-0023-model-install-and-artifact-source-architecture.md`](adr/ADR-0023-model-install-and-artifact-source-architecture.md) — artifact source and normalized install architecture.
@@ -37,7 +55,6 @@ This docs tree is the canonical home for the Mery TTS Server design.
 - [`adr/ADR-0028-tiered-provider-installer.md`](adr/ADR-0028-tiered-provider-installer.md) — tiered ProviderInstaller strategy.
 - [`adr/ADR-0029-api-first-setup-orchestration.md`](adr/ADR-0029-api-first-setup-orchestration.md) — API-first setup orchestration.
 - [`adr/ADR-0030-zam-reader-guided-setup-handoff.md`](adr/ADR-0030-zam-reader-guided-setup-handoff.md) — Zam Reader guided setup handoff.
-  Add a `<client>-readiness-contract.md` here for each new integration partner.
 
 ## Ownership rule
 

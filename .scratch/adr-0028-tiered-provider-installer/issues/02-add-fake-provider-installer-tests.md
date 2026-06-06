@@ -1,6 +1,6 @@
 # Add fake ProviderInstaller tests
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,16 +12,16 @@ Add fake ProviderInstaller adapters and service tests so setup orchestration can
 
 ## Acceptance criteria
 
-- [ ] Fake automatic installer can report missing, install successfully, fail install, and repair.
-- [ ] Fake guided installer returns user-safe manual steps and cannot auto-install.
-- [ ] Fake external installer reports externally managed runtime and explanation.
-- [ ] Setup/install services can consume fake installers through the protocol only.
+- [x] Fake automatic installer can report missing, install successfully, fail install, and repair.
+- [x] Fake guided installer returns user-safe manual steps and cannot auto-install.
+- [x] Fake external installer reports externally managed runtime and explanation.
+- [x] Setup/install services can consume fake installers through the protocol only.
 
 ## Production-ready criteria
 
-- [ ] Tests cover automatic success, automatic failure, guided-only flow, external runtime, and broken runtime repair plan.
-- [ ] No tests require real Piper, Kokoro, network, or platform-specific packages.
-- [ ] Fake installers are isolated to tests or test-support modules.
+- [x] Tests cover automatic success, automatic failure, guided-only flow, external runtime, and broken runtime repair plan.
+- [x] No tests require real Piper, Kokoro, network, or platform-specific packages.
+- [x] Fake installers are isolated to tests or test-support modules.
 
 ## Blocked by
 

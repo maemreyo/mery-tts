@@ -7,11 +7,10 @@ when only one provider works.
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
 from mery_tts.api.app import create_app
-from mery_tts.engines.base import EngineRegistry, PCMChunk
+from mery_tts.engines.base import EngineRegistry
 from mery_tts.engines.kokoro.adapter import KokoroAdapter
 from mery_tts.engines.piper_plus.adapter import PiperPlusAdapter
 from mery_tts.security.config import HelperConfig

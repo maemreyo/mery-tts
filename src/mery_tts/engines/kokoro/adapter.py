@@ -9,13 +9,19 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 from collections.abc import AsyncIterator, Callable, Iterable
-from typing import Any
+from typing import Any, Protocol, cast
 
 from mery_tts.engines.base import EngineAdapter, PCMChunk
 from mery_tts.voice import PresetVoicePayload, VoiceDescriptor
 from mery_tts.voice.resolver import ResolvedPresetPayload, ResolvedVoice
 
 KokoroSynthesizer = Callable[[str, VoiceDescriptor], Iterable[bytes]]
+
+
+class _KokoroRuntime(Protocol):
+    """Structural type for the optional kokoro / kokoro_onnx runtime objects."""
+
+    def synthesize(self, text: str, /, *args: object, **kwargs: object) -> object: ...
 
 
 class KokoroRuntimeError(Exception):
@@ -32,13 +38,9 @@ def _default_kokoro_synthesizer(text: str, voice: VoiceDescriptor) -> Iterable[b
         importlib.util.find_spec("kokoro") is None
         and importlib.util.find_spec("kokoro_onnx") is None
     ):
-        raise KokoroRuntimeError(
-            "dependency_missing", "kokoro package is not installed"
-        )
+        raise KokoroRuntimeError("dependency_missing", "kokoro package is not installed")
     if not isinstance(voice.payload, PresetVoicePayload):
-        raise KokoroRuntimeError(
-            "model_missing", "kokoro requires a preset voice payload"
-        )
+        raise KokoroRuntimeError("model_missing", "kokoro requires a preset voice payload")
     raise KokoroRuntimeError(
         "model_missing", "kokoro pipeline loading is not configured for this voice"
     )
@@ -50,9 +52,9 @@ class KokoroRuntimeCache:
     def __init__(self) -> None:
         self._cache: dict[str, Any] = {}
 
-    def get_or_load(self, voice_id: str, resolved: ResolvedVoice) -> Any:
+    def get_or_load(self, voice_id: str, resolved: ResolvedVoice) -> _KokoroRuntime:
         if voice_id in self._cache:
-            return self._cache[voice_id]
+            return self._cache[voice_id]  # type: ignore[no-any-return]
         runtime = self._load_runtime(resolved)
         self._cache[voice_id] = runtime
         return runtime
@@ -63,35 +65,31 @@ class KokoroRuntimeCache:
     def clear(self) -> None:
         self._cache.clear()
 
-    def _load_runtime(self, resolved: ResolvedVoice) -> Any:
+    def _load_runtime(self, resolved: ResolvedVoice) -> _KokoroRuntime:
         if not isinstance(resolved.payload, ResolvedPresetPayload):
-            raise KokoroRuntimeError(
-                "model_missing", "kokoro requires a resolved preset payload"
-            )
+            raise KokoroRuntimeError("model_missing", "kokoro requires a resolved preset payload")
         has_kokoro = importlib.util.find_spec("kokoro") is not None
         has_kokoro_onnx = importlib.util.find_spec("kokoro_onnx") is not None
         if not (has_kokoro or has_kokoro_onnx):
-            raise KokoroRuntimeError(
-                "dependency_missing", "kokoro package is not installed"
-            )
+            raise KokoroRuntimeError("dependency_missing", "kokoro package is not installed")
         try:
             if has_kokoro_onnx:
-                from kokoro_onnx import Kokoro  # type: ignore[import-untyped]
+                from kokoro_onnx import Kokoro  # type: ignore  # pyright: ignore
 
                 model_path = str(resolved.payload.artifact_dir / "model.onnx")
                 voices_path = str(resolved.payload.artifact_dir / "voices.bin")
                 runtime = Kokoro(model_path, voices_path)
             else:
-                import kokoro  # type: ignore[import-untyped]
+                import kokoro  # type: ignore  # pyright: ignore
 
                 runtime = kokoro.Kokoro(str(resolved.payload.artifact_dir))
-            return runtime
+            return runtime  # type: ignore[no-any-return]
         except KokoroRuntimeError:
             raise
-        except ImportError:
+        except ImportError as exc:
             raise KokoroRuntimeError(
                 "dependency_missing", "kokoro package is not installed"
-            )
+            ) from exc
         except Exception as exc:
             raise KokoroRuntimeError("model_invalid", str(exc)) from exc
 
@@ -159,14 +157,18 @@ class KokoroAdapter(EngineAdapter):
             yield PCMChunk(pcm=pcm, sample_rate_hz=24_000, channels=1)
 
     def _synthesize_with_runtime(
-        self, text: str, runtime: Any, voice: VoiceDescriptor
+        self, text: str, runtime: _KokoroRuntime, voice: VoiceDescriptor
     ) -> Iterable[bytes]:
         try:
-            preset_id = voice.payload.preset_id if isinstance(voice.payload, PresetVoicePayload) else "default"
+            preset_id = (
+                voice.payload.preset_id
+                if isinstance(voice.payload, PresetVoicePayload)
+                else "default"
+            )
             result = runtime.synthesize(text, voice=preset_id)
             if hasattr(result, "__iter__") and not isinstance(result, (bytes, str)):
-                return result
-            return [result]
+                return cast("Iterable[bytes]", result)
+            return cast("Iterable[bytes]", [result])
         except KokoroRuntimeError:
             raise
         except Exception as exc:

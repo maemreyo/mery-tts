@@ -1,6 +1,6 @@
 # Implement Zam Reader setup URL contract
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,16 +12,16 @@ Implement the setup URL contract Zam Reader can open when Mery is unavailable or
 
 ## Acceptance criteria
 
-- [ ] Mery accepts `/console/setup?client=zam-reader&intent=...` and validates known intent values.
-- [ ] Unknown or malformed setup parameters produce safe fallback UI, not raw errors.
-- [ ] Setup URL parsing does not grant install privileges or bypass pairing/auth rules.
-- [ ] Setup UI can be opened independently of Zam Reader after initial handoff.
+- [x] Mery accepts `/console/setup?client=zam-reader&intent=...` and validates known intent values.
+- [x] Unknown or malformed setup parameters produce safe fallback UI, not raw errors.
+- [x] Setup URL parsing does not grant install privileges or bypass pairing/auth rules.
+- [x] Setup UI can be opened independently of Zam Reader after initial handoff.
 
 ## Production-ready criteria
 
-- [ ] Tests cover valid Zam Reader URL, missing client, unknown client, unknown intent, unsafe redirect value, and unauthenticated access policy.
-- [ ] Docs show the canonical setup URL shape and supported intent values.
-- [ ] Client identity is logged only in sanitized form.
+- [x] Tests cover valid Zam Reader URL, missing client, unknown client, unknown intent, unsafe redirect value, and unauthenticated access policy.
+- [x] Docs show the canonical setup URL shape and supported intent values.
+- [x] Client identity is logged only in sanitized form.
 
 ## Blocked by
 

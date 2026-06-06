@@ -1,6 +1,6 @@
 # Add Piper and Kokoro ProviderInstaller adapters
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,16 +12,16 @@ Add initial ProviderInstaller adapters for Piper-plus and Kokoro that can check 
 
 ## Acceptance criteria
 
-- [ ] Piper installer reports provider status using the generic ProviderInstaller protocol.
-- [ ] Kokoro installer reports provider status using the generic ProviderInstaller protocol.
-- [ ] Install mode is honest for the current packaging target and does not claim automatic install unless implemented.
-- [ ] Runtime check results feed voice pack readiness and setup recommendations.
+- [x] Piper installer reports provider status using the generic ProviderInstaller protocol.
+- [x] Kokoro installer reports provider status using the generic ProviderInstaller protocol.
+- [x] Install mode is honest for the current packaging target and does not claim automatic install unless implemented.
+- [x] Runtime check results feed voice pack readiness and setup recommendations.
 
 ## Production-ready criteria
 
-- [ ] Tests cover provider installed, missing dependency, broken import, unsupported platform, and user-safe explanation.
-- [ ] CLI/API can show provider runtime status for Piper and Kokoro.
-- [ ] Docs describe current install mode limitations and future automatic install path.
+- [x] Tests cover provider installed, missing dependency, broken import, unsupported platform, and user-safe explanation.
+- [x] CLI/API can show provider runtime status for Piper and Kokoro.
+- [x] Docs describe current install mode limitations and future automatic install path.
 
 ## Blocked by
 

@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
+from mery_tts.engines.base import EngineRegistry
 from mery_tts.errors import RecommendedAction, sanitize_diagnostic
 
 DoctorStatus = Literal["ok", "warn", "fail"]
@@ -40,25 +41,44 @@ class DoctorCheck(ABC):
 
 
 class EngineAvailabilityCheck(DoctorCheck):
-    def __init__(self, engine_ids: list[str]) -> None:
-        self._engine_ids = engine_ids
+    def __init__(self, engine_registry: EngineRegistry | None) -> None:
+        self._engine_registry = engine_registry
 
     @property
     def name(self) -> str:
         return "engine_availability"
 
     def run(self) -> DoctorResult:
-        if not self._engine_ids:
+        if self._engine_registry is None or not self._engine_registry.adapters:
             return DoctorResult(
                 check=self.name,
                 status="warn",
                 detail="no engines loaded",
                 recommended_action=RecommendedAction.CHECK_ENGINE,
             )
+        available: list[str] = []
+        unavailable: list[tuple[str, str]] = []
+        for engine_id, adapter in sorted(self._engine_registry.adapters.items()):
+            health = adapter.health()
+            if health == "available":
+                available.append(engine_id)
+            else:
+                unavailable.append((engine_id, health))
+        if not available:
+            details = ", ".join(f"{eid}: {reason}" for eid, reason in unavailable)
+            return DoctorResult(
+                check=self.name,
+                status="fail",
+                detail=f"no engines available ({details})",
+                recommended_action=RecommendedAction.CHECK_ENGINE,
+            )
+        detail = f"available: {', '.join(available)}"
+        if unavailable:
+            detail += f" | missing: {', '.join(eid for eid, _ in unavailable)}"
         return DoctorResult(
             check=self.name,
             status="ok",
-            detail=f"loaded: {', '.join(sorted(self._engine_ids))}",
+            detail=detail,
         )
 
 

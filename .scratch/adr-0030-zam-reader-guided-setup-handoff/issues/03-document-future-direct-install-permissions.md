@@ -1,6 +1,6 @@
 # Document future direct install permissions
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,16 +12,16 @@ Document the future permission model required before clients such as Zam Reader 
 
 ## Acceptance criteria
 
-- [ ] Docs state that initial Zam Reader integration uses guided setup handoff only.
-- [ ] Future direct install requires explicit install permission, setup session identity, local user confirmation, audit record, and cancellable job status.
-- [ ] Direct install cannot be triggered silently by a browser extension.
-- [ ] Security considerations cover client spoofing, CSRF/CORS, install abuse, large downloads, and consent replay.
+- [x] Docs state that initial Zam Reader integration uses guided setup handoff only.
+- [x] Future direct install requires explicit install permission, setup session identity, local user confirmation, audit record, and cancellable job status.
+- [x] Direct install cannot be triggered silently by a browser extension.
+- [x] Security considerations cover client spoofing, CSRF/CORS, install abuse, large downloads, and consent replay.
 
 ## Production-ready criteria
 
-- [ ] Future direct install is captured as deferred work, not implied as implemented.
-- [ ] Docs cross-link ADR-0006 security model and ADR-0029 API-first setup orchestration.
-- [ ] Human review confirms first milestone does not over-grant client privileges.
+- [x] Future direct install is captured as deferred work, not implied as implemented.
+- [x] Docs cross-link ADR-0006 security model and ADR-0029 API-first setup orchestration.
+- [x] Human review confirms first milestone does not over-grant client privileges.
 
 ## Blocked by
 

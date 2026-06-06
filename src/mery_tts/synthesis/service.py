@@ -39,14 +39,16 @@ class FallbackPolicy(StrEnum):
     DISABLED = "disabled"
 
 
-NON_RECOVERABLE_KINDS = frozenset({
-    SynthesisErrorKind.UNKNOWN_VOICE,
-    SynthesisErrorKind.UNSUPPORTED_FORMAT,
-    SynthesisErrorKind.TEXT_TOO_LONG,
-    SynthesisErrorKind.CANCELLED,
-    SynthesisErrorKind.AUTH_FAILURE,
-    SynthesisErrorKind.CONTRACT_INCOMPATIBLE,
-})
+NON_RECOVERABLE_KINDS = frozenset(
+    {
+        SynthesisErrorKind.UNKNOWN_VOICE,
+        SynthesisErrorKind.UNSUPPORTED_FORMAT,
+        SynthesisErrorKind.TEXT_TOO_LONG,
+        SynthesisErrorKind.CANCELLED,
+        SynthesisErrorKind.AUTH_FAILURE,
+        SynthesisErrorKind.CONTRACT_INCOMPATIBLE,
+    }
+)
 
 
 class SynthesisError(Exception):
@@ -249,24 +251,28 @@ class SpeechSynthesisService:
                     attempts=tuple(attempts),
                     chunks=chunks,
                 )
-                attempts.append(VoiceAttempt(
-                    voice_id=voice_id,
-                    engine_id=diagnostics.selected_engine_id,
-                    success=True,
-                ))
+                attempts.append(
+                    VoiceAttempt(
+                        voice_id=voice_id,
+                        engine_id=diagnostics.selected_engine_id,
+                        success=True,
+                    )
+                )
                 return SynthesisResult(
                     chunks=tuple(chunks),
                     audio_metadata=metadata,
                     diagnostics=diagnostics,
                 )
             except SynthesisError as exc:
-                attempts.append(VoiceAttempt(
-                    voice_id=voice_id,
-                    engine_id=exc.engine_id or self._engine_for_voice(voice_id),
-                    success=False,
-                    error_kind=exc.kind,
-                    error_message=exc.message,
-                ))
+                attempts.append(
+                    VoiceAttempt(
+                        voice_id=voice_id,
+                        engine_id=exc.engine_id or self._engine_for_voice(voice_id),
+                        success=False,
+                        error_kind=exc.kind,
+                        error_message=exc.message,
+                    )
+                )
                 last_error = exc
                 if not exc.is_recoverable:
                     raise
@@ -277,9 +283,7 @@ class SpeechSynthesisService:
             message="no voices available for synthesis",
         )
 
-    async def _try_synthesize(
-        self, text: str, voice_id: str
-    ) -> list[PCMChunk]:
+    async def _try_synthesize(self, text: str, voice_id: str) -> list[PCMChunk]:
         try:
             adapter, voice = self._registry.resolve_route(voice_id)
         except KeyError:
@@ -319,9 +323,7 @@ class SpeechSynthesisService:
         except KeyError:
             return "unknown"
 
-    def _extract_metadata(
-        self, chunks: Sequence[PCMChunk], response_format: str
-    ) -> AudioMetadata:
+    def _extract_metadata(self, chunks: Sequence[PCMChunk], response_format: str) -> AudioMetadata:
         if not chunks:
             return AudioMetadata(
                 encoding=response_format,

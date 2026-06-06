@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 import shutil
 from collections.abc import AsyncIterator
@@ -14,6 +15,7 @@ from mery_tts.catalog import bundled_catalog_voice_summaries
 from mery_tts.diagnostics.doctor import (
     CatalogAvailableCheck,
     DiskSpaceCheck,
+    DoctorCheck,
     DoctorEngine,
     EngineAvailabilityCheck,
     EngineHealthCheck,
@@ -36,6 +38,10 @@ storage_app = typer.Typer(help="Manage Mery storage.")
 app.add_typer(storage_app, name="storage")
 models_app = typer.Typer(help="Manage Mery models.")
 app.add_typer(models_app, name="models")
+setup_app = typer.Typer(help="Mery setup and voice pack management.")
+app.add_typer(setup_app, name="setup")
+voice_packs_app = typer.Typer(help="Manage voice packs.")
+app.add_typer(voice_packs_app, name="voice-packs")
 
 
 def _version_callback(show_version: bool) -> None:
@@ -80,13 +86,15 @@ def doctor(
     config = config_store.load_or_create()
 
     engine_registry = discover_engine_registry()
-    engine_ids = list(engine_registry.adapters.keys())
+    valid_engine_ids = set(engine_registry.adapters.keys())
 
     model_store = ModelStore(paths.models_dir)
-    installed_models = [m.model_id for m in model_store.list_installed()]
+    installed_models = [
+        m.model_id for m in model_store.list_installed() if m.engine_id in valid_engine_ids
+    ]
 
-    checks = [
-        EngineAvailabilityCheck(engine_ids=engine_ids),
+    checks: list[DoctorCheck] = [
+        EngineAvailabilityCheck(engine_registry=engine_registry),
         EngineHealthCheck(unhealthy=[]),
         ModelAvailabilityCheck(installed_models=installed_models),
         TokenConfiguredCheck(config_path=paths.config_dir / "config.json"),
@@ -128,10 +136,8 @@ def _run_deep_smoke(paths: "RuntimePaths", providers: list[str]) -> None:
     store = StorageIdentityStore(paths.base_dir)
     descriptors = store.hydrate_installed_voice_descriptors()
     for desc in descriptors:
-        try:
+        with contextlib.suppress(ValueError, KeyError):
             voice_registry.register(desc)
-        except (ValueError, KeyError):
-            pass
 
     synthesis_service = SpeechSynthesisService(
         voice_registry=voice_registry,
@@ -370,3 +376,121 @@ def speak(
         )
         return
     typer.echo(f'{{"command":"speak","accepted":{bool(input_text).__str__().lower()}}}')
+
+
+@setup_app.command("recommend")
+def setup_recommend(
+    client: str = typer.Option("mery-cli", "--client", help="Client identity."),
+    intent: str = typer.Option("general", "--intent", help="Use-case intent."),
+    locale: str = typer.Option("", "--locale", help="Locale preference."),
+) -> None:
+    from mery_tts.catalog.voice_pack import VoicePackGraph
+    from mery_tts.setup.services import (
+        SetupService,
+        SimpleInstalledRuntimeStore,
+        SimpleInstalledVoiceStore,
+        SimpleVoicePackCatalog,
+    )
+
+    paths = _runtime_paths()
+    store = StorageIdentityStore(paths.base_dir)
+    descriptors = store.hydrate_installed_voice_descriptors()
+    installed_ids = {d.voice_id for d in descriptors}
+
+    catalog = SimpleVoicePackCatalog(VoicePackGraph())
+    service = SetupService(
+        catalog=catalog,
+        installed_voices=SimpleInstalledVoiceStore(installed_ids),
+        installed_runtimes=SimpleInstalledRuntimeStore(),
+    )
+    recommendations = service.recommend(
+        client=client,
+        intent=intent,
+        locale=locale or None,
+    )
+    result = [
+        {
+            "voice_pack_id": r.voice_pack_id,
+            "display_name": r.display_name,
+            "status": r.status,
+            "reason": r.reason,
+        }
+        for r in recommendations
+    ]
+    typer.echo(json.dumps({"recommendations": result, "client": client, "intent": intent}))
+
+
+@setup_app.command("url")
+def setup_url(
+    client: str = typer.Option("mery-cli", "--client", help="Client identity."),
+    intent: str = typer.Option("general", "--intent", help="Use-case intent."),
+    locale: str = typer.Option("", "--locale", help="Locale preference."),
+) -> None:
+    from mery_tts.setup.intent import SetupIntent
+
+    si = SetupIntent(
+        client=client,
+        intent=intent,
+        locale=locale or None,
+    )
+    typer.echo(si.to_console_url())
+
+
+@voice_packs_app.command("list")
+def voice_packs_list() -> None:
+    from mery_tts.catalog.voice_pack import VoicePackGraph, voice_packs_for_catalog_graph
+
+    paths = _runtime_paths()
+    store = StorageIdentityStore(paths.base_dir)
+    descriptors = store.hydrate_installed_voice_descriptors()
+    installed_ids = {d.voice_id for d in descriptors}
+
+    graph = VoicePackGraph()
+    packs = voice_packs_for_catalog_graph(
+        voice_pack_graph=graph,
+        installed_voice_ids=installed_ids,
+        installed_runtime_ids=set(),
+    )
+    typer.echo(json.dumps({"voice_packs": packs}))
+
+
+@voice_packs_app.command("install")
+def voice_packs_install(
+    pack_id: str = typer.Argument(..., help="Voice pack ID to install."),
+) -> None:
+    from mery_tts.catalog.voice_pack import VoicePackGraph
+    from mery_tts.setup.services import (
+        SimpleInstalledRuntimeStore,
+        SimpleInstalledVoiceStore,
+        SimpleVoicePackCatalog,
+        VoicePackService,
+    )
+
+    paths = _runtime_paths()
+    store = StorageIdentityStore(paths.base_dir)
+    descriptors = store.hydrate_installed_voice_descriptors()
+    installed_ids = {d.voice_id for d in descriptors}
+
+    catalog = SimpleVoicePackCatalog(VoicePackGraph())
+    service = VoicePackService(
+        catalog=catalog,
+        installed_voices=SimpleInstalledVoiceStore(installed_ids),
+        installed_runtimes=SimpleInstalledRuntimeStore(),
+    )
+    pack = service.get_pack(pack_id)
+    if pack is None:
+        typer.echo(f"voice pack {pack_id!r} not found", err=True)
+        raise typer.Exit(1)
+
+    plan = service.plan_install(pack_id)
+    typer.echo(
+        json.dumps(
+            {
+                "voice_pack_id": pack_id,
+                "plan_steps": len(plan.steps),
+                "provider_runtimes": list(plan.provider_runtime_ids),
+                "artifact_ids": list(plan.artifact_ids),
+                "voice_ids": list(plan.voice_ids),
+            }
+        )
+    )

@@ -17,8 +17,29 @@ from mery_tts.diagnostics.doctor import (
     ServerReachabilityCheck,
     TokenConfiguredCheck,
 )
+from mery_tts.engines.base import EngineAdapter, EngineRegistry
 from mery_tts.errors import RecommendedAction
 from mery_tts.providers.rollout import provider_rollout_status
+
+
+class _MockEngineAdapter(EngineAdapter):
+    engine_id: str = ""
+    accepted_voice_kinds: frozenset[str] = frozenset()
+
+    def __init__(self, engine_id: str, health: str = "available") -> None:
+        self.engine_id = engine_id
+        self._health = health
+
+    def health(self) -> str:
+        return self._health
+
+    async def synthesize(self, text: str, voice):  # type: ignore[no-untyped-def]
+        return
+        yield  # makes this an async generator
+
+
+def _registry_with(*engine_ids: str, health: str = "available") -> EngineRegistry:
+    return EngineRegistry(adapters={eid: _MockEngineAdapter(eid, health) for eid in engine_ids})
 
 
 def test_doctor_engine_exit_codes_and_persistence(tmp_path: Path) -> None:
@@ -147,7 +168,7 @@ def test_readme_documents_phase_one_uv_and_pipx() -> None:
 
 
 def test_doctor_engine_availability_check_with_loaded_engines() -> None:
-    check = EngineAvailabilityCheck(engine_ids=["kokoro", "piper-plus"])
+    check = EngineAvailabilityCheck(engine_registry=_registry_with("kokoro", "piper-plus"))
     result = check.run()
 
     assert result.check == "engine_availability"
@@ -157,7 +178,7 @@ def test_doctor_engine_availability_check_with_loaded_engines() -> None:
 
 
 def test_doctor_engine_availability_check_with_no_engines() -> None:
-    check = EngineAvailabilityCheck(engine_ids=[])
+    check = EngineAvailabilityCheck(engine_registry=_registry_with())
     result = check.run()
 
     assert result.status == "warn"
@@ -266,7 +287,7 @@ def test_doctor_catalog_available_check() -> None:
 def test_doctor_engine_with_di_checks(tmp_path: Path) -> None:
     engine = DoctorEngine(
         checks=[
-            EngineAvailabilityCheck(engine_ids=["kokoro"]),
+            EngineAvailabilityCheck(engine_registry=_registry_with("kokoro")),
             EngineHealthCheck(unhealthy=[]),
             ModelAvailabilityCheck(installed_models=["model-a"]),
             TokenConfiguredCheck(config_path=tmp_path / "missing.json"),

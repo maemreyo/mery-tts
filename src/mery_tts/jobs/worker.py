@@ -139,20 +139,14 @@ class BundledInstallWorker:
             "preset_id": job.artifact_id,
         }
 
-    async def _fetch_artifacts(
-        self, plan: _ResolvedInstallPlan
-    ) -> dict[str, FetchedArtifact]:
+    async def _fetch_artifacts(self, plan: _ResolvedInstallPlan) -> dict[str, FetchedArtifact]:
         """Fetch all artifacts for the install plan."""
         if self._artifacts_dir is None:
             raise InstallWorkerError("artifacts_dir not configured")
 
         fetched: dict[str, FetchedArtifact] = {}
         for artifact_plan in plan.voice_install.artifact_plans:
-            target_dir = (
-                self._artifacts_dir
-                / artifact_plan.engine_id
-                / artifact_plan.artifact_id
-            )
+            target_dir = self._artifacts_dir / artifact_plan.engine_id / artifact_plan.artifact_id
             target_dir.mkdir(parents=True, exist_ok=True)
             try:
                 entry = ArtifactEntry(

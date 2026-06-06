@@ -1,6 +1,6 @@
 # Define ProviderInstaller protocol
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,16 +12,16 @@ Define the ProviderInstaller port and provider runtime status model so Mery can 
 
 ## Acceptance criteria
 
-- [ ] ProviderInstaller exposes check, install, repair, and explain operations.
-- [ ] Provider runtime status includes provider ID, install mode, status, reason, recommended action, and user-safe explanation.
-- [ ] Install modes include automatic, guided, and external.
-- [ ] Provider status can be serialized through API/CLI without leaking unsafe paths or tracebacks.
+- [x] ProviderInstaller exposes check, install, repair, and explain operations.
+- [x] Provider runtime status includes provider ID, install mode, status, reason, recommended action, and user-safe explanation.
+- [x] Install modes include automatic, guided, and external.
+- [x] Provider status can be serialized through API/CLI without leaking unsafe paths or tracebacks.
 
 ## Production-ready criteria
 
-- [ ] Unit tests cover status serialization, unsupported platform, missing runtime, installed runtime, broken runtime, and repair recommendation.
-- [ ] Type contracts prevent provider-specific payloads from leaking into generic setup services.
-- [ ] Docs identify ProviderInstaller as a port, not a Piper/Kokoro implementation detail.
+- [x] Unit tests cover status serialization, unsupported platform, missing runtime, installed runtime, broken runtime, and repair recommendation.
+- [x] Type contracts prevent provider-specific payloads from leaking into generic setup services.
+- [x] Docs identify ProviderInstaller as a port, not a Piper/Kokoro implementation detail.
 
 ## Blocked by
 

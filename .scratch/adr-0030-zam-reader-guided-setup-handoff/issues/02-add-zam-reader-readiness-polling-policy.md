@@ -1,6 +1,6 @@
 # Add Zam Reader readiness polling policy
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,16 +12,16 @@ Define and document how Zam Reader should poll Mery readiness after setup handof
 
 ## Acceptance criteria
 
-- [ ] Policy maps `/v1/health` unavailable, degraded, ready, unpaired, and incompatible states to Zam Reader behavior.
-- [ ] Degraded mode rules identify when experimental local synthesis is allowed.
-- [ ] Ready mode requires compatible contract, paired/authenticated helper, usable voices, and smoke evidence according to ADR-0025.
-- [ ] Zam Reader fallback to Web Speech remains required whenever Mery is unavailable or policy rejects degraded use.
+- [x] Policy maps `/v1/health` unavailable, degraded, ready, unpaired, and incompatible states to Zam Reader behavior.
+- [x] Degraded mode rules identify when experimental local synthesis is allowed.
+- [x] Ready mode requires compatible contract, paired/authenticated helper, usable voices, and smoke evidence according to ADR-0025.
+- [x] Zam Reader fallback to Web Speech remains required whenever Mery is unavailable or policy rejects degraded use.
 
 ## Production-ready criteria
 
-- [ ] Documentation cross-links ADR-0021, ADR-0025, ADR-0026, and ADR-0030.
-- [ ] Contract examples show polling response and client decision outcomes.
-- [ ] Tests or fixtures cover each readiness state and expected client action.
+- [x] Documentation cross-links ADR-0021, ADR-0025, ADR-0026, and ADR-0030.
+- [x] Contract examples show polling response and client decision outcomes.
+- [x] Tests or fixtures cover each readiness state and expected client action.
 
 ## Blocked by
 

@@ -72,9 +72,7 @@ def _resolve_under_root(artifact_root: Path, relative_path: str) -> Path:
     try:
         resolved.relative_to(root_resolved)
     except ValueError as exc:
-        raise VoiceResolutionError(
-            f"resolved path escapes artifact root: {relative_path}"
-        ) from exc
+        raise VoiceResolutionError(f"resolved path escapes artifact root: {relative_path}") from exc
     return resolved
 
 
@@ -87,9 +85,7 @@ def _find_artifact_root(
     """Find and validate the artifact directory for a given engine/artifact pair."""
     artifact_dir = artifacts_dir / engine_id / artifact_id
     if not artifact_dir.is_dir():
-        raise VoiceResolutionError(
-            f"missing artifact directory: {engine_id}/{artifact_id}"
-        )
+        raise VoiceResolutionError(f"missing artifact directory: {engine_id}/{artifact_id}")
     return artifact_dir
 
 
@@ -145,7 +141,7 @@ def _resolve_preset(
     artifact_dir = _find_artifact_root(
         artifacts_dir=artifacts_dir,
         engine_id=voice.engine_id,
-        artifact_id=voice.payload.artifact_id
+        artifact_id=voice.payload.artifact_id  # pyright: ignore[reportAttributeAccessIssue]
         if hasattr(voice.payload, "artifact_id")
         else voice.payload.preset_id,
     )

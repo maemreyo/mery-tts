@@ -1,6 +1,6 @@
 # Add setup and voice pack application services
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,16 +12,16 @@ Introduce API-agnostic application services for setup recommendations and voice 
 
 ## Acceptance criteria
 
-- [ ] SetupService accepts client/intent context and returns recommended voice packs and provider requirements.
-- [ ] VoicePackService lists packs and resolves pack install plans through domain ports.
-- [ ] Services do not depend on FastAPI, Typer, or Zam Reader-specific modules.
-- [ ] Routes and CLI can call services without duplicating setup logic.
+- [x] SetupService accepts client/intent context and returns recommended voice packs and provider requirements.
+- [x] VoicePackService lists packs and resolves pack install plans through domain ports.
+- [x] Services do not depend on FastAPI, Typer, or Zam Reader-specific modules.
+- [x] Routes and CLI can call services without duplicating setup logic.
 
 ## Production-ready criteria
 
-- [ ] Unit tests cover setup recommendations for no intent, English reading intent, Vietnamese reading intent, missing provider runtime, and already-installed pack.
-- [ ] Service errors use structured sanitized domain errors.
-- [ ] Docs show service boundaries and forbidden dependencies.
+- [x] Unit tests cover setup recommendations for no intent, English reading intent, Vietnamese reading intent, missing provider runtime, and already-installed pack.
+- [x] Service errors use structured sanitized domain errors.
+- [x] Docs show service boundaries and forbidden dependencies.
 
 ## Blocked by
 

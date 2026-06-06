@@ -61,6 +61,8 @@ class BundledArtifactSource:
 
     async def fetch(self, artifact: ArtifactEntry, target_dir: Path) -> FetchedArtifact:
         package = self._package_map.get(artifact.artifact_id)
+        if package is None and artifact.artifact_id.startswith("catalog."):
+            package = self._package_map.get(artifact.artifact_id.removeprefix("catalog."))
         if package is None:
             raise ArtifactFetchError(
                 f"no bundled package mapping for artifact '{artifact.artifact_id}'"

@@ -97,8 +97,7 @@ def legacy_catalog_to_graph(catalog: Catalog) -> CatalogGraph:
         voices.append(_model_to_catalog_voice(model))
 
     engine_list = [
-        EngineEntry(engine_id=eid, display_name=name)
-        for eid, name in sorted(engines_seen.items())
+        EngineEntry(engine_id=eid, display_name=name) for eid, name in sorted(engines_seen.items())
     ]
 
     return CatalogGraph(

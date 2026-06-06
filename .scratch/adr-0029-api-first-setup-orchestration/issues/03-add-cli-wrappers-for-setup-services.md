@@ -1,6 +1,6 @@
 # Add CLI wrappers for setup services
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,16 +12,16 @@ Add CLI commands that wrap the same setup and voice pack services used by the AP
 
 ## Acceptance criteria
 
-- [ ] `mery setup recommend` prints setup recommendations for optional client/intent inputs.
-- [ ] `mery voice-packs list` shows the same pack projection as `/v1/voice-packs`.
-- [ ] `mery voice-packs install <pack_id>` starts install through the same service path as the API.
-- [ ] CLI output clearly reports provider runtime requirements, download size, job status, and next smoke action.
+- [x] `mery setup recommend` prints setup recommendations for optional client/intent inputs.
+- [x] `mery voice-packs list` shows the same pack projection as `/v1/voice-packs`.
+- [x] `mery voice-packs install <pack_id>` starts install through the same service path as the API.
+- [x] CLI output clearly reports provider runtime requirements, download size, job status, and next smoke action.
 
 ## Production-ready criteria
 
-- [ ] CLI tests cover list, install success, invalid pack, missing provider runtime, and failed job output.
-- [ ] CLI does not reimplement install planning outside services.
-- [ ] Docs include terminal-only standalone setup flow.
+- [x] CLI tests cover list, install success, invalid pack, missing provider runtime, and failed job output.
+- [x] CLI does not reimplement install planning outside services.
+- [x] Docs include terminal-only standalone setup flow.
 
 ## Blocked by
 

@@ -137,21 +137,89 @@ InstallEventType = Literal[
 
 
 class InstallEvent(EventEnvelope):
-    event_type: InstallEventType
+    event_type: InstallEventType  # pyright: ignore[reportIncompatibleVariableOverride]
     job_id: str
 
 
 class SynthesisEvent(EventEnvelope):
-    event_type: Literal["synthesize.started", "synthesize.completed", "synthesize.failed"]
+    event_type: Literal[  # pyright: ignore[reportIncompatibleVariableOverride]
+        "synthesize.started", "synthesize.completed", "synthesize.failed"
+    ]
     session_id: str
 
 
 class AudioEvent(EventEnvelope):
-    event_type: Literal["audio.chunk", "audio.completed"]
+    event_type: Literal["audio.chunk", "audio.completed"]  # pyright: ignore[reportIncompatibleVariableOverride]
     session_id: str
     chunk_index: int
 
 
 class HelperStatusChangedEvent(EventEnvelope):
-    event_type: Literal["helper.statusChanged"]
+    event_type: Literal["helper.statusChanged"]  # pyright: ignore[reportIncompatibleVariableOverride]
     status: Literal["ok", "degraded", "unavailable"]
+
+
+class VoicePackSummary(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    voice_pack_id: str
+    display_name: str
+    description: str = ""
+    locale: str = ""
+    use_case: str = ""
+    estimated_size_bytes: int = 0
+    recommended: bool = False
+    voice_ids: list[str] = Field(default_factory=list)
+    provider_runtime_ids: list[str] = Field(default_factory=list)
+    voices_installed: int = 0
+    voices_total: int = 0
+    runtimes_ready: bool = False
+    status: Literal["available", "partial", "missing_runtime", "installed"] = "available"
+
+
+class VoicePacksResponse(VersionedModel):
+    voice_packs: list[VoicePackSummary]
+
+
+class SetupRecommendationVo(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    voice_pack_id: str
+    display_name: str
+    description: str = ""
+    locale: str = ""
+    use_case: str = ""
+    estimated_size_bytes: int = 0
+    status: str = "available"
+    reason: str | None = None
+
+
+class SetupRecommendationsResponse(VersionedModel):
+    recommendations: list[SetupRecommendationVo]
+    client: str | None = None
+    intent: str | None = None
+
+
+class ProviderRuntimeSummaryVo(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    provider_id: str
+    install_mode: str
+    status: str
+    explanation: str | None = None
+    recommended_action: str | None = None
+
+
+class ProviderRuntimesResponse(VersionedModel):
+    provider_runtimes: list[ProviderRuntimeSummaryVo]
+
+
+class VoicePackInstallRequest(VersionedModel):
+    voice_pack_id: str
+
+
+class VoicePackInstallResponse(VersionedModel):
+    voice_pack_id: str
+    job_id: str | None = None
+    status: str = "queued"
+    plan_steps: int = 0

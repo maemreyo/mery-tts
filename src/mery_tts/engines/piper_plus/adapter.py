@@ -9,13 +9,19 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 from collections.abc import AsyncIterator, Callable, Iterable
-from typing import Any
+from typing import Any, Protocol, cast
 
 from mery_tts.engines.base import EngineAdapter, PCMChunk
 from mery_tts.voice import ModelFileVoicePayload, VoiceDescriptor
 from mery_tts.voice.resolver import ResolvedModelFilePayload, ResolvedVoice
 
 PiperSynthesizer = Callable[[str, VoiceDescriptor], Iterable[bytes]]
+
+
+class _PiperRuntime(Protocol):
+    """Structural type for the optional piper-plus runtime objects."""
+
+    def synthesize(self, text: str, /, *args: object, **kwargs: object) -> object: ...
 
 
 class PiperRuntimeError(Exception):
@@ -29,13 +35,9 @@ class PiperRuntimeError(Exception):
 
 def _default_piper_synthesizer(text: str, voice: VoiceDescriptor) -> Iterable[bytes]:
     if importlib.util.find_spec("piper") is None:
-        raise PiperRuntimeError(
-            "dependency_missing", "piper-plus package is not installed"
-        )
+        raise PiperRuntimeError("dependency_missing", "piper-plus package is not installed")
     if not isinstance(voice.payload, ModelFileVoicePayload):
-        raise PiperRuntimeError(
-            "model_missing", "piper-plus requires a model-file voice payload"
-        )
+        raise PiperRuntimeError("model_missing", "piper-plus requires a model-file voice payload")
     raise PiperRuntimeError(
         "model_missing", "piper-plus model loading is not configured for this voice"
     )
@@ -47,9 +49,9 @@ class PiperRuntimeCache:
     def __init__(self) -> None:
         self._cache: dict[str, Any] = {}
 
-    def get_or_load(self, voice_id: str, resolved: ResolvedVoice) -> Any:
+    def get_or_load(self, voice_id: str, resolved: ResolvedVoice) -> _PiperRuntime:
         if voice_id in self._cache:
-            return self._cache[voice_id]
+            return self._cache[voice_id]  # type: ignore[no-any-return]
         runtime = self._load_runtime(resolved)
         self._cache[voice_id] = runtime
         return runtime
@@ -60,31 +62,27 @@ class PiperRuntimeCache:
     def clear(self) -> None:
         self._cache.clear()
 
-    def _load_runtime(self, resolved: ResolvedVoice) -> Any:
+    def _load_runtime(self, resolved: ResolvedVoice) -> _PiperRuntime:
         if not isinstance(resolved.payload, ResolvedModelFilePayload):
             raise PiperRuntimeError(
                 "model_missing", "piper-plus requires a resolved model-file payload"
             )
         if importlib.util.find_spec("piper") is None:
-            raise PiperRuntimeError(
-                "dependency_missing", "piper-plus package is not installed"
-            )
+            raise PiperRuntimeError("dependency_missing", "piper-plus package is not installed")
         try:
-            import piper  # type: ignore[import-untyped]
+            import piper  # type: ignore[import-not-found]
 
             model_path = str(resolved.payload.model_path)
             config_path = (
-                str(resolved.payload.config_path)
-                if resolved.payload.config_path
-                else None
+                str(resolved.payload.config_path) if resolved.payload.config_path else None
             )
-            voice_config = piper.PiperConfig.load(config_path) if config_path else None
-            synthesizer = piper.PiperSynthesizer(model_path, voice_config)
-            return synthesizer
-        except ImportError:
+            voice_config = piper.PiperConfig.load(config_path) if config_path else None  # pyright: ignore[reportAttributeAccessIssue]
+            synthesizer = piper.PiperSynthesizer(model_path, voice_config)  # pyright: ignore[reportAttributeAccessIssue]
+            return synthesizer  # type: ignore[no-any-return]
+        except ImportError as exc:
             raise PiperRuntimeError(
                 "dependency_missing", "piper-plus package is not installed"
-            )
+            ) from exc
         except PiperRuntimeError:
             raise
         except Exception as exc:
@@ -154,8 +152,8 @@ class PiperPlusAdapter(EngineAdapter):
                 break
             yield PCMChunk(pcm=pcm, sample_rate_hz=24_000, channels=1)
 
-    def _synthesize_with_runtime(self, text: str, runtime: Any) -> Iterable[bytes]:
+    def _synthesize_with_runtime(self, text: str, runtime: _PiperRuntime) -> Iterable[bytes]:
         try:
-            return runtime.synthesize(text)
+            return cast("Iterable[bytes]", runtime.synthesize(text))
         except Exception as exc:
             raise PiperRuntimeError("synthesis_failed", str(exc)) from exc

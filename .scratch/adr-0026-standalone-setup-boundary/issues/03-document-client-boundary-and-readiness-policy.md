@@ -1,6 +1,6 @@
 # Document client boundary and readiness policy
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,16 +12,16 @@ Document how clients consume Mery setup/readiness without owning provider instal
 
 ## Acceptance criteria
 
-- [ ] Docs state that clients request setup intent and consume readiness/speech APIs only.
-- [ ] Docs state that Mery owns provider runtime install, artifacts, smoke, diagnostics, and readiness truth.
-- [ ] Zam Reader Web Speech fallback policy is described without becoming a Mery dependency.
-- [ ] Future non-Zam clients can follow the same setup contract.
+- [x] Docs state that clients request setup intent and consume readiness/speech APIs only.
+- [x] Docs state that Mery owns provider runtime install, artifacts, smoke, diagnostics, and readiness truth.
+- [x] Zam Reader Web Speech fallback policy is described without becoming a Mery dependency.
+- [x] Future non-Zam clients can follow the same setup contract.
 
 ## Production-ready criteria
 
-- [ ] Documentation cross-links ADR-0001, ADR-0021, ADR-0025, and ADR-0026.
-- [ ] Contract examples include Zam Reader and a generic local client.
-- [ ] Human review confirms no Zam Reader-only setup responsibility leaks into Mery core.
+- [x] Documentation cross-links ADR-0001, ADR-0021, ADR-0025, and ADR-0026.
+- [x] Contract examples include Zam Reader and a generic local client.
+- [x] Human review confirms no Zam Reader-only setup responsibility leaks into Mery core.
 
 ## Blocked by
 
