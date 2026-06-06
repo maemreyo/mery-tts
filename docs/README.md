@@ -15,7 +15,7 @@ This docs tree is the canonical home for the Mery TTS Server design.
 
 ## ADRs
 
-- [`adr/INDEX.md`](adr/INDEX.md) — all 20 Architecture Decision Records (ADR-0001–0020), with design decision coverage map.
+- [`adr/INDEX.md`](adr/INDEX.md) — all 25 Architecture Decision Records (ADR-0001–0025), with design decision coverage map.
 
 ## Reports
 
@@ -27,6 +27,11 @@ This docs tree is the canonical home for the Mery TTS Server design.
 ## Integration contracts
 
 - [`integration/zam-reader-readiness-contract.md`](integration/zam-reader-readiness-contract.md) — requirements before Zam Reader may use Mery.
+- [`adr/ADR-0021-local-zam-reader-usable-milestone.md`](adr/ADR-0021-local-zam-reader-usable-milestone.md) — first HTTP local-usable Zam Reader milestone.
+- [`adr/ADR-0022-provider-fallback-and-synthesis-orchestration.md`](adr/ADR-0022-provider-fallback-and-synthesis-orchestration.md) — shared synthesis service and voice-level fallback.
+- [`adr/ADR-0023-model-install-and-artifact-source-architecture.md`](adr/ADR-0023-model-install-and-artifact-source-architecture.md) — artifact source and normalized install architecture.
+- [`adr/ADR-0024-installed-voice-resolution-and-runtime-caching.md`](adr/ADR-0024-installed-voice-resolution-and-runtime-caching.md) — installed voice resolver and runtime cache.
+- [`adr/ADR-0025-readiness-health-smoke-and-zam-reader-gating.md`](adr/ADR-0025-readiness-health-smoke-and-zam-reader-gating.md) — layered readiness, smoke, and Zam Reader gating.
   Add a `<client>-readiness-contract.md` here for each new integration partner.
 
 ## Ownership rule

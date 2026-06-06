@@ -32,6 +32,11 @@ These ADRs distill the 27 design decisions from
 | Grill 04, Q41–Q46 | ADR-0018 | Provider rollout strategy |
 | Grill 06 | ADR-0019 | Provider adapter taxonomy |
 | Grill 05, Q47–Q55 | ADR-0020 | Web console architecture |
+| Local usable grill, Q30–Q32 | ADR-0021 | Local Zam Reader usable milestone |
+| Local usable grill, Q5–Q9, Q18–Q21, Q27–Q29 | ADR-0022 | Provider fallback and synthesis orchestration |
+| Local usable grill, Q11–Q14 | ADR-0023 | Model install and artifact source architecture |
+| Local usable grill, Q15–Q18, Q25–Q29 | ADR-0024 | Installed voice resolution and runtime caching |
+| Local usable grill, Q22–Q26 | ADR-0025 | Readiness, health, smoke, and Zam Reader gating |
 
 ---
 
@@ -59,6 +64,11 @@ These ADRs distill the 27 design decisions from
 | [ADR-0018](ADR-0018-provider-rollout-strategy.md) | Provider rollout strategy | ⏳ Proposed |
 | [ADR-0019](ADR-0019-provider-adapter-taxonomy.md) | Provider adapter taxonomy | ⏳ Proposed |
 | [ADR-0020](ADR-0020-web-console-architecture.md) | Web console architecture | ⏳ Proposed |
+| [ADR-0021](ADR-0021-local-zam-reader-usable-milestone.md) | Local Zam Reader usable milestone | ⏳ Proposed |
+| [ADR-0022](ADR-0022-provider-fallback-and-synthesis-orchestration.md) | Provider fallback and synthesis orchestration | ⏳ Proposed |
+| [ADR-0023](ADR-0023-model-install-and-artifact-source-architecture.md) | Model install and artifact source architecture | ⏳ Proposed |
+| [ADR-0024](ADR-0024-installed-voice-resolution-and-runtime-caching.md) | Installed voice resolution and runtime caching | ⏳ Proposed |
+| [ADR-0025](ADR-0025-readiness-health-smoke-and-zam-reader-gating.md) | Readiness, health, smoke, and Zam Reader gating | ⏳ Proposed |
 
 ---
 

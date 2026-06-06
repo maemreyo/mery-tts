@@ -100,7 +100,7 @@ mery speak --file input.txt --output hello.wav
 | [`docs/codebase/FOLDER_STRUCTURE.md`](docs/codebase/FOLDER_STRUCTURE.md) | Annotated repo + package layout |
 | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) | System design, SoC, layers, module boundaries |
 | [`docs/codebase/TECH_STACK.md`](docs/codebase/TECH_STACK.md) | Packages, logging strategy, DevEX, UX patterns |
-| [`docs/adr/INDEX.md`](docs/adr/INDEX.md) | Architecture Decision Records index (ADR-0001–0012) |
+| [`docs/adr/INDEX.md`](docs/adr/INDEX.md) | Architecture Decision Records index (ADR-0001–0025) |
 | [`docs/integration/zam-reader-readiness-contract.md`](docs/integration/zam-reader-readiness-contract.md) | Requirements before Zam Reader may use Mery |
 | [`docs/reports/local-tts-helper-design-decisions.md`](docs/reports/local-tts-helper-design-decisions.md) | Full 27-decision design log |
 | [`docs/reports/local-tts-solutions-research.md`](docs/reports/local-tts-solutions-research.md) | Engine research and benchmarks |
