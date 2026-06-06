@@ -25,7 +25,7 @@ Use raw PCM streaming when your client:
 - Does not need a WAV container — it assembles its own audio frames.
 
 If you need a WAV file or a non-streaming blocking response, do **not** set
-`stream_format` — the endpoint will return a complete WAV buffer.
+`stream: true` — the endpoint will return a complete WAV buffer.
 
 ---
 
@@ -43,7 +43,7 @@ Content-Type: application/json
   "voice": "af_heart",
   "input": "Streaming raw PCM is fast and boring — which is exactly what you want.",
   "response_format": "pcm",
-  "stream_format": "pcm"
+  "stream": true
 }
 ```
 
@@ -53,11 +53,11 @@ Content-Type: application/json
 | `voice` | yes | Installed voice id (use `/v1/voices/installed` to list) |
 | `input` | yes | UTF-8 text, up to `4096` characters |
 | `response_format` | yes | `pcm` is the only streaming-compatible value |
-| `stream_format` | yes | `pcm` to enable raw PCM streaming; omit for blocking WAV |
+| `stream` | yes | `true` to enable raw PCM streaming; `false` for blocking WAV |
 
 The request is identical in shape to OpenAI's `audio/speech` endpoint. Any
-OpenAI SDK that lets you set `response_format="pcm"` and `stream_format="pcm"`
-works without modification.
+OpenAI SDK that lets you set `response_format="pcm"` and `stream=True` works
+without modification.
 
 ---
 
@@ -121,33 +121,28 @@ audio byte has been flushed to the client.
 ### Pre-first-byte errors → JSON `application/json`
 
 These all happen **before any audio is written** to the response. The
-Content-Type is `application/json` and the body is the standard native error
-shape:
+Content-Type is `application/json` and the body uses the OpenAI error
+envelope, identical in shape to OpenAI's `audio/speech` failures:
 
-| Status | `code` | When |
+| Status | `type` | When |
 |---|---|---|
-| `400` | `openai.invalid_model` | Unknown `model` |
-| `400` | `openai.unsupported_format` | `response_format` is not `pcm` |
-| `400` | `openai.invalid_input` | Empty text or input > 4096 chars |
-| `401` | `security.unauthorized` | Missing or invalid bearer token |
-| `404` | `openai.unknown_voice` | Voice id not in the installed manifest |
-| `503` | `engine.dependency_missing` | Engine package not installed |
-| `504` | `engine.first_chunk_timeout` | Engine did not yield the first chunk within `streaming.first_chunk_timeout_seconds` |
+| `400` | `invalid_request_error` | Unknown `model`, unsupported `response_format`, empty / oversize `input`, or unknown voice id |
+| `401` | `invalid_request_error` | Missing or invalid bearer token |
+| `404` | `invalid_request_error` | Voice id not in the installed manifest |
+| `503` | `invalid_request_error` | Engine package not installed |
+| `504` | `invalid_request_error` | Engine did not yield the first chunk within `streaming.first_chunk_timeout_seconds` |
 
 ```json
 {
-  "code": "openai.unsupported_format",
-  "category": "validation",
-  "severity": "error",
-  "recoverability": "user_fixable",
-  "user_message_key": "openai.unsupported_format",
-  "recommended_action": "Use response_format=\"pcm\" and stream_format=\"pcm\" for streaming.",
-  "fallback_policy": "blocking",
-  "sanitized_diagnostic": "response_format=mp3 is not stream-compatible",
-  "request_id": "req-7f3c2a1b",
-  "timestamp": "2026-06-07T08:14:22.193Z"
+  "error": {
+    "message": "streaming only supports pcm",
+    "type": "invalid_request_error"
+  }
 }
 ```
+
+The `request_id` is also returned in the `X-Mery-Request-Id` response header
+so clients can correlate the failure with `/v1/diagnostics` lookups.
 
 ### Post-first-byte errors → stream terminates
 

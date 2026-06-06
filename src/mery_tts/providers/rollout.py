@@ -43,7 +43,10 @@ def provider_rollout_status() -> dict[str, ProviderRolloutStatus]:
         "supertonic": ProviderRolloutStatus(
             phase="planned",
             runtime_state="not_started",
-            detail="Provider rollout not started.",
+            detail=(
+                "Explicitly deferred: not in P1 scope, no integration timeline. "
+                "See docs/reports/roadmap-research/providers/11-supertonic.md."
+            ),
         ),
         "voxcpm2": ProviderRolloutStatus(
             phase="planned",

@@ -251,6 +251,8 @@ def _effective_streaming_capability(
             format=baseline.format,
             sample_rates_hz=baseline.sample_rates_hz,
         )
+    if voice is not None:
+        return adapter.voice_streaming_capability(voice)
     return baseline
 
 
@@ -399,6 +401,7 @@ def create_app(
     if catalog_voices is None:
         catalog_voices = bundled_catalog_voice_summaries()
     installed_voice_descriptors = storage_identity_store.hydrate_installed_voice_descriptors()
+
     installed_voice_summaries = [
         VoiceSummary(
             voice_id=voice.voice_id,

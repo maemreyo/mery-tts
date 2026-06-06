@@ -105,3 +105,67 @@ def test_thread_backed_bridge_runs_producer_in_daemon_thread() -> None:
     assert producer_finished.wait(timeout=1.0)
     thread.join(timeout=1.0)
     assert not thread.is_alive()
+
+
+def test_thread_backed_bridge_raises_backpressure_timeout_under_producer_overflow() -> None:
+    """ADR-0033: the thread-backed path is explicitly scoped to async-only
+    cancellation. The queue does NOT observe asyncio cancellation events;
+    the producer must be stopped via ``adapter.cancel()`` separately. Under
+    sustained overflow, the queue raises ``BackpressureTimeout`` — it does
+    not silently drop chunks or cancel itself.
+    """
+    from mery_tts.streaming.backpressure import bridge_thread_producer
+
+    config = BackpressureConfig(max_queue_size=1, put_timeout_seconds=0.05)
+    queue_ = BoundedPCMQueue(config=config)
+    producer_error: list[BaseException] = []
+    producer_started = threading.Event()
+
+    def producer() -> None:
+        producer_started.set()
+        try:
+            for index in range(10):
+                queue_.put(_chunk(f"overflow-{index}".encode()))
+        except BaseException as exc:
+            producer_error.append(exc)
+
+    thread = bridge_thread_producer(producer_callable=producer, queue_=queue_)
+    thread.start()
+    assert producer_started.wait(timeout=1.0)
+    thread.join(timeout=2.0)
+    assert not thread.is_alive()
+    assert len(producer_error) == 1
+    assert isinstance(producer_error[0], BackpressureTimeout)
+
+
+@pytest.mark.asyncio
+async def test_thread_backed_bridge_scope_is_async_only_cancellation() -> None:
+    """ADR-0033: the thread-backed bridge is explicitly scoped to async-only
+    cancellation. The queue does NOT observe asyncio cancellation events;
+    the producer must be stopped via ``adapter.cancel()`` separately, and
+    the bridge's ``_run_thread_producer`` closes the queue on producer
+    exit (success or failure) so the async consumer unblocks.
+    """
+    from mery_tts.streaming.backpressure import bridge_thread_producer
+
+    config = BackpressureConfig(max_queue_size=8, put_timeout_seconds=1.0)
+    queue_ = BoundedPCMQueue(config=config)
+    producer_finished = threading.Event()
+
+    def producer() -> None:
+        for index in range(3):
+            queue_.put(_chunk(f"async-scope-{index}".encode()))
+        producer_finished.set()
+
+    thread = bridge_thread_producer(producer_callable=producer, queue_=queue_)
+    thread.start()
+    assert producer_finished.wait(timeout=1.0)
+    thread.join(timeout=1.0)
+    assert not thread.is_alive()
+
+    received: list[bytes] = []
+    async with asyncio.timeout(1.0):
+        async for chunk in queue_.aiter_chunks():
+            received.append(chunk.pcm)
+
+    assert received == [f"async-scope-{index}".encode() for index in range(3)]

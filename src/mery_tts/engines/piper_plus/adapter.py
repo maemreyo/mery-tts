@@ -8,7 +8,10 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import json
 from collections.abc import AsyncIterator, Callable, Iterable
+from dataclasses import replace
+from pathlib import Path
 from typing import Any, Protocol, cast
 
 from mery_tts.engines.base import EngineAdapter, PCMChunk
@@ -42,6 +45,23 @@ def _default_piper_synthesizer(text: str, voice: VoiceDescriptor) -> Iterable[by
     raise PiperRuntimeError(
         "model_missing", "piper-plus model loading is not configured for this voice"
     )
+
+
+def _read_native_sample_rate_hz(config_path: Path) -> int | None:
+    """Read the ``sample_rate`` field from a Piper ONNX config JSON.
+
+    Returns ``None`` on any I/O or parse failure so the caller can fall
+    back to the engine baseline without surfacing the error to the
+    capability endpoint.
+    """
+    try:
+        data = json.loads(config_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    rate = data.get("sample_rate")
+    if isinstance(rate, int) and rate > 0:
+        return rate
+    return None
 
 
 class PiperRuntimeCache:
@@ -141,6 +161,26 @@ class PiperPlusAdapter(EngineAdapter):
             format="pcm_s16le",
             sample_rates_hz=(22_050, 24_000),
         )
+
+    def voice_streaming_capability(self, voice: VoiceDescriptor) -> StreamingCapabilityInfo:
+        baseline = self.streaming_capability()
+        if not baseline.supported:
+            return baseline
+        resolved = self._resolved_voices.get(voice.voice_id)
+        if resolved is None:
+            return baseline
+        if not isinstance(resolved.payload, ResolvedModelFilePayload):
+            return baseline
+        config_path = resolved.payload.config_path
+        if config_path is None:
+            return baseline
+        native_rate = _read_native_sample_rate_hz(config_path)
+        if native_rate is None:
+            return baseline
+        narrowed = tuple(rate for rate in baseline.sample_rates_hz if rate == native_rate)
+        if not narrowed:
+            return baseline
+        return replace(baseline, sample_rates_hz=narrowed)
 
     def cancel(self, request_id: str) -> None:
         self._cancelled_requests.add(request_id)

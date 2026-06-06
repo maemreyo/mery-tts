@@ -57,6 +57,19 @@ class EngineAdapter(ABC):
             sample_rates_hz=(),
         )
 
+    def voice_streaming_capability(self, voice: VoiceDescriptor) -> StreamingCapabilityInfo:
+        """Voice-aware streaming capability, narrowed by voice metadata.
+
+        ADR-0035: narrows ``sample_rates_hz`` against the voice's known
+        native rate when the adapter can introspect the model. The default
+        implementation returns the baseline unchanged. Adapters that
+        distinguish per-voice rates (Piper-plus) override this to read
+        the model's declared ``sample_rate`` and intersect with the
+        baseline rates.
+        """
+        _ = voice
+        return self.streaming_capability()
+
     def cancel(self, request_id: str) -> None:
         _ = request_id
 

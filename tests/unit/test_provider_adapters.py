@@ -1,4 +1,5 @@
 import importlib.util
+import json
 
 import pytest
 
@@ -8,6 +9,7 @@ from mery_tts.engines.piper_plus.adapter import PiperPlusAdapter
 from mery_tts.providers.taxonomy import assert_provider_payload_allowed
 from mery_tts.streaming.capabilities import StreamingCapability
 from mery_tts.voice import ModelFileVoicePayload, PresetVoicePayload, VoiceDescriptor
+from mery_tts.voice.resolver import ResolvedModelFilePayload, ResolvedVoice
 
 
 def piper_voice() -> VoiceDescriptor:
@@ -170,6 +172,116 @@ def test_kokoro_streaming_capability_reports_sentence_chunked_with_runtime(
     assert info.true_incremental is False
     assert info.format == "pcm_s16le"
     assert 24_000 in info.sample_rates_hz
+
+
+def test_piper_plus_voice_streaming_capability_returns_baseline_without_resolved_voice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda name: object() if name == "piper" else None
+    )
+    adapter = PiperPlusAdapter()
+
+    info = adapter.voice_streaming_capability(piper_voice())
+
+    assert info.sample_rates_hz == (22_050, 24_000)
+
+
+def test_piper_plus_voice_streaming_capability_narrows_to_native_rate(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda name: object() if name == "piper" else None
+    )
+    config_path = tmp_path / "voice.onnx.json"
+    config_path.write_text(json.dumps({"sample_rate": 22_050}))
+    adapter = PiperPlusAdapter()
+    voice = piper_voice()
+    adapter.register_resolved_voice(
+        ResolvedVoice(
+            voice_id=voice.voice_id,
+            engine_id=voice.engine_id,
+            payload=ResolvedModelFilePayload(
+                artifact_id="artifact-piper",
+                model_path=tmp_path / "voice.onnx",
+                config_path=config_path,
+            ),
+        )
+    )
+
+    info = adapter.voice_streaming_capability(voice)
+
+    assert info.sample_rates_hz == (22_050,)
+
+
+def test_piper_plus_voice_streaming_capability_returns_baseline_when_config_lacks_sample_rate(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda name: object() if name == "piper" else None
+    )
+    config_path = tmp_path / "voice.onnx.json"
+    config_path.write_text(json.dumps({"voice": "demo"}))
+    adapter = PiperPlusAdapter()
+    voice = piper_voice()
+    adapter.register_resolved_voice(
+        ResolvedVoice(
+            voice_id=voice.voice_id,
+            engine_id=voice.engine_id,
+            payload=ResolvedModelFilePayload(
+                artifact_id="artifact-piper",
+                model_path=tmp_path / "voice.onnx",
+                config_path=config_path,
+            ),
+        )
+    )
+
+    info = adapter.voice_streaming_capability(voice)
+
+    assert info.sample_rates_hz == (22_050, 24_000)
+
+
+def test_piper_plus_voice_streaming_capability_returns_baseline_when_config_unreadable(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda name: object() if name == "piper" else None
+    )
+    config_path = tmp_path / "voice.onnx.json"
+    config_path.write_text("not valid json")
+    adapter = PiperPlusAdapter()
+    voice = piper_voice()
+    adapter.register_resolved_voice(
+        ResolvedVoice(
+            voice_id=voice.voice_id,
+            engine_id=voice.engine_id,
+            payload=ResolvedModelFilePayload(
+                artifact_id="artifact-piper",
+                model_path=tmp_path / "voice.onnx",
+                config_path=config_path,
+            ),
+        )
+    )
+
+    info = adapter.voice_streaming_capability(voice)
+
+    assert info.sample_rates_hz == (22_050, 24_000)
+
+
+def test_kokoro_voice_streaming_capability_returns_baseline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda name: object() if name == "kokoro_onnx" else None
+    )
+    adapter = KokoroAdapter()
+
+    info = adapter.voice_streaming_capability(kokoro_voice())
+
+    assert info.sample_rates_hz == (24_000,)
 
 
 def test_streaming_capability_mode_enum_values_are_snake_case() -> None:

@@ -8,6 +8,7 @@ derived from the first chunk's metadata.
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
@@ -20,6 +21,8 @@ from mery_tts.streaming.metadata import (
     derive_stream_metadata,
 )
 from mery_tts.streaming.pipeline import StreamingPipeline
+
+_LOGGER = logging.getLogger(__name__)
 
 MERY_DIAGNOSTIC_HEADER_NAMES = (
     "X-Mery-Request-Id",
@@ -92,14 +95,34 @@ async def build_openai_pcm_stream_response(
 
     content_type = build_audio_l16_content_type(metadata)
     headers_dict = build_mery_diagnostic_headers(request_id=pipeline.request_id, metadata=metadata)
+    request_id = pipeline.request_id
+    engine_id = pipeline._adapter.engine_id  # diagnostic only — used in lifecycle log
 
     async def byte_stream() -> AsyncIterator[bytes]:
         try:
             yield first_chunk_box.chunk.pcm
             async for chunk in first_chunk_box.iterator:
                 if pipeline.cancellation.is_cancelled():
+                    _LOGGER.info(
+                        "stream.lifecycle_cancelled",
+                        extra={
+                            "request_id": request_id,
+                            "engine_id": engine_id,
+                            "phase": "post_first_byte",
+                            "reason": "client_cancelled",
+                        },
+                    )
                     break
                 if not metadata.is_compatible(chunk):
+                    _LOGGER.info(
+                        "stream.lifecycle_metadata_drift",
+                        extra={
+                            "request_id": request_id,
+                            "engine_id": engine_id,
+                            "phase": "post_first_byte",
+                            "reason": "incompatible_chunk_metadata",
+                        },
+                    )
                     break
                 yield chunk.pcm
         finally:

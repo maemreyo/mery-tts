@@ -69,7 +69,6 @@ class StreamingPipeline:
         self._assigner = SequenceAssigner()
         self._cancelled = False
         self._metadata_drift = False
-        self._sequence_error = False
 
     @property
     def request_id(self) -> str:
@@ -116,7 +115,6 @@ class StreamingPipeline:
         emitted: list[PCMChunk] = []
         self._cancelled = False
         self._metadata_drift = False
-        self._sequence_error = False
         try:
             iterator = self._adapter.synthesize(
                 self._text,
@@ -127,15 +125,11 @@ class StreamingPipeline:
                 if self._cancellation.is_cancelled():
                     self._cancelled = True
                     break
-                try:
-                    chunk = self._process_chunk(raw_chunk)
-                except (StreamMetadataError, StreamSequenceError):
-                    self._metadata_drift = True
-                    self._sequence_error = isinstance(_last_error(), StreamSequenceError)
-                    raise
+                chunk = self._process_chunk(raw_chunk)
                 emitted.append(chunk)
                 yield chunk
         except (StreamMetadataError, StreamSequenceError) as exc:
+            self._metadata_drift = True
             _LOGGER.info(
                 "stream.metadata_drift",
                 extra={
@@ -167,12 +161,5 @@ class StreamingPipeline:
             ),
             cancelled=self._cancelled,
             metadata_drift=self._metadata_drift,
-            sequence_error=self._sequence_error,
+            sequence_error=False,
         )
-
-
-def _last_error() -> BaseException:
-    """Return the most recent exception, or a generic BaseException."""
-    import sys
-
-    return sys.exception() or BaseException()
