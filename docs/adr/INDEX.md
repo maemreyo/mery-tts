@@ -37,6 +37,11 @@ These ADRs distill the 27 design decisions from
 | Local usable grill, Q11–Q14 | ADR-0023 | Model install and artifact source architecture |
 | Local usable grill, Q15–Q18, Q25–Q29 | ADR-0024 | Installed voice resolution and runtime caching |
 | Local usable grill, Q22–Q26 | ADR-0025 | Readiness, health, smoke, and Zam Reader gating |
+| Setup/install grill, RCM review | ADR-0026 | Standalone setup boundary and client responsibilities |
+| Setup/install grill, RCM review | ADR-0027 | VoicePack install graph |
+| Setup/install grill, RCM review | ADR-0028 | Tiered ProviderInstaller strategy |
+| Setup/install grill, RCM review | ADR-0029 | API-first setup orchestration |
+| Setup/install grill, RCM review | ADR-0030 | Zam Reader guided setup handoff |
 
 ---
 
@@ -69,6 +74,11 @@ These ADRs distill the 27 design decisions from
 | [ADR-0023](ADR-0023-model-install-and-artifact-source-architecture.md) | Model install and artifact source architecture | ⏳ Proposed |
 | [ADR-0024](ADR-0024-installed-voice-resolution-and-runtime-caching.md) | Installed voice resolution and runtime caching | ⏳ Proposed |
 | [ADR-0025](ADR-0025-readiness-health-smoke-and-zam-reader-gating.md) | Readiness, health, smoke, and Zam Reader gating | ⏳ Proposed |
+| [ADR-0026](ADR-0026-standalone-setup-boundary.md) | Standalone setup boundary and client responsibilities | ⏳ Proposed |
+| [ADR-0027](ADR-0027-voice-pack-install-graph.md) | VoicePack install graph | ⏳ Proposed |
+| [ADR-0028](ADR-0028-tiered-provider-installer.md) | Tiered ProviderInstaller strategy | ⏳ Proposed |
+| [ADR-0029](ADR-0029-api-first-setup-orchestration.md) | API-first setup orchestration | ⏳ Proposed |
+| [ADR-0030](ADR-0030-zam-reader-guided-setup-handoff.md) | Zam Reader guided setup handoff | ⏳ Proposed |
 
 ---
 

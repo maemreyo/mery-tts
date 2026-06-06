@@ -15,7 +15,7 @@ This docs tree is the canonical home for the Mery TTS Server design.
 
 ## ADRs
 
-- [`adr/INDEX.md`](adr/INDEX.md) — all 25 Architecture Decision Records (ADR-0001–0025), with design decision coverage map.
+- [`adr/INDEX.md`](adr/INDEX.md) — all 30 Architecture Decision Records (ADR-0001–0030), with design decision coverage map.
 
 ## Reports
 
@@ -32,6 +32,11 @@ This docs tree is the canonical home for the Mery TTS Server design.
 - [`adr/ADR-0023-model-install-and-artifact-source-architecture.md`](adr/ADR-0023-model-install-and-artifact-source-architecture.md) — artifact source and normalized install architecture.
 - [`adr/ADR-0024-installed-voice-resolution-and-runtime-caching.md`](adr/ADR-0024-installed-voice-resolution-and-runtime-caching.md) — installed voice resolver and runtime cache.
 - [`adr/ADR-0025-readiness-health-smoke-and-zam-reader-gating.md`](adr/ADR-0025-readiness-health-smoke-and-zam-reader-gating.md) — layered readiness, smoke, and Zam Reader gating.
+- [`adr/ADR-0026-standalone-setup-boundary.md`](adr/ADR-0026-standalone-setup-boundary.md) — standalone setup boundary and client responsibilities.
+- [`adr/ADR-0027-voice-pack-install-graph.md`](adr/ADR-0027-voice-pack-install-graph.md) — VoicePack install graph.
+- [`adr/ADR-0028-tiered-provider-installer.md`](adr/ADR-0028-tiered-provider-installer.md) — tiered ProviderInstaller strategy.
+- [`adr/ADR-0029-api-first-setup-orchestration.md`](adr/ADR-0029-api-first-setup-orchestration.md) — API-first setup orchestration.
+- [`adr/ADR-0030-zam-reader-guided-setup-handoff.md`](adr/ADR-0030-zam-reader-guided-setup-handoff.md) — Zam Reader guided setup handoff.
   Add a `<client>-readiness-contract.md` here for each new integration partner.
 
 ## Ownership rule
