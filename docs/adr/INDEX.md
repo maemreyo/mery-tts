@@ -29,6 +29,11 @@ These ADRs distill the 27 design decisions from
 | Grill 01 Q5/Q6 + Grill 03 Q29/Q30/Q31/Q34/Q38 | ADR-0015 | Catalog model, artifact/voice identity |
 | Grill 03, Q32/Q33/Q35/Q36/Q37 | ADR-0016 | Install job lifecycle |
 | Grill 02, Q20–Q24 | ADR-0017 | PCM streaming protocol |
+| Streaming grill, RCM review | ADR-0031 | Streaming module architecture |
+| Streaming grill, RCM review | ADR-0032 | PCM chunk streaming contract |
+| Streaming grill, RCM review | ADR-0033 | Streaming cancellation and adaptive backpressure |
+| Streaming grill, RCM review | ADR-0034 | OpenAI-compatible streaming HTTP semantics |
+| Streaming grill, RCM review | ADR-0035 | Streaming capability and provider scope |
 | Grill 04, Q41–Q46 | ADR-0018 | Provider rollout strategy |
 | Grill 06 | ADR-0019 | Provider adapter taxonomy |
 | Grill 05, Q47–Q55 | ADR-0020 | Web console architecture |
@@ -79,6 +84,11 @@ These ADRs distill the 27 design decisions from
 | [ADR-0028](ADR-0028-tiered-provider-installer.md) | Tiered ProviderInstaller strategy | ⏳ Proposed |
 | [ADR-0029](ADR-0029-api-first-setup-orchestration.md) | API-first setup orchestration | ⏳ Proposed |
 | [ADR-0030](ADR-0030-zam-reader-guided-setup-handoff.md) | Zam Reader guided setup handoff | ⏳ Proposed |
+| [ADR-0031](ADR-0031-streaming-module-architecture.md) | Streaming module architecture | ⏳ Proposed |
+| [ADR-0032](ADR-0032-pcm-chunk-streaming-contract.md) | PCM chunk streaming contract | ⏳ Proposed |
+| [ADR-0033](ADR-0033-streaming-cancellation-and-backpressure.md) | Streaming cancellation and adaptive backpressure | ⏳ Proposed |
+| [ADR-0034](ADR-0034-openai-streaming-http-semantics.md) | OpenAI-compatible streaming HTTP semantics | ⏳ Proposed |
+| [ADR-0035](ADR-0035-streaming-capability-and-provider-scope.md) | Streaming capability and provider scope | ⏳ Proposed |
 
 ---
 

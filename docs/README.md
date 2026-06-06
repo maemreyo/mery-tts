@@ -15,7 +15,7 @@ This docs tree is the canonical home for the Mery TTS Server design.
 
 ## ADRs
 
-- [`adr/INDEX.md`](adr/INDEX.md) — all 30 Architecture Decision Records (ADR-0001–0030), with design decision coverage map.
+- [`adr/INDEX.md`](adr/INDEX.md) — all 35 Architecture Decision Records (ADR-0001–0035), with design decision coverage map.
 
 ## Reports
 
@@ -55,6 +55,11 @@ Add a `<client>-readiness-contract.md` here for each new integration partner.
 - [`adr/ADR-0028-tiered-provider-installer.md`](adr/ADR-0028-tiered-provider-installer.md) — tiered ProviderInstaller strategy.
 - [`adr/ADR-0029-api-first-setup-orchestration.md`](adr/ADR-0029-api-first-setup-orchestration.md) — API-first setup orchestration.
 - [`adr/ADR-0030-zam-reader-guided-setup-handoff.md`](adr/ADR-0030-zam-reader-guided-setup-handoff.md) — Zam Reader guided setup handoff.
+- [`adr/ADR-0031-streaming-module-architecture.md`](adr/ADR-0031-streaming-module-architecture.md) — standalone modular streaming subsystem.
+- [`adr/ADR-0032-pcm-chunk-streaming-contract.md`](adr/ADR-0032-pcm-chunk-streaming-contract.md) — richer PCM chunk metadata contract.
+- [`adr/ADR-0033-streaming-cancellation-and-backpressure.md`](adr/ADR-0033-streaming-cancellation-and-backpressure.md) — pipeline-owned cancellation and adaptive backpressure.
+- [`adr/ADR-0034-openai-streaming-http-semantics.md`](adr/ADR-0034-openai-streaming-http-semantics.md) — OpenAI-compatible raw PCM HTTP semantics.
+- [`adr/ADR-0035-streaming-capability-and-provider-scope.md`](adr/ADR-0035-streaming-capability-and-provider-scope.md) — streaming capability metadata and PiperPlus/Kokoro P1 scope.
 
 ## Ownership rule
 
