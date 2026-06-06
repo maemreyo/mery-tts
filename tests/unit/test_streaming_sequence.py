@@ -56,7 +56,7 @@ def test_assigner_locks_implicit_mode_on_first_zero_chunk() -> None:
         assigner.process(_chunk(1))
 
 
-def test_assigner_rejects_explicit_start_above_zero() -> None:
+def test_assigner_accepts_explicit_start_above_zero() -> None:
     assigner = SequenceAssigner()
     first = assigner.process(_chunk(5))
     assert first.sequence == 5

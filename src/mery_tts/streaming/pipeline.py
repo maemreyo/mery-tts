@@ -69,10 +69,15 @@ class StreamingPipeline:
         self._assigner = SequenceAssigner()
         self._cancelled = False
         self._metadata_drift = False
+        self._sequence_error = False
 
     @property
     def request_id(self) -> str:
         return self._cancellation.request_id
+
+    @property
+    def engine_id(self) -> str:
+        return self._adapter.engine_id
 
     @property
     def cancellation(self) -> StreamCancellation:
@@ -115,6 +120,7 @@ class StreamingPipeline:
         emitted: list[PCMChunk] = []
         self._cancelled = False
         self._metadata_drift = False
+        self._sequence_error = False
         try:
             iterator = self._adapter.synthesize(
                 self._text,
@@ -130,6 +136,7 @@ class StreamingPipeline:
                 yield chunk
         except (StreamMetadataError, StreamSequenceError) as exc:
             self._metadata_drift = True
+            self._sequence_error = isinstance(exc, StreamSequenceError)
             _LOGGER.info(
                 "stream.metadata_drift",
                 extra={
@@ -161,5 +168,5 @@ class StreamingPipeline:
             ),
             cancelled=self._cancelled,
             metadata_drift=self._metadata_drift,
-            sequence_error=False,
+            sequence_error=self._sequence_error,
         )

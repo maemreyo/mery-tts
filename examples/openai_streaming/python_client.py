@@ -82,7 +82,7 @@ def stream_speech_to_wav(
             "voice": voice,
             "input": text,
             "response_format": "pcm",
-            "stream_format": "pcm",
+            "stream": True,
         }
     ).encode("utf-8")
 

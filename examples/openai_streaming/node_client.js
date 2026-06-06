@@ -105,7 +105,7 @@ function streamSpeechToWav({ baseUrl, token, model, voice, text, outputPath }) {
       voice,
       input: text,
       response_format: "pcm",
-      stream_format: "pcm",
+      stream: true,
     });
 
     const req = lib.request(

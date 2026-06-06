@@ -66,6 +66,13 @@ class EngineAdapter(ABC):
         distinguish per-voice rates (Piper-plus) override this to read
         the model's declared ``sample_rate`` and intersect with the
         baseline rates.
+
+        CAVEAT: narrowing requires the voice to be in the adapter's
+        resolved-voice cache (see ``register_resolved_voice``). At
+        discovery time, before any synthesis has populated the cache,
+        this method falls back to the engine baseline. The capability
+        endpoint therefore reports the narrowest accurate rates only
+        after the voice has been resolved at least once via synthesis.
         """
         _ = voice
         return self.streaming_capability()

@@ -96,7 +96,7 @@ async def build_openai_pcm_stream_response(
     content_type = build_audio_l16_content_type(metadata)
     headers_dict = build_mery_diagnostic_headers(request_id=pipeline.request_id, metadata=metadata)
     request_id = pipeline.request_id
-    engine_id = pipeline._adapter.engine_id  # diagnostic only — used in lifecycle log
+    engine_id = pipeline.engine_id
 
     async def byte_stream() -> AsyncIterator[bytes]:
         try:
