@@ -90,8 +90,9 @@ Add the remaining public methods alongside the existing `install()`:
 
 The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
 
-- [ ] Persist install/delete domain events or job manifests durably enough for restart-safe status and cleanup.
-- [ ] Make delete idempotent, voice-aware, and garbage-collect only unreferenced artifacts after manifest updates commit.
-  - Progress: `ModelStore.delete_by_model_id()` and `DELETE /v1/models/{model_id}` are idempotent for already-missing models; voice-aware manifest updates and unreferenced-artifact GC remain pending.
+- [x] Persist install/delete domain events or job manifests durably enough for restart-safe status and cleanup.
+  - Evidence: `src/mery_tts/jobs/install.py::FileInstallJobStore` persists install job manifests as JSON and `GET /v1/models/install/{job_id}` reloads status after app recreation; `tests/unit/test_install_jobs.py::test_file_install_job_store_recovers_status_after_service_restart` and `tests/contract/test_rest_management_endpoints.py::test_model_install_status_survives_app_restart` pin restart-safe status.
+- [x] Make delete idempotent, voice-aware, and garbage-collect only unreferenced artifacts after manifest updates commit.
+  - Evidence: `DELETE /v1/models/{model_id}` now calls `InstallJobService.delete_voice()` before model-store fallback; `StorageIdentityStore.delete_voice_and_collect_garbage()` removes the voice manifest before collecting only artifacts with zero live refs. `tests/contract/test_rest_management_endpoints.py::test_model_delete_updates_voice_manifests_and_collects_artifacts` and `tests/unit/test_storage_identity.py::test_shared_artifact_gc_only_removes_unreferenced_artifacts` pin idempotent voice-aware delete and shared-artifact retention.
 
 ## Comments

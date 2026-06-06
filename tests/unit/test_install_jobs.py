@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from mery_tts.jobs.install import InstallJobService, JobStatus
+from mery_tts.jobs.install import FileInstallJobStore, InstallJobService, JobStatus
 from mery_tts.storage.identity import StorageIdentityStore
 
 
@@ -37,6 +37,7 @@ def test_install_failure_before_commit_is_not_routable(tmp_path: Path) -> None:
 
     assert service.status(job.job_id).status == JobStatus.FAILED
     assert not (tmp_path / "voices" / "voice.fail.json").exists()
+    assert not (tmp_path / "artifacts" / "kokoro" / "artifact" / "artifact.json").exists()
 
 
 def test_delete_is_idempotent_and_garbage_collects(tmp_path: Path) -> None:
@@ -51,3 +52,30 @@ def test_delete_is_idempotent_and_garbage_collects(tmp_path: Path) -> None:
 
     assert service.delete_voice("voice.delete") == ["artifact.delete"]
     assert service.delete_voice("voice.delete") == []
+
+
+def test_file_install_job_store_recovers_status_after_service_restart(tmp_path: Path) -> None:
+    job_store = FileInstallJobStore(tmp_path / "jobs")
+    service = InstallJobService(
+        StorageIdentityStore(tmp_path),
+        refresh=lambda: None,
+        job_store=job_store,
+    )
+    job = service.start_install(
+        catalog_entry_id="entry.restart",
+        voice_id="voice.restart",
+        engine_id="kokoro",
+        artifact_id="artifact.restart",
+    )
+    service.fail_install(job.job_id, reason="download failed")
+
+    restarted = InstallJobService(
+        StorageIdentityStore(tmp_path),
+        refresh=lambda: None,
+        job_store=FileInstallJobStore(tmp_path / "jobs"),
+    )
+
+    recovered = restarted.status(job.job_id)
+    assert recovered.status == JobStatus.FAILED
+    assert recovered.catalog_entry_id == "entry.restart"
+    assert recovered.error == "download failed"

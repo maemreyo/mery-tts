@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mery Console</title>
+    <link rel="stylesheet" href="/console/assets/app.css" />
+  </head>
+  <body>
+    <main id="app" class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Local Mery admin console</p>
+          <h1>Catalog, installs, Try Speech, and diagnostics</h1>
+          <p>Runs from packaged static assets and talks only to same-origin <code>/v1</code> APIs.</p>
+        </div>
+        <form id="token-form" class="token-card">
+          <label for="token-input">Bearer token</label>
+          <input id="token-input" name="token" type="password" autocomplete="off" placeholder="Paste local token" />
+          <label class="inline"><input id="remember-token" type="checkbox" /> Remember on this device</label>
+          <button type="submit">Use token</button>
+          <p id="token-mode" class="muted">Token storage: memory only</p>
+        </form>
+      </section>
+
+      <nav class="tabs" aria-label="Console sections">
+        <a href="#catalog">Catalog</a>
+        <a href="#try-speech">Try Speech</a>
+        <a href="#diagnostics">Diagnostics</a>
+      </nav>
+
+      <section id="catalog" class="panel">
+        <div class="panel-heading">
+          <h2>Catalog</h2>
+          <div class="filters">
+            <input id="catalog-search" type="search" placeholder="Search voices" />
+            <select id="engine-filter"><option value="">All engines</option></select>
+            <select id="catalog-sort">
+              <option value="display_name">Name</option>
+              <option value="engine_id">Engine</option>
+              <option value="voice_id">Voice ID</option>
+            </select>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Voice</th><th>Engine</th><th>ID</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="catalog-body"></tbody>
+        </table>
+        <p id="job-status" class="muted">No install job running.</p>
+      </section>
+
+      <section id="try-speech" class="panel">
+        <h2>Try Speech</h2>
+        <form id="speech-form" class="speech-grid">
+          <label>Installed voice<select id="voice-select"></select></label>
+          <label>Text<textarea id="speech-text" rows="4">Hello from Mery.</textarea></label>
+          <button type="submit">Play WAV</button>
+        </form>
+        <audio id="speech-audio" controls></audio>
+        <p id="speech-status" class="muted">Blocking WAV playback uses response_format=wav and stream=false.</p>
+      </section>
+
+      <section id="diagnostics" class="panel">
+        <div class="panel-heading"><h2>Diagnostics</h2><button id="refresh-diagnostics" type="button">Refresh</button></div>
+        <dl id="diagnostics-list" class="diagnostics-list"></dl>
+      </section>
+    </main>
+    <script type="module" src="/console/assets/app.js"></script>
+  </body>
+</html>

@@ -25,6 +25,18 @@ def fake_sine_pcm_bytes(samples: int = 6) -> bytes:
     return b"".join(value.to_bytes(2, "little", signed=True) for value in values)
 
 
+class FakePlaybackStream:
+    def __init__(self) -> None:
+        self.writes: list[bytes] = []
+        self.closed = False
+
+    def write(self, data: bytes) -> None:
+        self.writes.append(data)
+
+    def close(self) -> None:
+        self.closed = True
+
+
 class FakeEngineAdapter(EngineAdapter):
     engine_id = "fake-sine"
     accepted_voice_kinds = frozenset({"preset"})
@@ -51,29 +63,86 @@ def fake_stream() -> AsyncIterator[PCMChunk]:
 
 @pytest.mark.asyncio
 async def test_audio_player_drains_stream_and_stops() -> None:
-    writes: list[bytes] = []
-    player = AudioPlayer(write=lambda chunk: writes.append(chunk.pcm))
+    opened: list[tuple[int, int]] = []
+    playback = FakePlaybackStream()
+    player = AudioPlayer(
+        stream_factory=lambda sample_rate_hz, channels: (
+            opened.append((sample_rate_hz, channels)),
+            playback,
+        )[1]
+    )
 
     await player.play(fake_stream())
     player.stop()
 
     sine = fake_sine_pcm_bytes()
 
-    assert writes == [sine[:6], sine[6:]]
+    assert opened == [(24_000, 1)]
+    assert playback.writes == [sine[:6], sine[6:]]
+    assert playback.closed is True
     assert player.stopped is True
 
 
 @pytest.mark.asyncio
 async def test_audio_player_stop_prevents_later_chunks_from_writing() -> None:
-    writes: list[bytes] = []
-    player = AudioPlayer(
-        write=lambda chunk: (writes.append(chunk.pcm), player.stop()),
-    )
+    playback = FakePlaybackStream()
+    player = AudioPlayer(stream_factory=lambda sample_rate_hz, channels: playback)
+
+    original_write = playback.write
+
+    def write_and_stop(data: bytes) -> None:
+        original_write(data)
+        player.stop()
+
+    playback.write = write_and_stop
 
     await player.play(fake_stream())
 
-    assert writes == [fake_sine_pcm_bytes()[:6]]
+    assert playback.writes == [fake_sine_pcm_bytes()[:6]]
+    assert playback.closed is True
     assert player.stopped is True
+
+
+@pytest.mark.asyncio
+async def test_audio_player_closes_stream_on_cancellation() -> None:
+    playback = FakePlaybackStream()
+    player = AudioPlayer(stream_factory=lambda sample_rate_hz, channels: playback)
+
+    async def cancelling_stream() -> AsyncIterator[PCMChunk]:
+        yield PCMChunk(pcm=b"a", sample_rate_hz=24_000, channels=1)
+        raise asyncio.CancelledError
+
+    import asyncio
+
+    with pytest.raises(asyncio.CancelledError):
+        await player.play(cancelling_stream())
+
+    assert playback.writes == [b"a"]
+    assert playback.closed is True
+    assert player.stopped is True
+
+
+@pytest.mark.asyncio
+async def test_audio_player_maps_device_failure_to_structured_error() -> None:
+    def fail_open(sample_rate_hz: int, channels: int) -> FakePlaybackStream:
+        _ = sample_rate_hz, channels
+        raise RuntimeError("device unavailable: /Users/private/speaker")
+
+    player = AudioPlayer(stream_factory=fail_open)
+
+    with pytest.raises(LocalTTSError) as error:
+        await player.play(fake_stream())
+
+    assert error.value.code == ErrorCode.PLAYBACK_DEVICE_UNAVAILABLE
+    assert error.value.recommended_action == RecommendedAction.CHECK_ENGINE
+    assert error.value.fallback_policy == FallbackPolicy.USE_CACHED_AUDIO
+    assert "/Users" not in error.value.sanitized_diagnostic
+
+
+@pytest.mark.engine
+@pytest.mark.asyncio
+async def test_audio_player_real_device_smoke_is_marked_and_skipped_by_default() -> None:
+    pytest.skip("manual audio-device smoke: requires local speakers and user opt-in")
 
 
 def test_audio_encoder_round_trips_pcm_bytes() -> None:

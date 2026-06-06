@@ -59,7 +59,9 @@ from a `PCMChunk` and returns the encoded string for inclusion in
 
 The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
 
-- [ ] Implement actual device playback draining PCM with sample-rate/channel handling, cancellation, and no API import dependency on speaker libraries.
-- [ ] Add manual/marked audio-device smoke plus fake PCM unit tests for stop/drain/error paths.
+- [x] Implement actual device playback draining PCM with sample-rate/channel handling, cancellation, and no API import dependency on speaker libraries.
+  - Evidence: `src/mery_tts/audio/player.py::AudioPlayer` opens an injectable playback stream from the first `PCMChunk` sample rate/channels, writes PCM bytes through `asyncio.to_thread()`, closes on completion/stop/cancellation, and maps device failures to structured `playback.device_unavailable` errors. `SoundDeviceStream` is CLI playback-only and uses `sounddevice.OutputStream`; API/WebSocket code continues to use `AudioEncoder` and does not import `audio.player`.
+- [x] Add manual/marked audio-device smoke plus fake PCM unit tests for stop/drain/error paths.
+  - Evidence: `tests/unit/test_audio_sinks.py::test_audio_player_drains_stream_and_stops`, `test_audio_player_stop_prevents_later_chunks_from_writing`, `test_audio_player_closes_stream_on_cancellation`, and `test_audio_player_maps_device_failure_to_structured_error` cover fake PCM drain/stop/cancel/error paths without hardware. `test_audio_player_real_device_smoke_is_marked_and_skipped_by_default` is marked `engine` and skips cleanly unless manually enabled with local audio hardware.
 
 ## Comments

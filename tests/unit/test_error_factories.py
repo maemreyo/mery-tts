@@ -55,6 +55,40 @@ def test_engine_exception_translation_is_sanitized() -> None:
     assert error.sanitized_diagnostic == "engine=kokoro"
 
 
+def test_real_domain_error_diagnostics_are_sanitized() -> None:
+    cases = [
+        diagnostic_error(
+            code=ErrorCode.MODEL_INSTALL_FAILED,
+            category=ErrorCategory.MODEL,
+            request_id="install",
+            diagnostic={"phase": "download", "reason": "Traceback secret /Users/me/model.onnx"},
+        ),
+        diagnostic_error(
+            code=ErrorCode.SYNTHESIS_FAILED,
+            category=ErrorCategory.SYNTHESIS,
+            request_id="synthesis",
+            diagnostic={"voice": "alloy", "error": "RuntimeError secret /Users/me/voice.pt"},
+        ),
+        diagnostic_error(
+            code=ErrorCode.STORAGE_WRITE_FAILED,
+            category=ErrorCategory.STORAGE,
+            request_id="doctor",
+            diagnostic={"check": "doctor", "detail": "token=secret Traceback /Users/me"},
+        ),
+        diagnostic_error(
+            code=ErrorCode.SECURITY_UNSAFE_IDENTIFIER,
+            category=ErrorCategory.SECURITY,
+            request_id="middleware",
+            diagnostic={"reason": "origin_not_allowed", "origin": "https://evil.example/secret"},
+        ),
+    ]
+
+    for error in cases:
+        assert "secret" not in error.sanitized_diagnostic
+        assert "/Users" not in error.sanitized_diagnostic
+        assert "Traceback" not in error.sanitized_diagnostic
+
+
 def test_fallback_policy_map_covers_representative_categories() -> None:
     connection = fallback_for(ErrorCode.CONNECTION_DAEMON_UNREACHABLE)
     catalog = fallback_for(ErrorCode.CATALOG_SIGNATURE_INVALID)

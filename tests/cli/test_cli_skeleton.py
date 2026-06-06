@@ -1,3 +1,4 @@
+import inspect
 import json
 import wave
 
@@ -150,3 +151,18 @@ def test_storage_show_command_delegates_to_model_store_disk_usage(monkeypatch, t
     assert "model store:" in result.stdout
     assert "total installed size:" in result.stdout
     assert "available disk space:" in result.stdout
+
+
+def test_cli_has_no_unguarded_identifier_inputs() -> None:
+    identifier_parameters: list[str] = []
+    commands = [*cli_main.app.registered_commands, *cli_main.storage_app.registered_commands]
+
+    for command in commands:
+        callback = command.callback
+        if callback is None:
+            continue
+        for name in inspect.signature(callback).parameters:
+            if name.endswith("_id") or name in {"model", "voice", "artifact", "catalog"}:
+                identifier_parameters.append(f"{command.name}:{name}")
+
+    assert identifier_parameters == []

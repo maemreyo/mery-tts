@@ -19,6 +19,53 @@ def test_app_factory_builds_without_engines_or_models() -> None:
     assert response.json()["schema_version"] == "v1"
 
 
+def test_console_static_routes_are_public_spa_without_affecting_v1_auth() -> None:
+    app = create_app(config=HelperConfig(helper_id="mery-test", auth_token="secret" * 8, port=8765))
+
+    with TestClient(app) as client:
+        console = client.get("/console")
+        fallback = client.get("/console/catalog/deep-link")
+        script = client.get("/console/assets/app.js")
+        styles = client.get("/console/assets/app.css")
+        missing_asset = client.get("/console/assets/missing.js")
+        traversal_asset = client.get("/console/assets/%2e%2e/index.html")
+        v1_missing = client.get("/v1/health")
+
+    assert console.status_code == 200
+    assert fallback.status_code == 200
+    assert "Local Mery admin console" in console.text
+    assert fallback.text == console.text
+    assert script.status_code == 200
+    assert "fetch(`/v1${path}`" in script.text
+    assert styles.status_code == 200
+    assert "text/css" in styles.headers["content-type"]
+    assert ".shell" in styles.text
+    assert missing_asset.status_code == 404
+    assert traversal_asset.status_code == 404
+    assert v1_missing.status_code == 401
+
+
+def test_console_assets_pin_token_catalog_speech_and_diagnostics_behaviour() -> None:
+    app = create_app(config=HelperConfig(helper_id="mery-test", auth_token="secret" * 8, port=8765))
+
+    with TestClient(app) as client:
+        html = client.get("/console").text
+        script = client.get("/console/assets/app.js").text
+
+    assert "Remember on this device" in html
+    assert "Token storage: memory only" in html
+    assert "response_format=wav and stream=false" in html
+    assert "localStorage.setItem(TOKEN_STORAGE_KEY" in script
+    assert "localStorage.removeItem(TOKEN_STORAGE_KEY" in script
+    assert 'apiJson("/catalog/voices")' in script
+    assert 'apiJson("/voices/installed")' in script
+    assert "apiJson(`/models/install/${encodeURIComponent(jobId)}`)" in script
+    assert 'response_format: "wav"' in script
+    assert "stream: false" in script
+    assert "URL.revokeObjectURL(activeObjectUrl)" in script
+    assert 'apiJson("/diagnostics")' in script
+
+
 def test_rest_endpoint_requires_bearer_token() -> None:
     app = create_app(config=HelperConfig(helper_id="mery-test", auth_token="secret" * 8, port=8765))
 

@@ -43,7 +43,7 @@ See [`docs/use-cases.md`](docs/use-cases.md) for the full breakdown.
 
 ## Status
 
-> Early runtime implementation. Core CLI/API scaffolding, pairing, local security controls, catalog/voice fixtures, OpenAI-compatible speech stubs, WAV export, and the local `make check` gate are implemented and tested. Real engine audio validation, durable install lifecycle, packaging smoke, and production hardening remain in progress.
+> Early runtime implementation. Core CLI/API scaffolding, pairing, local security controls, catalog/voice fixtures, durable install lifecycle, OpenAI-compatible speech, packaged `/console` web UI, WAV export, and the local `make check` gate are implemented and tested. Real engine audio validation and signed app packaging remain future hardening work.
 
 - [x] Design decisions finalized (27 decisions, see `docs/reports/local-tts-helper-design-decisions.md`)
 - [x] Readiness contract defined (see `docs/integration/zam-reader-readiness-contract.md`)
@@ -53,15 +53,16 @@ See [`docs/use-cases.md`](docs/use-cases.md) for the full breakdown.
 - [x] Early runtime implementation slices
 - [ ] Real engine adapters audio validation (Piper-plus, Kokoro)
 - [x] REST + WebSocket API scaffolding and core contract tests
+- [x] Packaged local web console served at `/console` by `mery serve`
 - [x] CLI (`mery`) core commands and local export path
 - [x] Core test suite and `make check` gate
-- [ ] Packaging smoke (uv/pipx Phase 1)
+- [x] Phase 1 packaging-agnostic runtime smoke coverage
 
 ---
 
 ## Quick start — Phase 1 early access
 
-Phase 1 early access requires Terminal. Install with either `uv` or `pipx`, then run the first-run diagnostics and pairing commands locally. The packaged core starts, serves `/v1`, and supports deterministic CLI/API smoke paths without optional engine downloads; the bundled catalog is package data and can be browsed offline. Explicit model installation and remote catalog refresh are separate user-triggered network actions, and real Piper-plus or Kokoro audio requires installing the matching optional engine extra and remains gated by real-runtime validation.
+Phase 1 early access requires Terminal. Install with either `uv` or `pipx`, then run the first-run diagnostics and pairing commands locally. The packaged core starts one FastAPI server, serves `/v1` plus the local web console at `/console`, and supports deterministic CLI/API/web smoke paths without optional engine downloads; the bundled catalog and console assets are Python package resources and can be browsed offline. Explicit model installation and remote catalog refresh are separate user-triggered network actions, and real Piper-plus or Kokoro audio requires installing the matching optional engine extra and remains gated by real-runtime validation.
 
 ```bash
 # Install with uv
@@ -72,10 +73,10 @@ pipx install mery-tts-server
 # Check environment
 mery doctor
 
-# Start server
+# Start server; open the local web console at http://127.0.0.1:<port>/console
 mery serve
 
-# Pair a client (from a second terminal or from any client app)
+# Pair a client or paste the bearer token into /console (from a second terminal)
 mery pair
 
 # Install a voice model
@@ -123,6 +124,7 @@ mery speak --file input.txt --output hello.wav
 │    engines / voices        /v1/models, /v1/storage               │
 │    models / storage        /v1/diagnostics, /v1/pair             │
 │    speak [--text|--file --output] WS /v1/events                  │
+│                            /console packaged local web console   │
 │                                                                  │
 │  ┌──────────────┐  ┌────────────────┐  ┌──────────────────┐     │
 │  │EngineRegistry│  │  ModelManager  │  │ CatalogManager   │     │

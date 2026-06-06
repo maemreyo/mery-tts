@@ -1,6 +1,7 @@
 from collections.abc import Awaitable, Callable
+from importlib import resources
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from fastapi import FastAPI, Request, Response, WebSocket, status
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -15,7 +16,7 @@ from mery_tts.api.openai.speech import (
 from mery_tts.catalog import bundled_catalog_voice_summaries
 from mery_tts.engines import EngineRegistry, discover_engine_registry
 from mery_tts.errors import ErrorCategory, ErrorCode, diagnostic_error
-from mery_tts.jobs.install import InstallJobService
+from mery_tts.jobs.install import FileInstallJobStore, InstallJobService
 from mery_tts.models.store import ModelStore
 from mery_tts.schemas.v1 import (
     CatalogVoicesResponse,
@@ -27,6 +28,7 @@ from mery_tts.schemas.v1 import (
     ModelDeleteResponse,
     ModelInstallRequest,
     ModelInstallResponse,
+    ModelJobStatusResponse,
     ModelStatusResponse,
     NativeErrorResponse,
     PairingResponse,
@@ -41,6 +43,11 @@ from mery_tts.voice import VoiceRegistry
 
 ALLOWED_ORIGINS = frozenset({"http://127.0.0.1", "http://localhost", "null"})
 ALLOWED_ORIGIN_HOSTS = frozenset({"127.0.0.1", "localhost"})
+CONSOLE_PACKAGE = "mery_tts.console"
+CONSOLE_ASSET_MEDIA_TYPES = {
+    ".css": "text/css; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+}
 
 
 class PairClaimRequest(BaseModel):
@@ -59,6 +66,31 @@ def is_allowed_origin(origin: str) -> bool:
         return True
     parsed = urlparse(origin)
     return parsed.scheme == "http" and parsed.hostname in ALLOWED_ORIGIN_HOSTS
+
+
+def _is_console_path(path: str) -> bool:
+    return path == "/console" or path.startswith("/console/")
+
+
+def _console_index_response() -> Response:
+    html = resources.files(CONSOLE_PACKAGE).joinpath("index.html").read_text()
+    return Response(content=html, media_type="text/html; charset=utf-8")
+
+
+def _console_asset_response(asset_path: str) -> Response | JSONResponse:
+    normalized_asset_path = unquote(asset_path)
+    if (
+        not normalized_asset_path
+        or normalized_asset_path.startswith(("/", "."))
+        or ".." in normalized_asset_path.split("/")
+    ):
+        return JSONResponse({"detail": "asset not found"}, status_code=404)
+    asset = resources.files(CONSOLE_PACKAGE).joinpath("assets", normalized_asset_path)
+    if not asset.is_file():
+        return JSONResponse({"detail": "asset not found"}, status_code=404)
+    suffix = "." + normalized_asset_path.rsplit(".", 1)[-1] if "." in normalized_asset_path else ""
+    media_type = CONSOLE_ASSET_MEDIA_TYPES.get(suffix, "application/octet-stream")
+    return Response(content=asset.read_bytes(), media_type=media_type)
 
 
 def _safe_reason(raw_reason: str) -> str:
@@ -205,13 +237,13 @@ def create_app(
 
     def _refresh_voice_registry() -> None:
         descriptors = storage_identity_store.hydrate_installed_voice_descriptors()
-        for voice in descriptors:
-            voice_registry.register(voice)
+        voice_registry.refresh(descriptors)
 
     if install_job_service is None:
         install_job_service = InstallJobService(
             store=storage_identity_store,
             refresh=_refresh_voice_registry,
+            job_store=FileInstallJobStore(model_store.root_path / "jobs" / "install"),
         )
 
     for voice in installed_voice_descriptors:
@@ -233,7 +265,7 @@ def create_app(
         if origin is not None and not is_allowed_origin(origin):
             return _origin_not_allowed_response()
 
-        if request.url.path != "/v1/pair/claim":
+        if request.url.path != "/v1/pair/claim" and not _is_console_path(request.url.path):
             expected = f"Bearer {current_auth_token()}"
             authorization = request.headers.get("authorization")
             if authorization is None:
@@ -251,6 +283,21 @@ def create_app(
                 return _request_too_large_response(limit=max_body_bytes)
 
         return await call_next(request)
+
+    @app.get("/console", response_model=None)
+    def console_root() -> Response:
+        return _console_index_response()
+
+    @app.get("/console/assets/{asset_path:path}", response_model=None)
+    def console_asset(asset_path: str) -> Response | JSONResponse:
+        return _console_asset_response(asset_path)
+
+    @app.get("/console/{spa_path:path}", response_model=None)
+    def console_spa_fallback(spa_path: str) -> Response | JSONResponse:
+        normalized_spa_path = unquote(spa_path)
+        if normalized_spa_path.startswith("assets/") or ".." in normalized_spa_path.split("/"):
+            return JSONResponse({"detail": "asset not found"}, status_code=404)
+        return _console_index_response()
 
     @app.get(
         "/v1/health",
@@ -332,28 +379,6 @@ def create_app(
         checks = {result.check: result.status for result in results}
         return DiagnosticsResponse(request_id="local", checks=checks)
 
-    @app.get(
-        "/v1/models/{model_id:path}",
-        response_model=ModelStatusResponse,
-        responses=NATIVE_ERROR_RESPONSES,
-    )
-    def model_status(model_id: str) -> ModelStatusResponse | JSONResponse:
-        if not is_safe_model_id(model_id):
-            return _invalid_model_id_response()
-        status = "installed" if model_store.find(model_id) else "not_installed"
-        return ModelStatusResponse(request_id="local", model_id=model_id, status=status)
-
-    @app.delete(
-        "/v1/models/{model_id:path}",
-        response_model=ModelDeleteResponse,
-        responses=NATIVE_ERROR_RESPONSES,
-    )
-    def model_delete(model_id: str) -> ModelDeleteResponse | JSONResponse:
-        if not is_safe_model_id(model_id):
-            return _invalid_model_id_response()
-        deleted = model_store.delete_by_model_id(model_id)
-        return ModelDeleteResponse(request_id="local", model_id=model_id, deleted=deleted)
-
     @app.post(
         "/v1/models/install",
         response_model=ModelInstallResponse,
@@ -373,6 +398,57 @@ def create_app(
             job_id=job.job_id,
             status=job.status.value,
         )
+
+    @app.get(
+        "/v1/models/install/{job_id}",
+        response_model=ModelJobStatusResponse,
+        responses=NATIVE_ERROR_RESPONSES,
+    )
+    def model_install_status(job_id: str) -> ModelJobStatusResponse | JSONResponse:
+        if not is_safe_model_id(job_id):
+            return _invalid_model_id_response()
+        try:
+            job = install_job_service.status(job_id)
+        except KeyError:
+            return JSONResponse(
+                {
+                    "schema_version": "v1",
+                    "request_id": "local",
+                    "job_id": job_id,
+                    "status": "failed",
+                },
+                status_code=404,
+            )
+        return ModelJobStatusResponse(
+            request_id="local",
+            job_id=job.job_id,
+            model_id=job.catalog_entry_id,
+            status=job.status.value,
+            error=job.error,
+        )
+
+    @app.get(
+        "/v1/models/{model_id:path}",
+        response_model=ModelStatusResponse,
+        responses=NATIVE_ERROR_RESPONSES,
+    )
+    def model_status(model_id: str) -> ModelStatusResponse | JSONResponse:
+        if not is_safe_model_id(model_id):
+            return _invalid_model_id_response()
+        status = "installed" if model_store.find(model_id) else "not_installed"
+        return ModelStatusResponse(request_id="local", model_id=model_id, status=status)
+
+    @app.delete(
+        "/v1/models/{model_id:path}",
+        response_model=ModelDeleteResponse,
+        responses=NATIVE_ERROR_RESPONSES,
+    )
+    def model_delete(model_id: str) -> ModelDeleteResponse | JSONResponse:
+        if not is_safe_model_id(model_id):
+            return _invalid_model_id_response()
+        collected = install_job_service.delete_voice(model_id)
+        deleted = bool(collected) or model_store.delete_by_model_id(model_id)
+        return ModelDeleteResponse(request_id="local", model_id=model_id, deleted=deleted)
 
     @app.websocket("/v1/events")
     async def events(websocket: WebSocket) -> None:

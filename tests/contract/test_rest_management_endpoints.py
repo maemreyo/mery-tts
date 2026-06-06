@@ -156,6 +156,37 @@ def test_model_install_accepts_stable_model_id_only(tmp_path: Path) -> None:
     assert payload["status"] == "running"
 
 
+def test_model_install_status_survives_app_restart(tmp_path: Path) -> None:
+    config = (
+        HelperConfigStore(tmp_path / "config")
+        .load_or_create()
+        .model_copy(update={"auth_token": TOKEN})
+    )
+    first_app = create_app(config=config, model_store=ModelStore(tmp_path))
+
+    with TestClient(first_app) as client:
+        install = client.post(
+            "/v1/models/install",
+            headers=HEADERS,
+            json={"schema_version": "v1", "request_id": "local", "model_id": "kokoro.demo"},
+        )
+    job_id = install.json()["job_id"]
+
+    restarted_app = create_app(config=config, model_store=ModelStore(tmp_path))
+    with TestClient(restarted_app) as client:
+        status = client.get(f"/v1/models/install/{job_id}", headers=HEADERS)
+
+    assert status.status_code == 200
+    assert status.json() == {
+        "schema_version": "v1",
+        "request_id": "local",
+        "job_id": job_id,
+        "model_id": "kokoro.demo",
+        "status": "running",
+        "error": None,
+    }
+
+
 def test_model_install_rejects_paths_and_urls_before_domain_work(tmp_path: Path) -> None:
     config = (
         HelperConfigStore(tmp_path / "config")
@@ -184,6 +215,58 @@ def test_model_install_rejects_paths_and_urls_before_domain_work(tmp_path: Path)
     assert {response.status_code for response in responses} == {400}
     assert {response.json()["code"] for response in responses} == {"security.unsafe_identifier"}
     assert not any(tmp_path.iterdir()) or {path.name for path in tmp_path.iterdir()} == {"config"}
+
+
+def test_model_install_status_rejects_unsafe_job_ids_before_domain_work(tmp_path: Path) -> None:
+    config = (
+        HelperConfigStore(tmp_path / "config")
+        .load_or_create()
+        .model_copy(update={"auth_token": TOKEN})
+    )
+    app = create_app(config=config, model_store=ModelStore(tmp_path))
+
+    with TestClient(app) as client:
+        response = client.get("/v1/models/install/..%2Fsecret", headers=HEADERS)
+
+    assert response.status_code == 400
+    body = response.json()
+    assert body["code"] == "security.unsafe_identifier"
+    assert "secret" not in body["sanitized_diagnostic"]
+
+
+def test_model_delete_updates_voice_manifests_and_collects_artifacts(tmp_path: Path) -> None:
+    config = (
+        HelperConfigStore(tmp_path / "config")
+        .load_or_create()
+        .model_copy(update={"auth_token": TOKEN})
+    )
+    identity_store = StorageIdentityStore(tmp_path)
+    identity_store.write_artifact_manifest(
+        engine_id="kokoro",
+        artifact_id="voice.delete",
+        metadata={"catalogEntryId": "voice.delete"},
+    )
+    identity_store.write_voice_manifest(
+        "voice.delete",
+        ["voice.delete"],
+        {"kind": "preset", "preset_id": "af"},
+    )
+    app = create_app(
+        config=config,
+        model_store=ModelStore(tmp_path),
+        storage_identity_store=identity_store,
+    )
+
+    with TestClient(app) as client:
+        deleted = client.delete("/v1/models/voice.delete", headers=HEADERS)
+        second_delete = client.delete("/v1/models/voice.delete", headers=HEADERS)
+
+    assert deleted.status_code == 200
+    assert deleted.json()["deleted"] is True
+    assert second_delete.status_code == 200
+    assert second_delete.json()["deleted"] is False
+    assert not (tmp_path / "voices" / "voice.delete.json").exists()
+    assert not (tmp_path / "artifacts" / "kokoro" / "voice.delete" / "artifact.json").exists()
 
 
 def test_model_status_delete_and_pair_claim_endpoints_exist(tmp_path: Path) -> None:

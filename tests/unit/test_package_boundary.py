@@ -1,3 +1,4 @@
+from importlib import resources
 from pathlib import Path
 
 import mery_tts
@@ -28,8 +29,21 @@ def test_audio_encoder_is_not_imported_by_cli_modules() -> None:
     assert _files_importing(Path("src/mery_tts/cli"), "mery_tts.audio.encoder") == []
 
 
-def test_readme_status_describes_early_runtime_without_stale_no_runtime_claim() -> None:
+def test_console_assets_are_packaged_python_resources() -> None:
+    console_package = resources.files("mery_tts.console")
+
+    assert console_package.joinpath("index.html").is_file()
+    assert console_package.joinpath("assets", "app.js").is_file()
+    assert console_package.joinpath("assets", "app.css").is_file()
+    assert "/v1${path}" in console_package.joinpath("assets", "app.js").read_text()
+
+
+def test_readme_status_describes_current_runtime_without_stale_claims() -> None:
     readme = Path("README.md").read_text()
 
     assert "Early runtime implementation" in readme
+    assert "packaged `/console` web UI" in readme
+    assert "serves `/v1` plus the local web console at `/console`" in readme
     assert "No runtime implementation yet" not in readme
+    assert "OpenAI-compatible speech stubs" not in readme
+    assert "durable install lifecycle, packaging smoke" not in readme

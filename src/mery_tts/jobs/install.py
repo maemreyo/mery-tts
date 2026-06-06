@@ -1,7 +1,9 @@
+import json
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from enum import StrEnum
-from typing import Any
+from pathlib import Path
+from typing import Any, Protocol, cast
 from uuid import uuid4
 
 from mery_tts.storage.identity import StorageIdentityStore
@@ -25,11 +27,63 @@ class InstallJob:
     error: str | None = None
 
 
+class InstallJobStore(Protocol):
+    def save(self, job: InstallJob) -> None: ...
+
+    def load(self, job_id: str) -> InstallJob: ...
+
+
+class MemoryInstallJobStore:
+    def __init__(self) -> None:
+        self._jobs: dict[str, InstallJob] = {}
+
+    def save(self, job: InstallJob) -> None:
+        self._jobs[job.job_id] = job
+
+    def load(self, job_id: str) -> InstallJob:
+        return self._jobs[job_id]
+
+
+class FileInstallJobStore:
+    def __init__(self, jobs_dir: Path) -> None:
+        self._jobs_dir = jobs_dir
+
+    def save(self, job: InstallJob) -> None:
+        self._jobs_dir.mkdir(parents=True, exist_ok=True)
+        payload = asdict(job)
+        payload["status"] = job.status.value
+        path = self._path_for(job.job_id)
+        temporary_path = path.with_suffix(".tmp")
+        temporary_path.write_text(json.dumps(payload, sort_keys=True))
+        temporary_path.replace(path)
+
+    def load(self, job_id: str) -> InstallJob:
+        payload = cast("dict[str, object]", json.loads(self._path_for(job_id).read_text()))
+        return InstallJob(
+            job_id=str(payload["job_id"]),
+            catalog_entry_id=str(payload["catalog_entry_id"]),
+            voice_id=str(payload["voice_id"]),
+            engine_id=str(payload["engine_id"]),
+            artifact_id=str(payload["artifact_id"]),
+            status=JobStatus(str(payload["status"])),
+            error=str(payload["error"]) if payload.get("error") is not None else None,
+        )
+
+    def _path_for(self, job_id: str) -> Path:
+        return self._jobs_dir / f"{job_id}.json"
+
+
 class InstallJobService:
-    def __init__(self, store: StorageIdentityStore, *, refresh: Callable[[], None]) -> None:
+    def __init__(
+        self,
+        store: StorageIdentityStore,
+        *,
+        refresh: Callable[[], None],
+        job_store: InstallJobStore | None = None,
+    ) -> None:
         self._store = store
         self._refresh = refresh
-        self._jobs: dict[str, InstallJob] = {}
+        self._job_store = job_store or MemoryInstallJobStore()
 
     def start_install(
         self,
@@ -47,7 +101,7 @@ class InstallJobService:
             artifact_id=artifact_id,
             status=JobStatus.RUNNING,
         )
-        self._jobs[job.job_id] = job
+        self._job_store.save(job)
         self._store.write_artifact_manifest(
             engine_id=engine_id,
             artifact_id=artifact_id,
@@ -70,7 +124,7 @@ class InstallJobService:
             [job.artifact_id],
             payload_template,
         )
-        self._jobs[job_id] = completed
+        self._job_store.save(completed)
         self._refresh()
         return completed
 
@@ -85,11 +139,12 @@ class InstallJobService:
             status=JobStatus.FAILED,
             error=reason,
         )
-        self._jobs[job_id] = failed
+        self._job_store.save(failed)
+        self._store.collect_unreferenced_artifacts([job.artifact_id])
         return failed
 
     def status(self, job_id: str) -> InstallJob:
-        return self._jobs[job_id]
+        return self._job_store.load(job_id)
 
     def delete_voice(self, voice_id: str) -> list[str]:
         collected = self._store.delete_voice_and_collect_garbage(voice_id)

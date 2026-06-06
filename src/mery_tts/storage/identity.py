@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from mery_tts.providers.taxonomy import assert_provider_payload_allowed
-from mery_tts.voice import PresetVoicePayload, VoiceDescriptor
+from mery_tts.voice import ModelFileVoicePayload, PresetVoicePayload, VoiceDescriptor
 
 
 def safe_voice_filename(voice_id: str) -> str:
@@ -78,9 +78,12 @@ class StorageIdentityStore:
         manifest = json.loads(manifest_path.read_text())
         artifact_refs = list(manifest["artifactRefs"])
         manifest_path.unlink()
+        return self.collect_unreferenced_artifacts(artifact_refs)
+
+    def collect_unreferenced_artifacts(self, artifact_ids: list[str]) -> list[str]:
         live_refs = self._live_artifact_refs()
         collected: list[str] = []
-        for artifact_id in artifact_refs:
+        for artifact_id in artifact_ids:
             if artifact_id in live_refs:
                 continue
             for artifact_dir in self.artifacts_dir.glob(f"*/{artifact_id}"):
@@ -119,6 +122,20 @@ class StorageIdentityStore:
                 voice_id=voice_id,
                 engine_id=engine_id,
                 payload=PresetVoicePayload(preset_id=str(payload_template["preset_id"])),
+            )
+        if kind == "model-file":
+            artifact_id = str(payload_template.get("artifact_id", artifact_refs[0]))
+            if artifact_id not in artifact_refs:
+                raise ValueError("model-file payload artifact_id is not referenced")
+            if "relative_path" not in payload_template:
+                raise ValueError("model-file payload missing relative_path")
+            return VoiceDescriptor(
+                voice_id=voice_id,
+                engine_id=engine_id,
+                payload=ModelFileVoicePayload(
+                    artifact_id=artifact_id,
+                    relative_path=str(payload_template["relative_path"]),
+                ),
             )
         raise ValueError(f"payload family '{kind}' not yet implemented")
 

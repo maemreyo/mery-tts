@@ -107,11 +107,22 @@ def test_storage_cli_show_move_and_repair(monkeypatch, tmp_path: Path) -> None:
     assert "storage.repair_complete" in repair.stdout
 
 
-def test_provider_rollout_status_marks_platform_integrated() -> None:
+def test_provider_rollout_status_marks_platform_integrated_with_runtime_detail() -> None:
     statuses = provider_rollout_status()
 
-    assert statuses["kokoro"] == "platform-integrated"
-    assert statuses["piper-plus"] == "platform-integrated"
+    for provider_id in {"kokoro", "piper-plus"}:
+        status = statuses[provider_id]
+        assert status.phase == "platform-integrated"
+        assert status.runtime_state in {
+            "missing_dependency",
+            "missing_model",
+            "installed_unhealthy",
+            "audio_validated",
+        }
+        assert "marked real-runtime smoke" in status.detail
+
+    assert statuses["supertonic"].phase == "planned"
+    assert statuses["supertonic"].runtime_state == "not_started"
 
 
 def test_readme_documents_phase_one_uv_and_pipx() -> None:
@@ -120,9 +131,9 @@ def test_readme_documents_phase_one_uv_and_pipx() -> None:
     assert "uv tool install" in readme
     assert "pipx install" in readme
     assert "Phase 1 early access" in readme
-    assert "The packaged core starts, serves `/v1`" in readme
+    assert "serves `/v1` plus the local web console at `/console`" in readme
     assert "without optional engine downloads" in readme
-    assert "the bundled catalog is package data and can be browsed offline" in readme
+    assert "the bundled catalog and console assets are Python package resources" in readme
     assert "Explicit model installation and remote catalog refresh" in readme
     assert "separate user-triggered network actions" in readme
     assert (

@@ -80,3 +80,38 @@ def test_runtime_paths_override_propagates_to_all_runtime_components(
 
     app = create_app(config=config)
     assert app is not None
+
+
+def test_packaging_mode_preserves_core_runtime_behavior(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+
+    from fastapi.testclient import TestClient
+    from typer.testing import CliRunner
+
+    from mery_tts.api.app import create_app
+    from mery_tts.catalog import bundled_catalog_voice_summaries
+    from mery_tts.cli.main import app as cli_app
+    from mery_tts.engines import discover_engine_registry
+    from mery_tts.models.store import ModelStore
+    from mery_tts.security.config import HelperConfigStore
+
+    paths = RuntimePaths.from_environment()
+    config = HelperConfigStore(paths.config_dir).load_or_create()
+    model_store = ModelStore(paths.models_dir)
+    app = create_app(config=config, model_store=model_store)
+
+    with TestClient(app) as client:
+        headers = {"Authorization": f"Bearer {config.auth_token}"}
+        assert client.get("/v1/health", headers=headers).json()["status"] == "ok"
+        assert client.get("/v1/engines", headers=headers).status_code == 200
+        assert client.get("/v1/catalog/voices", headers=headers).status_code == 200
+        assert client.get("/v1/models/missing", headers=headers).json()["status"] == "not_installed"
+        assert client.post("/v1/diagnostics", headers=headers).status_code == 200
+
+    runner = CliRunner()
+    assert runner.invoke(cli_app, ["engines"]).exit_code == 0
+    assert discover_engine_registry().adapters is not None
+    assert bundled_catalog_voice_summaries()
+    assert (paths.base_dir / "diagnostics" / "last-doctor.json").exists()

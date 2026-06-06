@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from mery_tts.storage.identity import StorageIdentityStore, safe_voice_filename
+from mery_tts.voice import ModelFileVoicePayload, PresetVoicePayload
 
 
 def test_artifact_and_voice_manifest_layout(tmp_path: Path) -> None:
@@ -27,7 +28,9 @@ def test_artifact_and_voice_manifest_layout(tmp_path: Path) -> None:
     assert "artifact.shared" in voice_path.read_text()
 
 
-def test_shared_artifact_gc_only_removes_unreferenced_artifacts(tmp_path: Path) -> None:
+def test_kokoro_shared_artifact_gc_retains_artifact_until_last_preset_voice_delete(
+    tmp_path: Path,
+) -> None:
     store = StorageIdentityStore(tmp_path)
     store.write_artifact_manifest(engine_id="kokoro", artifact_id="artifact.shared", metadata={})
     store.write_voice_manifest(
@@ -66,6 +69,69 @@ def test_hydrates_installed_voice_descriptors_from_manifests(tmp_path: Path) -> 
         ("voice.kokoro.af", "kokoro"),
         ("voice.piper.vi", "piper-plus"),
     ]
+    assert isinstance(descriptors[0].payload, PresetVoicePayload)
+    assert isinstance(descriptors[1].payload, PresetVoicePayload)
+
+
+def test_piper_plus_model_file_payload_hydrates_runtime_model_path(tmp_path: Path) -> None:
+    store = StorageIdentityStore(tmp_path)
+    store.write_artifact_manifest(
+        engine_id="piper-plus",
+        artifact_id="artifact.piper.vi.model",
+        metadata={"role": "model", "sha256": "0" * 64},
+    )
+    store.write_artifact_manifest(
+        engine_id="piper-plus",
+        artifact_id="artifact.piper.vi.config",
+        metadata={"role": "config", "sha256": "1" * 64},
+    )
+    store.write_voice_manifest(
+        "voice.piper.vi",
+        ["artifact.piper.vi.model", "artifact.piper.vi.config"],
+        {
+            "kind": "model-file",
+            "artifact_id": "artifact.piper.vi.model",
+            "relative_path": "model.onnx",
+        },
+    )
+
+    descriptor = store.hydrate_voice_descriptor("voice.piper.vi", engine_id="piper-plus")
+
+    assert descriptor.engine_id == "piper-plus"
+    assert isinstance(descriptor.payload, ModelFileVoicePayload)
+    assert descriptor.payload.artifact_id == "artifact.piper.vi.model"
+    assert descriptor.payload.relative_path == "model.onnx"
+
+
+def test_model_file_payload_rejects_unreferenced_artifact(tmp_path: Path) -> None:
+    store = StorageIdentityStore(tmp_path)
+    store.write_artifact_manifest(engine_id="piper-plus", artifact_id="artifact.live", metadata={})
+    store.write_artifact_manifest(engine_id="piper-plus", artifact_id="artifact.other", metadata={})
+    store.write_voice_manifest(
+        "voice.piper.vi",
+        ["artifact.live"],
+        {
+            "kind": "model-file",
+            "artifact_id": "artifact.other",
+            "relative_path": "model.onnx",
+        },
+    )
+
+    with pytest.raises(ValueError, match="artifact_id is not referenced"):
+        store.hydrate_installed_voice_descriptors()
+
+
+def test_model_file_payload_requires_relative_path(tmp_path: Path) -> None:
+    store = StorageIdentityStore(tmp_path)
+    store.write_artifact_manifest(engine_id="piper-plus", artifact_id="artifact.live", metadata={})
+    store.write_voice_manifest(
+        "voice.piper.vi",
+        ["artifact.live"],
+        {"kind": "model-file", "artifact_id": "artifact.live"},
+    )
+
+    with pytest.raises(ValueError, match="model-file payload missing relative_path"):
+        store.hydrate_installed_voice_descriptors()
 
 
 def test_missing_artifact_diagnostic(tmp_path: Path) -> None:

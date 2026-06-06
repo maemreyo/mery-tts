@@ -1,3 +1,3 @@
-from .install import InstallJob, InstallJobService, JobStatus
+from .install import FileInstallJobStore, InstallJob, InstallJobService, JobStatus
 
-__all__ = ["InstallJob", "InstallJobService", "JobStatus"]
+__all__ = ["FileInstallJobStore", "InstallJob", "InstallJobService", "JobStatus"]

@@ -25,7 +25,8 @@ Implement `VoiceRegistry` as the voice-to-engine routing index with copy-on-writ
 
 The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
 
-- [ ] Hydrate `VoiceRegistry` from installed voice manifests and bundled/remote catalog projections during startup and after install/delete commits. Installed voice manifests are now hydrated for `/v1/voices/installed`; routing-map refresh from manifests and catalog projections remains for the synthesis/install lifecycle slice.
+- [x] Hydrate `VoiceRegistry` from installed voice manifests and bundled/remote catalog projections during startup and after install/delete commits.
+  - Evidence: `src/mery_tts/api/app.py` hydrates installed voice manifests at startup and now uses `voice_registry.refresh()` after install/delete commits so stale routes are removed atomically; catalog projections remain visible through `/v1/catalog/voices` while only installed/routable descriptors enter the synthesis route map. `tests/contract/test_openai_speech.py::test_app_startup_hydrates_installed_voice_manifest_into_routing_map` pins startup route hydration and `test_delete_commit_refresh_removes_voice_route_from_registry` pins delete commit route removal; `tests/unit/test_engine_registry.py::test_voice_registry_refresh_swaps_routes_without_invalidating_old_adapter` pins atomic route swapping.
 - [x] Prove refresh is atomic under active synthesis by testing old route references stay valid while new routes become visible.
 
 ## Comments

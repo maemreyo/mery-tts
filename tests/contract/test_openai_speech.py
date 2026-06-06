@@ -5,7 +5,9 @@ from fastapi.testclient import TestClient
 
 from mery_tts.api.app import create_app
 from mery_tts.engines.base import EngineAdapter, EngineRegistry, PCMChunk
+from mery_tts.models.store import ModelStore
 from mery_tts.security.config import HelperConfig
+from mery_tts.storage.identity import StorageIdentityStore
 from mery_tts.voice import PresetVoicePayload, VoiceDescriptor, VoiceRegistry
 
 TOKEN = "secret" * 8
@@ -61,6 +63,78 @@ def test_openai_blocking_speech_returns_pcm_bytes() -> None:
 
     assert response.status_code == 200
     assert response.content == b"pcm:hello"
+
+
+def test_app_startup_hydrates_installed_voice_manifest_into_routing_map(tmp_path) -> None:
+    adapter = SpeechAdapter()
+    store = StorageIdentityStore(tmp_path)
+    store.write_artifact_manifest(
+        engine_id="fake",
+        artifact_id="artifact.fake",
+        metadata={"catalogEntryId": "voice.fake"},
+    )
+    store.write_voice_manifest(
+        "voice.fake",
+        ["artifact.fake"],
+        {"kind": "preset", "preset_id": "fake"},
+    )
+    app = create_app(
+        config=HelperConfig(helper_id="mery-test", auth_token=TOKEN, port=8765),
+        engine_registry=EngineRegistry(adapters={"fake": adapter}),
+        voice_registry=VoiceRegistry({"fake": adapter}),
+        voice_aliases={"alloy": "voice.fake"},
+        model_store=ModelStore(tmp_path),
+        storage_identity_store=store,
+    )
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/audio/speech",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+            json={"model": "tts-1", "voice": "alloy", "input": "hello", "response_format": "pcm"},
+        )
+
+    assert response.status_code == 200
+    assert response.content == b"pcm:hello"
+
+
+def test_delete_commit_refresh_removes_voice_route_from_registry(tmp_path) -> None:
+    adapter = SpeechAdapter()
+    store = StorageIdentityStore(tmp_path)
+    store.write_artifact_manifest(
+        engine_id="fake",
+        artifact_id="artifact.fake",
+        metadata={"catalogEntryId": "voice.fake"},
+    )
+    store.write_voice_manifest(
+        "voice.fake",
+        ["artifact.fake"],
+        {"kind": "preset", "preset_id": "fake"},
+    )
+    app = create_app(
+        config=HelperConfig(helper_id="mery-test", auth_token=TOKEN, port=8765),
+        engine_registry=EngineRegistry(adapters={"fake": adapter}),
+        voice_registry=VoiceRegistry({"fake": adapter}),
+        voice_aliases={"alloy": "voice.fake"},
+        model_store=ModelStore(tmp_path),
+        storage_identity_store=store,
+    )
+
+    with TestClient(app) as client:
+        deleted = client.delete(
+            "/v1/models/voice.fake",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+        )
+        response = client.post(
+            "/v1/audio/speech",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+            json={"model": "tts-1", "voice": "alloy", "input": "hello", "response_format": "pcm"},
+        )
+
+    assert deleted.status_code == 200
+    assert deleted.json()["deleted"] is True
+    assert response.status_code == 400
+    assert response.json()["error"]["message"] == "\"Unknown voice route 'voice.fake'.\""
 
 
 def test_openai_blocking_speech_returns_wav_bytes() -> None:

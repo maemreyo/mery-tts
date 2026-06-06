@@ -27,8 +27,8 @@ Implement the durable async install lifecycle from catalog entry to installed vo
 
 The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
 
-- [ ] Replace in-memory-only install jobs with durable async lifecycle state, status endpoint support, manifest commit, rollback, and restart recovery.
-      Progress: `InstallJobService` now creates real job records with UUID-based `job_id` and `status="running"`; `POST /v1/models/install` is wired to `InstallJobService.start_install()` which persists artifact manifests; voice manifest commit is atomic via `StorageIdentityStore.write_voice_manifest()`; delete is idempotent with shared-artifact GC. Durable job state persistence (surviving restart) remains pending as a future enhancement.
+- [x] Replace in-memory-only install jobs with durable async lifecycle state, status endpoint support, manifest commit, rollback, and restart recovery.
+      Evidence: `src/mery_tts/jobs/install.py::FileInstallJobStore` persists job JSON under the runtime model store and `InstallJobService.status()` reloads from that store; `src/mery_tts/api/app.py` exposes `GET /v1/models/install/{job_id}` before the model catch-all route; failed installs roll back unreferenced artifact manifests via `StorageIdentityStore.collect_unreferenced_artifacts()`. `tests/unit/test_install_jobs.py::test_file_install_job_store_recovers_status_after_service_restart`, `test_install_failure_before_commit_is_not_routable`, and `tests/contract/test_rest_management_endpoints.py::test_model_install_status_survives_app_restart` pin restart-safe status and rollback.
 - [x] Wire `POST /v1/models/install` to this service instead of returning `job_id: not-started`.
       `POST /v1/models/install` now calls `install_job_service.start_install()` which returns a real `job_id` (UUID-based) and `status="running"`; `tests/contract/test_rest_management_endpoints.py::test_model_install_accepts_stable_model_id_only` pins the new behavior.
 

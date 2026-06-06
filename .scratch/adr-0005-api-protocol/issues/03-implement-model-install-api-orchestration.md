@@ -27,7 +27,9 @@ Implement the API orchestrator that consumes `ModelManager.install(modelId)` dom
 
 The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
 
-- [ ] Implement a real API-agnostic model/install manager that emits queued, progress, done, and failed domain events.
-- [ ] Wire API orchestration to WebSocket/event emission and refresh `VoiceRegistry` exactly once after committed install success.
+- [x] Implement a real API-agnostic model/install manager that emits queued, progress, done, and failed domain events.
+  - Evidence: `src/mery_tts/models/manager.py::ModelInstallManager` depends on `InstallJobService` and emits `InstallProgress`, `InstallDone`, and `InstallFailed` domain events without importing API, WebSocket, or schema modules; `tests/unit/test_model_install_manager.py::test_model_install_manager_emits_progress_and_done_without_api_imports` and `test_model_install_manager_emits_failed_when_commit_fails` pin success and failure streams.
+- [x] Wire API orchestration to WebSocket/event emission and refresh `VoiceRegistry` exactly once after committed install success.
+  - Evidence: `src/mery_tts/api/orchestration/install.py::InstallOrchestrator` maps manager domain events to versioned install schema events and refreshes only on `InstallDone`; `tests/unit/test_model_install_manager.py::test_install_manager_events_refresh_voice_registry_once_after_done` proves the manager/orchestrator flow emits progress/progress/completed and calls refresh exactly once after commit.
 
 ## Comments

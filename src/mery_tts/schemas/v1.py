@@ -52,6 +52,13 @@ class ModelInstallResponse(VersionedModel):
     status: Literal["queued", "running", "completed", "failed"]
 
 
+class ModelJobStatusResponse(VersionedModel):
+    job_id: str
+    model_id: str | None = None
+    status: Literal["queued", "running", "completed", "failed"]
+    error: str | None = None
+
+
 class ModelStatusResponse(VersionedModel):
     model_id: str
     status: Literal["not_installed", "installing", "installed", "failed"]
