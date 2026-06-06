@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 from typing import Any, cast
 
+from mery_tts.providers.taxonomy import assert_provider_payload_allowed
 from mery_tts.voice import PresetVoicePayload, VoiceDescriptor
 
 
@@ -106,9 +107,11 @@ class StorageIdentityStore:
             if not self._artifact_exists(engine_id=engine_id, artifact_id=str(artifact_ref)):
                 raise ValueError(f"missing artifact '{artifact_ref}'")
         payload_template = manifest["payloadTemplate"]
-        kind = payload_template.get("kind")
-        if kind not in {"preset", "model-file", "embedding", "reference", "designed"}:
-            raise ValueError(f"unsupported payload family: {kind}")
+        kind = str(payload_template.get("kind"))
+        try:
+            assert_provider_payload_allowed(kind)
+        except ValueError as exc:
+            raise ValueError(f"unsupported payload family: {kind}") from exc
         if kind == "preset":
             if "preset_id" not in payload_template:
                 raise ValueError("preset payload missing preset_id")

@@ -26,7 +26,9 @@ Codify the provider adapter taxonomy as implementation guidance and reusable tes
 
 The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
 
-- [ ] Turn provider taxonomy into reusable checks used by catalog validation, install lifecycle, storage hydration, and API route tests.
-- [ ] Keep reference/zero-shot/dialogue families gated until governance and runtime semantics are implemented end-to-end.
+- [x] Turn provider taxonomy into reusable checks used by catalog validation, install lifecycle, storage hydration, and API route tests.
+  - Evidence: `src/mery_tts/providers/taxonomy.py::assert_provider_payload_allowed()` and `provider_family_for_payload_kind()` provide the shared runtime gate; `src/mery_tts/storage/identity.py` uses that gate during installed voice hydration; `tests/unit/test_provider_taxonomy.py`, `tests/unit/test_provider_adapters.py`, `tests/unit/test_storage_identity.py`, and API/catalog-facing management tests pin the same family policy across provider boundaries.
+- [x] Keep reference/zero-shot/dialogue families gated until governance and runtime semantics are implemented end-to-end.
+  - Evidence: `ProviderFamily.REFERENCE` and `ProviderFamily.DIALOGUE` remain `gated`; `tests/unit/test_provider_taxonomy.py::test_provider_payload_gate_rejects_gated_or_unknown_families` rejects `reference` payload hydration through the shared gate while allowed runtime families remain explicit.
 
 ## Comments

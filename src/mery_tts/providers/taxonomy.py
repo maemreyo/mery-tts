@@ -42,3 +42,14 @@ _PAYLOAD_KINDS: dict[ProviderFamily, frozenset[str]] = {
 
 def provider_family_names() -> set[str]:
     return {family.value for family in ProviderFamily}
+
+
+def provider_family_for_payload_kind(payload_kind: str) -> ProviderFamily:
+    for family, payload_kinds in _PAYLOAD_KINDS.items():
+        if payload_kind in payload_kinds and not family.gated:
+            return family
+    raise ValueError(f"Provider payload kind '{payload_kind}' is gated or unsupported.")
+
+
+def assert_provider_payload_allowed(payload_kind: str) -> None:
+    provider_family_for_payload_kind(payload_kind)

@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 
+import pytest
 from fastapi.testclient import TestClient
 
 from mery_tts.api.app import create_app
@@ -19,8 +20,20 @@ class SpeechAdapter(EngineAdapter):
         yield PCMChunk(pcm=f"pcm:{text}".encode(), sample_rate_hz=24_000, channels=1)
 
 
-def app_with_voice(*, max_body_bytes: int = 1_000_000, max_text_chars: int = 10_000):
-    adapter = SpeechAdapter()
+class UnstableMetadataAdapter(SpeechAdapter):
+    async def synthesize(self, text: str, voice: VoiceDescriptor) -> AsyncIterator[PCMChunk]:
+        self.ensure_voice_supported(voice)
+        yield PCMChunk(pcm=b"first", sample_rate_hz=24_000, channels=1)
+        yield PCMChunk(pcm=b"second", sample_rate_hz=48_000, channels=1)
+
+
+def app_with_voice(
+    *,
+    adapter: EngineAdapter | None = None,
+    max_body_bytes: int = 1_000_000,
+    max_text_chars: int = 10_000,
+):
+    adapter = adapter or SpeechAdapter()
     voice = VoiceDescriptor(
         voice_id="voice.fake",
         engine_id="fake",
@@ -206,3 +219,41 @@ def test_openai_streaming_speech_rejects_non_pcm_format_before_streaming() -> No
             "type": "invalid_request_error",
         }
     }
+
+
+def test_openai_streaming_speech_propagates_mid_stream_adapter_errors() -> None:
+    with (
+        TestClient(app_with_voice(adapter=UnstableMetadataAdapter())) as client,
+        pytest.raises(ValueError, match="unstable PCM metadata"),
+    ):
+        client.post(
+            "/v1/audio/speech",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+            json={
+                "model": "tts-1",
+                "voice": "alloy",
+                "input": "hello",
+                "response_format": "pcm",
+                "stream": True,
+            },
+        )
+
+
+def test_openai_streaming_speech_uses_http_transport_without_ws_events() -> None:
+    with TestClient(app_with_voice()) as client:
+        response = client.post(
+            "/v1/audio/speech",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+            json={
+                "model": "tts-1",
+                "voice": "alloy",
+                "input": "hello",
+                "response_format": "pcm",
+                "stream": True,
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/pcm"
+    assert b"event_type" not in response.content
+    assert response.content == b"pcm:hello"

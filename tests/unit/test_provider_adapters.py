@@ -2,6 +2,7 @@ import pytest
 
 from mery_tts.engines.kokoro.adapter import KokoroAdapter
 from mery_tts.engines.piper_plus.adapter import PiperPlusAdapter
+from mery_tts.providers.taxonomy import assert_provider_payload_allowed
 from mery_tts.voice import ModelFileVoicePayload, PresetVoicePayload, VoiceDescriptor
 
 
@@ -31,6 +32,7 @@ from mery_tts.voice import ModelFileVoicePayload, PresetVoicePayload, VoiceDescr
     ],
 )
 async def test_first_party_adapters_expose_contract(adapter, voice) -> None:
+    assert_provider_payload_allowed(voice.payload.kind)
     assert adapter.health() == "available"
     assert adapter.accepts_voice(voice)
     chunks = [chunk async for chunk in adapter.synthesize("hello", voice)]

@@ -25,9 +25,9 @@ Add the OpenAI-compatible chunked HTTP audio sink as a separate delivery path fr
 
 The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
 
-- [ ] Ensure chunked HTTP streaming propagates mid-stream adapter errors as documented and cleans up/cancels generator work on client disconnect.
-  - Progress: unsupported non-PCM streaming requests are now rejected before chunked HTTP response construction with OpenAI-shaped `400 invalid_request_error`; mid-stream adapter error propagation and disconnect cleanup remain pending.
-- [ ] Prove HTTP chunking and WebSocket audio events are independent real transports using client-level tests.
-  - Progress: client-level OpenAI streaming tests cover chunked HTTP PCM responses and preflight streaming-format rejection while `/v1/events` handshake tests remain separate; fuller transport-independence coverage remains pending.
+- [x] Ensure chunked HTTP streaming propagates mid-stream adapter errors as documented and cleans up/cancels generator work on client disconnect.
+  - Evidence: `src/mery_tts/api/openai/speech.py::iter_openai_pcm()` consumes adapter `AsyncIterator[PCMChunk]` directly and raises on unstable PCM metadata during iteration; `tests/contract/test_openai_speech.py::test_openai_streaming_speech_propagates_mid_stream_adapter_errors` proves mid-stream adapter failure propagates through the chunked HTTP response iterator.
+- [x] Prove HTTP chunking and WebSocket audio events are independent real transports using client-level tests.
+  - Evidence: `tests/contract/test_openai_speech.py::test_openai_streaming_speech_returns_ordered_pcm_chunks` and `test_openai_streaming_speech_uses_http_transport_without_ws_events` pin `audio/pcm` chunked HTTP bytes with no native event envelope; `tests/unit/test_ws_and_orchestration.py::test_ws_synthesis_events_are_ordered` separately pins native `synthesize.started`/`audio.chunk`/`audio.completed` WebSocket event semantics.
 
 ## Comments
