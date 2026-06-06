@@ -1,7 +1,6 @@
 # Reject unsafe model IDs and sensitive diagnostics
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0006 — `docs/adr/ADR-0006-security-model.md`
@@ -33,3 +32,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Evidence: `tests/unit/test_error_factories.py::test_real_domain_error_diagnostics_are_sanitized` covers install, synthesis, doctor/storage, and security middleware-style diagnostics and proves raw paths, secrets, and tracebacks are omitted; `tests/unit/test_doctor_storage_packaging_rollout.py::test_doctor_persistence_sanitizes_detail_metadata`, `tests/contract/test_engine_health_endpoint.py::test_engine_health_reason_is_sanitized`, and `tests/contract/test_api_core.py::test_rest_endpoint_requires_bearer_token` cover persisted doctor details, engine health, and auth middleware diagnostics.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Apply unsafe identifier rejection in every route/CLI path that accepts model, voice, artifact, catalog, or storage identifiers.
+- Expand diagnostic/log tests to cover real domain errors from install, synthesis, doctor, and security middleware.

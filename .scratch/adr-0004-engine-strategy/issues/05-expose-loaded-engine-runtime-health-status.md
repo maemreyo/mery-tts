@@ -1,7 +1,6 @@
 # Expose loaded engine runtime health status
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0004 amendment — `docs/adr/ADR-0004-engine-strategy.md`
@@ -29,3 +28,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Expand sanitization tests to cover real exception messages, absolute paths, stack traces, package names, and secrets. `/v1/engines` contract tests now assert health reasons redact realistic `ModuleNotFoundError`, `RuntimeError: dlopen(...)`, `/Users/...` absolute paths, canonical `Traceback` text, package names such as `piper_plus`/`kokoro_onnx`, and secret/API-key-like values while preserving safe health categories.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Differentiate import failure, dependency missing, model missing, runtime unavailable, and healthy states in `/v1/engines`. `tests/unit/test_engine_registry.py::test_engine_registry_discovers_adapters_and_skips_failed_loads` covers skipped import failures; `tests/contract/test_engine_health_endpoint.py::test_engines_endpoint_differentiates_runtime_health_failure_reasons` covers `dependency_missing` -> unavailable, `model_missing` -> degraded, `runtime_unavailable` -> unavailable, and `available` healthy adapters.
+- Expand sanitization tests to cover real exception messages, absolute paths, stack traces, package names, and secrets. `/v1/engines` contract tests now assert health reasons redact realistic `ModuleNotFoundError`, `RuntimeError: dlopen(...)`, `/Users/...` absolute paths, canonical `Traceback` text, package names such as `piper_plus`/`kokoro_onnx`, and secret/API-key-like values while preserving safe health categories.

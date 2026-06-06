@@ -1,7 +1,6 @@
 # Implement VoiceRegistry routing and refresh semantics
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0004 — `docs/adr/ADR-0004-engine-strategy.md`
@@ -30,3 +29,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Prove refresh is atomic under active synthesis by testing old route references stay valid while new routes become visible.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Hydrate `VoiceRegistry` from installed voice manifests and bundled/remote catalog projections during startup and after install/delete commits.
+- Prove refresh is atomic under active synthesis by testing old route references stay valid while new routes become visible.

@@ -1,7 +1,6 @@
 # Implement mery doctor diagnostic engine
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0002 — `docs/adr/ADR-0002-helper-shape.md`
@@ -98,3 +97,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
       `DoctorEngine.persist()` writes sanitized results with `ranAt` timestamp; `/v1/diagnostics` endpoint serves persisted data.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Replace hardcoded doctor checks with dependency-injected checks for config, auth token, engine discovery, catalog availability, model store, disk space, permissions, and audio device/runtime health.
+- Persist `last-doctor.json`; make `GET /v1/diagnostics` read it or return a structured stale/missing diagnostic.

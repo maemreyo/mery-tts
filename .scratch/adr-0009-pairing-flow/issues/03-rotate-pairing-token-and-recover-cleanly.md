@@ -1,7 +1,6 @@
 # Rotate pairing token and recover cleanly
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0009 — `docs/adr/ADR-0009-pairing-flow.md`
@@ -29,3 +28,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Add end-to-end tests: old token rejected, new pair code claimed, helper ID/storage preserved, existing clients receive re-pair guidance. Contract coverage proves old token rejection, new pair-code claim, helper ID preservation after CLI rotation, and `pair_client` guidance in structured invalid-token envelopes.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Ensure token rotation updates the live daemon auth configuration or requires an explicit safe restart with clear client behavior. Live app auth checks reload the persisted token per protected request, so old tokens are invalidated without restart.
+- Add end-to-end tests: old token rejected, new pair code claimed, helper ID/storage preserved, existing clients receive re-pair guidance. Contract coverage proves old token rejection, new pair-code claim, helper ID preservation after CLI rotation, and `pair_client` guidance in structured invalid-token envelopes.

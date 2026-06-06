@@ -1,7 +1,6 @@
 # Add OpenAI-compatible chunked HTTP audio sink
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0012 amendment — `docs/adr/ADR-0012-audio-delivery-mode.md`
@@ -31,3 +30,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Evidence: `tests/contract/test_openai_speech.py::test_openai_streaming_speech_returns_ordered_pcm_chunks` and `test_openai_streaming_speech_uses_http_transport_without_ws_events` pin `audio/pcm` chunked HTTP bytes with no native event envelope; `tests/unit/test_ws_and_orchestration.py::test_ws_synthesis_events_are_ordered` separately pins native `synthesize.started`/`audio.chunk`/`audio.completed` WebSocket event semantics.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Ensure chunked HTTP streaming propagates mid-stream adapter errors as documented and cleans up/cancels generator work on client disconnect.
+- Prove HTTP chunking and WebSocket audio events are independent real transports using client-level tests.

@@ -1,7 +1,6 @@
 # Define catalog schemas and verifier policy
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0007 — `docs/adr/ADR-0007-catalog-integrity.md`
@@ -31,3 +30,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Progress: `CatalogGraph` validation in `src/mery_tts/catalog/normalized.py` rejects duplicate `catalogEntryId`, `artifactId`, `voiceId`, missing engine references, missing catalog entry references, and missing artifact references; `CatalogVerifier` enforces schema and expiry for both bundled and remote catalogs; `tests/unit/test_normalized_catalog.py` and `tests/unit/test_catalog_verifier.py` pin all validation behavior.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Use real catalog source/download URL fields or an explicit artifact source model instead of hardcoded installer URLs.
+- Verify bundled and remote catalog graph integrity, duplicate IDs, supported engines, file roles, and schema version compatibility.

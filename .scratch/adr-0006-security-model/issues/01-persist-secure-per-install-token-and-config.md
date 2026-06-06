@@ -1,7 +1,6 @@
 # Persist secure per-install token and config
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0006 — `docs/adr/ADR-0006-security-model.md`
@@ -31,3 +30,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Prove token rotation invalidates already-running app auth state or clearly restarts/reloads config before accepting new requests. `create_app(config_store=...)` reloads auth state per protected REST/WebSocket request; tests prove old token is rejected and new token accepted after `rotate_token()`.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Set owner-only config permissions where supported, handle permission failures safely, and persist actual bound port on daemon startup.
+- Prove token rotation invalidates already-running app auth state or clearly restarts/reloads config before accepting new requests. `create_app(config_store=...)` reloads auth state per protected REST/WebSocket request; tests prove old token is rejected and new token accepted after `rotate_token()`.

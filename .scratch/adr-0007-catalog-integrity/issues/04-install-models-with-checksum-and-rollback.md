@@ -1,7 +1,6 @@
 # Install models with checksum and rollback
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0007 — `docs/adr/ADR-0007-catalog-integrity.md`
@@ -32,3 +31,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Progress: `CatalogInstaller` raises `InstallError` with safe generic codes (`checksum_mismatch`, `size_mismatch`, `disallowed_host`, `model_not_found`, `no_files`, `missing_download_url`); `tests/unit/test_catalog_refresh_install.py::test_install_error_messages_are_safe_generic_codes` pins that error messages contain no paths, URLs, tokens, or secrets. `InstallJobService.fail_install()` maps these to `JobStatus.FAILED` with the error reason; `tests/unit/test_install_jobs.py::test_install_failure_before_commit_is_not_routable` pins failure-before-commit behavior.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Download from catalog-approved URLs only after host allowlist checks, stream to temp files, verify size/SHA256, then atomically promote.
+- Map checksum, size, host, network, disk, and rollback failures to structured install/job errors visible through API and events.

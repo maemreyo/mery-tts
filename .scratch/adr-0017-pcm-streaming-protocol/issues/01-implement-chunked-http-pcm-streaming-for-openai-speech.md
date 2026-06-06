@@ -1,7 +1,6 @@
 # Implement chunked HTTP PCM streaming for OpenAI speech
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0017 — `docs/adr/ADR-0017-pcm-streaming-protocol.md`
@@ -34,3 +33,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
       Starlette `StreamingResponse` handles client disconnect via generator cleanup; `EngineAdapter.cancel()` provides idempotent cancellation; `iter_openai_pcm()` yields chunks from adapter with proper async iteration; adapter exceptions propagate as stream termination. `tests/contract/test_openai_speech.py` covers streaming contracts.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Validate PCM metadata and content-type/headers for streaming responses, and document client expectations for sample rate/channels.
+- Handle cancellation, disconnect, backpressure, unstable metadata, and adapter exceptions with deterministic cleanup and errors.

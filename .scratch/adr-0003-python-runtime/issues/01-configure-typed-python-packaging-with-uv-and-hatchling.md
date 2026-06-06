@@ -1,7 +1,6 @@
 # Configure typed Python packaging with uv and hatchling
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0003 — `docs/adr/ADR-0003-python-runtime.md`
@@ -29,3 +28,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Ensure package data includes bundled catalogs and `py.typed` while excluding caches, scratch files, and local artifacts. Artifact inspection verifies wheel/sdist include `mery_tts/catalog/fixtures/bundled-v1.json`, `mery_tts/py.typed`, `mery_tts/diagnostics/*`, and `mery_tts/models/*`, with no `.scratch`, `__pycache__`, `.mery-tts`, root `models`, root `cache`, root `logs`, or root `diagnostics` entries; `tests/unit/test_project_guardrails.py::test_packaging_runtime_files_are_not_hidden_by_ignore_rules` pins the source ignore/exclusion guardrails.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Verify wheel/sdist build and install-equivalent CLI execution in a clean environment, not only editable test execution. `uv build` produced `dist/mery_tts_server-0.1.0.tar.gz` and `dist/mery_tts_server-0.1.0-py3-none-any.whl`; a clean temp venv installed the wheel and ran `mery --help`, `mery --version`, and `mery engines` successfully.
+- Ensure package data includes bundled catalogs and `py.typed` while excluding caches, scratch files, and local artifacts. Artifact inspection verifies wheel/sdist include `mery_tts/catalog/fixtures/bundled-v1.json`, `mery_tts/py.typed`, `mery_tts/diagnostics/*`, and `mery_tts/models/*`, with no `.scratch`, `__pycache__`, `.mery-tts`, root `models`, root `cache`, root `logs`, or root `diagnostics` entries; `tests/unit/test_project_guardrails.py::test_packaging_runtime_files_are_not_hidden_by_ignore_rules` pins the source ignore/exclusion guardrails.

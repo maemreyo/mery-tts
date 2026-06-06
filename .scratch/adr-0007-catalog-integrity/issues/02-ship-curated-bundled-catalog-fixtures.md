@@ -1,7 +1,6 @@
 # Ship curated bundled catalog fixtures
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0007 — `docs/adr/ADR-0007-catalog-integrity.md`
@@ -29,3 +28,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Ensure fixtures represent installable Kokoro/Piper-plus runtime shapes, not only schema examples.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Load bundled catalog fixtures as package data at runtime and expose voice cards through `/v1/catalog/voices`.
+- Ensure fixtures represent installable Kokoro/Piper-plus runtime shapes, not only schema examples.

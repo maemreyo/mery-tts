@@ -1,7 +1,6 @@
 # Define VoiceDescriptor payload union and adapter kind validation
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0013 — `docs/adr/ADR-0013-voice-descriptor-discriminated-union.md`
@@ -31,3 +30,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
       `tests/unit/test_storage_identity.py` now covers: unsupported payload family rejection, duplicate voice ID rejection, preset payload missing `preset_id` rejection. Existing tests cover missing artifact rejection and unsafe identifier rejection.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Validate descriptors loaded from catalog/storage manifests with strict payload-family rules and adapter compatibility before they become routable.
+- Add negative tests for malformed payloads, unsupported families, missing artifacts, duplicate voice IDs, and cross-engine mismatches.

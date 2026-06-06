@@ -1,7 +1,6 @@
 # Implement model domain — events, store, deletion, listing, and storage stats
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0007 — `docs/adr/ADR-0007-catalog-integrity.md`
@@ -96,3 +95,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Evidence: `DELETE /v1/models/{model_id}` now calls `InstallJobService.delete_voice()` before model-store fallback; `StorageIdentityStore.delete_voice_and_collect_garbage()` removes the voice manifest before collecting only artifacts with zero live refs. `tests/contract/test_rest_management_endpoints.py::test_model_delete_updates_voice_manifests_and_collects_artifacts` and `tests/unit/test_storage_identity.py::test_shared_artifact_gc_only_removes_unreferenced_artifacts` pin idempotent voice-aware delete and shared-artifact retention.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Persist install/delete domain events or job manifests durably enough for restart-safe status and cleanup.
+- Make delete idempotent, voice-aware, and garbage-collect only unreferenced artifacts after manifest updates commit.

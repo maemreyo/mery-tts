@@ -1,7 +1,6 @@
 # Define structured error taxonomy
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0010 — `docs/adr/ADR-0010-error-taxonomy.md`
@@ -31,3 +30,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Progress: REST missing/invalid bearer-token contract tests assert stable `auth.*` envelope fields; OpenAI-compatible oversized-input contract tests assert stable `security.request_too_large` fields; unsafe model ID rejection asserts `security.unsafe_identifier` envelope; engine health endpoint asserts sanitized reasons; install job service returns structured job status; doctor persistence sanitizes detail metadata.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Route all public API/CLI/domain failures through the structured taxonomy instead of ad hoc JSON or raw exceptions.
+- Snapshot representative error envelopes for REST, OpenAI-compatible route, WebSocket, CLI, install, doctor, and engine failures.

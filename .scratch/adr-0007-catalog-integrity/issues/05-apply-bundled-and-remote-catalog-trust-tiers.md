@@ -1,7 +1,6 @@
 # Apply bundled and remote catalog trust tiers
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0007 amendment — `docs/adr/ADR-0007-catalog-integrity.md`
@@ -31,3 +30,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Progress: `CatalogModel.source` field is `Literal["bundled", "remote"]`; `GET /v1/catalog/voices` serves from bundled catalog; `CatalogRefreshService` stores remote catalogs separately; `DoctorEngine`'s `CatalogAvailableCheck` reports bundled catalog availability; all outputs use `source` field or distinct paths to distinguish provenance without exposing filesystem paths.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Enforce separate trust tiers at runtime: bundled schema/graph validation, remote signature/freshness validation, and per-file install verification.
+- Expose active catalog provenance so diagnostics/API can distinguish bundled, remote, stale, and rejected catalogs.

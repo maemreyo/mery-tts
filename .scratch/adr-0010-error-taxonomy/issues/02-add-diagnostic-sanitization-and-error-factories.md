@@ -1,7 +1,6 @@
 # Add diagnostic sanitization and error factories
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0010 — `docs/adr/ADR-0010-error-taxonomy.md`
@@ -31,3 +30,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Progress: sanitizer regression coverage now proves nested data, forbidden raw text/page URL/token keys, and suspicious scalar local paths, URLs, bearer/token hints, canonical traceback headers, and stack-frame-style traceback payloads are omitted while safe scalar fields remain.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Use the sanitizer from every diagnostic/log/event path, including engine exceptions, install failures, doctor output, and security middleware.
+- Fail closed on nested/unknown metadata and add regression tests for local paths, raw text, URLs, tokens, and traceback-like payloads.

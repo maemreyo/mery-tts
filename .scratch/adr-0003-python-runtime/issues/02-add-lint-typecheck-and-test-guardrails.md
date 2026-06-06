@@ -1,7 +1,6 @@
 # Add lint typecheck and test guardrails
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0003 — `docs/adr/ADR-0003-python-runtime.md`
@@ -29,3 +28,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Keep engine/integration markers separated so CI can run core checks without optional engine downloads but still exposes real-runtime jobs. `.github/workflows/check.yml` runs default core checks through `make check`, which excludes `engine` and `integration` markers, and exposes a separate manual `real-runtime` job for `uv run pytest -m "engine or integration"` with engine extras; `tests/unit/test_project_guardrails.py` pins this CI split.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Add a single documented `check` gate that runs lint, format check, strict mypy, tests, and production smoke commands. `make check` runs Ruff format check, Ruff lint, strict mypy, non-engine/non-integration pytest, and CLI smoke commands.
+- Keep engine/integration markers separated so CI can run core checks without optional engine downloads but still exposes real-runtime jobs. `.github/workflows/check.yml` runs default core checks through `make check`, which excludes `engine` and `integration` markers, and exposes a separate manual `real-runtime` job for `uv run pytest -m "engine or integration"` with engine extras; `tests/unit/test_project_guardrails.py` pins this CI split.

@@ -1,7 +1,6 @@
 # Enforce bridge-only integration contract
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0001 — `docs/adr/ADR-0001-product-boundary.md`
@@ -31,3 +30,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Progress: `tests/contract/test_bridge_contract.py::test_public_response_schemas_do_not_expose_filesystem_paths` audits all public response schemas (`HealthResponse`, `EnginesResponse`, `InstalledVoicesResponse`, `CatalogVoicesResponse`, `ModelInstallResponse`, `ModelStatusResponse`, `ModelDeleteResponse`, `StorageResponse`, `DiagnosticsResponse`, `NativeErrorResponse`) and asserts none contain `path`, `url`, or `dir` fields. `PairingResponse.setup_url` is an intentional localhost setup URL and is excluded from the audit. `StorageResponse` exposes only `used_bytes` and `free_bytes` (integers), not filesystem paths. `DiagnosticsResponse` exposes only check names and statuses. CLI `storage show` output uses `stats.root_path` which is an internal diagnostic path, not exposed through the API.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Exercise every client-facing ID field through HTTP/CLI, not only helper functions, and prove raw paths/URLs are rejected before model/catalog/storage work begins.
+- Audit public responses and diagnostics so no route exposes absolute local paths, raw download URLs, or Zam Reader-specific assumptions.

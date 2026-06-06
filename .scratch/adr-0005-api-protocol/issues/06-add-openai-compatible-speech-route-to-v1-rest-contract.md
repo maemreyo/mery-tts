@@ -1,7 +1,6 @@
 # Add OpenAI-compatible speech route to the v1 REST contract
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0005 amendment — `docs/adr/ADR-0005-api-protocol.md`
@@ -30,3 +29,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Add route-level tests for unsupported methods, unknown routes, auth failures, and native-route error shape separation. `tests/contract/test_openai_speech.py::test_openai_speech_requires_authentication`, `test_openai_speech_rejects_unsupported_method_and_unknown_route`, and `test_openai_errors_remain_separate_from_native_error_shape` pin these route-level contracts.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Document `/v1/audio/speech` in generated OpenAPI with auth, request limits, supported formats, and OpenAI-shaped errors.
+- Add route-level tests for unsupported methods, unknown routes, auth failures, and native-route error shape separation. `tests/contract/test_openai_speech.py::test_openai_speech_requires_authentication`, `test_openai_speech_rejects_unsupported_method_and_unknown_route`, and `test_openai_errors_remain_separate_from_native_error_shape` pin these route-level contracts.

@@ -1,7 +1,6 @@
 # Document and test Phase 1 uv pipx install path
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0008 — `docs/adr/ADR-0008-packaging.md`
@@ -30,3 +29,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Update docs to label the exact production readiness state and any optional engine prerequisites for early access. README Phase 1 quickstart states the packaged core starts, serves `/v1`, and supports deterministic CLI/API smoke paths without optional engine downloads, while real Piper-plus or Kokoro audio requires the matching optional engine extra and remains gated by real-runtime validation; `tests/unit/test_doctor_storage_packaging_rollout.py::test_readme_documents_phase_one_uv_and_pipx` pins this copy.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Run install-equivalent smoke for `uv tool install`/`pipx` semantics or a local wheel equivalent: `mery --version`, `mery serve`, health call, teardown. Clean temp venv wheel smoke ran `mery --version`, started `mery serve`, authenticated `/v1/health` with the generated local token, and tore the process down.
+- Update docs to label the exact production readiness state and any optional engine prerequisites for early access. README Phase 1 quickstart states the packaged core starts, serves `/v1`, and supports deterministic CLI/API smoke paths without optional engine downloads, while real Piper-plus or Kokoro audio requires the matching optional engine extra and remains gated by real-runtime validation; `tests/unit/test_doctor_storage_packaging_rollout.py::test_readme_documents_phase_one_uv_and_pipx` pins this copy.

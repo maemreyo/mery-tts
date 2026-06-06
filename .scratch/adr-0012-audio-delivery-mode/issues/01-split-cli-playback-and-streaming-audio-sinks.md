@@ -1,7 +1,6 @@
 # Split CLI playback and streaming audio sinks
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0012 — `docs/adr/ADR-0012-audio-delivery-mode.md`
@@ -65,3 +64,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Evidence: `tests/unit/test_audio_sinks.py::test_audio_player_drains_stream_and_stops`, `test_audio_player_stop_prevents_later_chunks_from_writing`, `test_audio_player_closes_stream_on_cancellation`, and `test_audio_player_maps_device_failure_to_structured_error` cover fake PCM drain/stop/cancel/error paths without hardware. `test_audio_player_real_device_smoke_is_marked_and_skipped_by_default` is marked `engine` and skips cleanly unless manually enabled with local audio hardware.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Implement actual device playback draining PCM with sample-rate/channel handling, cancellation, and no API import dependency on speaker libraries.
+- Add manual/marked audio-device smoke plus fake PCM unit tests for stop/drain/error paths.

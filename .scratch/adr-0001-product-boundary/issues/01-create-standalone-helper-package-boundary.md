@@ -1,7 +1,6 @@
 # Create standalone helper package boundary
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0001 — `docs/adr/ADR-0001-product-boundary.md`
@@ -29,3 +28,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] README status must describe the actual runtime maturity instead of claiming both no runtime implementation and completed runtime behavior. README status says `Early runtime implementation`, lists implemented CLI/API/test/export slices, and keeps real engine audio validation, durable install lifecycle, packaging smoke, and production hardening pending. `tests/unit/test_package_boundary.py::test_readme_status_describes_early_runtime_without_stale_no_runtime_claim` prevents reintroducing the stale `No runtime implementation yet` claim.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Package/install smoke must prove `mery` can be installed in a clean environment and import/start without Zam Reader, local checkout paths, engines, or model fixtures. A clean temp venv installed `dist/mery_tts_server-0.1.0-py3-none-any.whl`, ran `mery --help`, `mery --version`, `mery engines`, started `mery serve` with isolated `MERY_TTS_DATA_DIR`/`MERY_TTS_PORT`, authenticated against generated config, and received `/v1/health` `{"status":"ok"}` before teardown.
+- README status must describe the actual runtime maturity instead of claiming both no runtime implementation and completed runtime behavior. README status says `Early runtime implementation`, lists implemented CLI/API/test/export slices, and keeps real engine audio validation, durable install lifecycle, packaging smoke, and production hardening pending. `tests/unit/test_package_boundary.py::test_readme_status_describes_early_runtime_without_stale_no_runtime_claim` prevents reintroducing the stale `No runtime implementation yet` claim.

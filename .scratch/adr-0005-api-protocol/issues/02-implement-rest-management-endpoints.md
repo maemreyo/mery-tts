@@ -1,7 +1,6 @@
 # Implement REST management endpoints
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0005 — `docs/adr/ADR-0005-api-protocol.md`
@@ -30,3 +29,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Keep route handlers thin by injecting services; add tests that route failures map domain errors without embedding domain logic in handlers. All route handlers delegate to injected services (`EngineRegistry`, `ModelStore`, `InstallJobService`, `StorageIdentityStore`, `DoctorEngine`); domain logic lives in service modules; `tests/contract/test_rest_management_endpoints.py` pins route-level behavior.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Move placeholder route behavior behind real services for catalog voices, installed voices, model install/status/delete, storage, and diagnostics. Catalog voices are now backed by bundled package-data loading; installed voices are hydrated from `StorageIdentityStore`; model install uses `InstallJobService` with real job IDs; storage uses `ModelStore.disk_usage()`; diagnostics read from `last-doctor.json` or trigger a fresh doctor run. `tests/contract/test_rest_management_endpoints.py` pins real service behavior.
+- Keep route handlers thin by injecting services; add tests that route failures map domain errors without embedding domain logic in handlers. All route handlers delegate to injected services (`EngineRegistry`, `ModelStore`, `InstallJobService`, `StorageIdentityStore`, `DoctorEngine`); domain logic lives in service modules; `tests/contract/test_rest_management_endpoints.py` pins route-level behavior.

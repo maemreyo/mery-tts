@@ -1,7 +1,6 @@
 # Split artifact and voice storage identities
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0011 amendment — `docs/adr/ADR-0011-storage-architecture.md`
@@ -29,3 +28,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Prove shared-artifact GC with multiple voices and multi-artifact voices using persisted manifests across restart.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Hydrate runtime `VoiceDescriptor` paths from artifact manifests and validate missing/corrupt artifact references before routing synthesis.
+- Prove shared-artifact GC with multiple voices and multi-artifact voices using persisted manifests across restart.

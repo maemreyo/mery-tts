@@ -1,7 +1,6 @@
 # Define versioned REST and event schemas
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0005 — `docs/adr/ADR-0005-api-protocol.md`
@@ -31,3 +30,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Progress: schema objects now require `schema_version` and `request_id`, and event schema tests cover `job_id`, `session_id`, and audio chunk correlation metadata. `tests/contract/test_api_core.py::test_unknown_origin_and_oversized_request_are_rejected` now pins 403 origin rejection, malformed `Content-Length` 400 failures, and 413 request-size failures to native taxonomy envelopes with `request_id="local"`. `tests/unit/test_ws_and_orchestration.py::test_ws_synthesis_events_are_ordered` now pins generated synthesis/audio events to `schema_version="v1"`, explicit `request_id`, stable `session_id`, and schema-aligned `audio.completed`. All REST routes return versioned responses with `request_id="local"`; all WebSocket events include `schema_version`, `request_id`, and `session_id`.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Generate or snapshot the OpenAPI schema and native WebSocket event schemas from the actual app, including error envelopes and correlation IDs.
+- Ensure every route/event returns stable `schema_version` plus request/job/session identifiers under success and failure conditions.

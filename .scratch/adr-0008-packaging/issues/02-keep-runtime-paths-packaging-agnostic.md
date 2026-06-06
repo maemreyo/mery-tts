@@ -1,7 +1,6 @@
 # Keep runtime paths packaging agnostic
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0008 — `docs/adr/ADR-0008-packaging.md`
@@ -32,3 +31,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Progress: `tests/unit/test_runtime_paths.py::test_runtime_paths_never_use_package_relative_writable_dirs` proves default runtime paths avoid the package/repository root. Clean wheel smoke already proved installed CLI/server startup uses isolated runtime data; all writable paths are under `RuntimePaths.base_dir` which is either `MERY_TTS_DATA_DIR` or `platformdirs.user_data_dir("Mery TTS", "zaob-dev")`.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Exercise runtime paths under environment overrides with daemon, catalog refresh, model install, logs, config, and doctor outputs.
+- Ensure no package-relative writable paths are used once installed from a wheel/tool environment.

@@ -1,7 +1,6 @@
 # Implement OpenAI-compatible blocking speech endpoint
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0014 — `docs/adr/ADR-0014-openai-compatible-speech-layer.md`
@@ -29,3 +28,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Use/request-validate `model`, voice alias configuration, response formats, request size/text limits, and OpenAI-shaped error mapping for all failures on this route. Format validation, voice alias resolution, request text-size limits, model allow-listing, and OpenAI-shaped route errors are covered.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Return valid WAV bytes when `response_format=wav`; if unsupported, reject explicitly instead of returning raw PCM under a WAV request.
+- Use/request-validate `model`, voice alias configuration, response formats, request size/text limits, and OpenAI-shaped error mapping for all failures on this route. Format validation, voice alias resolution, request text-size limits, model allow-listing, and OpenAI-shaped route errors are covered.

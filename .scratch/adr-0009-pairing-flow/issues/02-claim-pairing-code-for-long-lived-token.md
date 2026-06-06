@@ -1,7 +1,6 @@
 # Claim pairing code for long-lived token
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0009 — `docs/adr/ADR-0009-pairing-flow.md`
@@ -30,3 +29,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Prove a real CLI-created challenge can be claimed through HTTP once, then fails on reuse. Contract tests invoke `mery pair`, claim the persisted code via `/v1/pair/claim`, and verify reuse returns 401.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Add rate limiting for failed pair claims and return stable structured `auth.*` errors for expired, reused, wrong, and throttled codes.
+- Prove a real CLI-created challenge can be claimed through HTTP once, then fails on reuse. Contract tests invoke `mery pair`, claim the persisted code via `/v1/pair/claim`, and verify reuse returns 401.

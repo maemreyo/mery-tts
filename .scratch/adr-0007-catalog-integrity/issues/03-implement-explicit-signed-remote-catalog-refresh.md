@@ -1,7 +1,6 @@
 # Implement explicit signed remote catalog refresh
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0007 — `docs/adr/ADR-0007-catalog-integrity.md`
@@ -31,3 +30,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Progress: `test_remote_refresh_stores_verified_catalog_and_does_not_mutate_on_failure` proves the previous catalog JSON is preserved when signature verification fails; `tests/unit/test_catalog_verifier.py` covers expired catalog rejection and invalid signature rejection.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Implement explicit CLI/API remote refresh entrypoints with network error handling, timeout policy, atomic storage, and no background auto-refresh.
+- Add tests for failed network/download cases and prove the previous catalog remains active after failure.

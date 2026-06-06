@@ -1,7 +1,6 @@
 # Implement Piper-plus adapter contract
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0004 — `docs/adr/ADR-0004-engine-strategy.md`
@@ -36,3 +35,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Evidence: `tests/unit/test_provider_adapters.py::test_piper_plus_real_runtime_smoke_skips_without_dependency` is marked `engine` and skips cleanly unless the optional `piper` package and a manually configured fixture model are available.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Replace placeholder Piper-plus PCM bytes with direct Python API synthesis, async streaming bridge, health checks, voices, and cancellation.
+- Add skipped-by-default real-runtime Piper-plus smoke tests using a small fixture/model and verify audio metadata is valid.

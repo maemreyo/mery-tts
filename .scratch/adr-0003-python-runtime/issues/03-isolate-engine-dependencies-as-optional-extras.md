@@ -1,7 +1,6 @@
 # Isolate engine dependencies as optional extras
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0003 — `docs/adr/ADR-0003-python-runtime.md`
@@ -29,3 +28,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Add install-extra smoke jobs for `piper-plus`, `kokoro`, and `all` when dependencies/fixtures are available. `.github/workflows/check.yml` exposes a manual `optional-engine-extra-smoke` matrix for `piper-plus`, `kokoro`, and `all`, and `tests/unit/test_project_guardrails.py::test_ci_exposes_optional_engine_extra_smoke_matrix` pins the workflow contract.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Prove missing optional engine packages degrade via registry warnings and `/v1/engines` health without breaking app startup or CLI diagnostics. `tests/unit/test_engine_registry.py::test_engine_registry_discovers_adapters_and_skips_failed_loads` proves failed optional entry-point imports become registry warnings without breaking registry construction; `tests/contract/test_engine_health_endpoint.py::test_app_factory_discovers_engine_entry_points_by_default` proves app startup and `/v1/engines` stay healthy for loadable adapters while missing optional entry points are absent; `tests/unit/test_doctor_storage_packaging_rollout.py::test_doctor_cli_does_not_require_optional_engine_packages` proves `mery doctor` runs without importing `piper_plus` or `kokoro_onnx`.
+- Add install-extra smoke jobs for `piper-plus`, `kokoro`, and `all` when dependencies/fixtures are available. `.github/workflows/check.yml` exposes a manual `optional-engine-extra-smoke` matrix for `piper-plus`, `kokoro`, and `all`, and `tests/unit/test_project_guardrails.py::test_ci_exposes_optional_engine_extra_smoke_matrix` pins the workflow contract.

@@ -1,7 +1,6 @@
 # Create daemon app factory and serve command
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0002 — `docs/adr/ADR-0002-helper-shape.md`
@@ -29,3 +28,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Capture real server smoke evidence: start daemon, call `/v1/health`, stop daemon, and verify no process/port is left behind.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Implement `mery serve` with uvicorn/FastAPI startup, configured host/port, bound-port reporting, signal handling, and clean shutdown.
+- Capture real server smoke evidence: start daemon, call `/v1/health`, stop daemon, and verify no process/port is left behind.

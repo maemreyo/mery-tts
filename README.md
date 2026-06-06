@@ -104,6 +104,7 @@ mery speak --file input.txt --output hello.wav
 | [`docs/integration/zam-reader-readiness-contract.md`](docs/integration/zam-reader-readiness-contract.md) | Requirements before Zam Reader may use Mery |
 | [`docs/reports/local-tts-helper-design-decisions.md`](docs/reports/local-tts-helper-design-decisions.md) | Full 27-decision design log |
 | [`docs/reports/local-tts-solutions-research.md`](docs/reports/local-tts-solutions-research.md) | Engine research and benchmarks |
+| [`docs/reports/phase-1-smoke-and-tests.md`](docs/reports/phase-1-smoke-and-tests.md) | Live-server smoke test, full pytest run, and `make check` gate evidence |
 
 ---
 

@@ -1,7 +1,6 @@
 # Map domain failures to fallback policies
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0010 — `docs/adr/ADR-0010-error-taxonomy.md`
@@ -32,3 +31,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Progress: `tests/unit/test_error_factories.py::test_connection_error_serializes_with_fallback_policy_metadata` pins that connection failure errors serialize with `fallback_policy="use_cached_audio"`, `recommended_action="retry"`, and `request_id` in the JSON output, proving fallback metadata is exposed to clients without leaking implementation details. All `LocalTTSError.model_dump()` output includes `fallback_policy` and `recommended_action` fields for client consumption.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Map real connection, auth, catalog, model, engine, synthesis, playback, storage, and security failures to recommended actions and fallback policies.
+- Expose fallback metadata consistently to clients without leaking implementation details.

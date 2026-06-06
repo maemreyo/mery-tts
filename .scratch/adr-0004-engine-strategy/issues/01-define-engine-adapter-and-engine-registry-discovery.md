@@ -1,7 +1,6 @@
 # Define EngineAdapter and EngineRegistry discovery
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0004 — `docs/adr/ADR-0004-engine-strategy.md`
@@ -30,3 +29,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Log skipped adapter load failures with sanitized diagnostics and expose safe degraded/unavailable status through `/v1/engines`.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Wire `EngineRegistry.from_entry_points()` into app/CLI startup instead of defaulting to an empty adapter map.
+- Log skipped adapter load failures with sanitized diagnostics and expose safe degraded/unavailable status through `/v1/engines`.

@@ -1,7 +1,6 @@
 # Implement model install API orchestration
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0005 — `docs/adr/ADR-0005-api-protocol.md`
@@ -33,3 +32,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Evidence: `src/mery_tts/api/orchestration/install.py::InstallOrchestrator` maps manager domain events to versioned install schema events and refreshes only on `InstallDone`; `tests/unit/test_model_install_manager.py::test_install_manager_events_refresh_voice_registry_once_after_done` proves the manager/orchestrator flow emits progress/progress/completed and calls refresh exactly once after commit.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Implement a real API-agnostic model/install manager that emits queued, progress, done, and failed domain events.
+- Wire API orchestration to WebSocket/event emission and refresh `VoiceRegistry` exactly once after committed install success.

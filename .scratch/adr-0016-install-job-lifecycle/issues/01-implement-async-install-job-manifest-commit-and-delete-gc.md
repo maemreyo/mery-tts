@@ -1,7 +1,6 @@
 # Implement async install jobs, voice manifest commit, and delete GC
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0016 — `docs/adr/ADR-0016-install-job-lifecycle.md`
@@ -33,3 +32,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
       `POST /v1/models/install` now calls `install_job_service.start_install()` which returns a real `job_id` (UUID-based) and `status="running"`; `tests/contract/test_rest_management_endpoints.py::test_model_install_accepts_stable_model_id_only` pins the new behavior.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Replace in-memory-only install jobs with durable async lifecycle state, status endpoint support, manifest commit, rollback, and restart recovery.
+- Wire `POST /v1/models/install` to this service instead of returning `job_id: not-started`.

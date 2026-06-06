@@ -1,7 +1,6 @@
 # Implement normalized catalog and flat voice card projection
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0015 — `docs/adr/ADR-0015-catalog-model-artifact-voice-identity.md`
@@ -32,3 +31,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
       `tests/unit/test_install_jobs.py` proves install job lifecycle with artifact/voice identities; `tests/unit/test_storage_identity.py` proves voice manifest persistence with artifact refs; `tests/contract/test_rest_management_endpoints.py` proves delete is idempotent; all outputs use `voice_id`/`artifact_id`/`engine_id` without exposing filesystem paths.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Connect normalized catalog projections to runtime APIs and install jobs so flat voice cards are not just unit-test artifacts.
+- Prove artifact/voice identity survives install, delete, refresh, restart, and catalog updates without exposing filesystem paths.

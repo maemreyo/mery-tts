@@ -1,7 +1,6 @@
 # Split CLI playback and streaming audio sinks
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0002 — `docs/adr/ADR-0002-helper-shape.md`
@@ -31,3 +30,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Progress: `tests/unit/test_package_boundary.py` pins import isolation between CLI and API modules; `tests/unit/test_audio_sinks.py` uses `FakeEngineAdapter` with deterministic sine-wave `PCMChunk` for player drain, stop, encoder round-trip, and WAV exporter tests; `tests/unit/test_ws_and_orchestration.py::test_ws_synthesis_events_are_ordered` pins that synthesis events consume identical `PCMChunk` metadata (sample_rate_hz, channels) across the streaming pipeline.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Wire CLI playback and WebSocket/HTTP streaming to the same real adapter `PCMChunk` source while keeping player-only dependencies out of API modules.
+- Add import-boundary tests plus a fake-stream real-surface test proving playback/export/streaming consume identical PCM metadata.

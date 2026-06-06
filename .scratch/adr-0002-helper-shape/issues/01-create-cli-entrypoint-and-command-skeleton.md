@@ -1,7 +1,6 @@
 # Create CLI entrypoint and command skeleton
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0002 — `docs/adr/ADR-0002-helper-shape.md`
@@ -29,3 +28,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Add CLI subprocess smoke tests for successful commands and failure exit codes using an isolated runtime directory. `tests/cli/test_cli_skeleton.py` now covers `engines`, `voices`, `catalog`, `models`, and `storage show` with `MERY_TTS_DATA_DIR` isolation, asserting structured JSON output and deterministic exit codes.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Replace placeholder command output for `serve`, `engines`, `voices`, `catalog`, `models`, and `speak` with calls into shared runtime services. `engines` now delegates to `discover_engine_registry()` returning engine IDs and health status; `voices` delegates to `StorageIdentityStore` for installed voice descriptors; `catalog` delegates to `bundled_catalog_voice_summaries()` for offline-browsable voice cards; `models` delegates to `ModelStore.list_installed()` for installed model records; `storage show` delegates to `ModelStore.disk_usage()` for real storage stats.
+- Add CLI subprocess smoke tests for successful commands and failure exit codes using an isolated runtime directory. `tests/cli/test_cli_skeleton.py` now covers `engines`, `voices`, `catalog`, `models`, and `storage show` with `MERY_TTS_DATA_DIR` isolation, asserting structured JSON output and deterministic exit codes.

@@ -1,7 +1,6 @@
 # Implement WebSocket event stream protocol
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0005 — `docs/adr/ADR-0005-api-protocol.md`
@@ -34,3 +33,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
   - Progress: contract tests cover auth failure paths (`test_websocket_events_requires_bearer_token`, `test_websocket_events_rejects_invalid_bearer_token`, `test_websocket_events_rejects_unknown_origin`); unit tests in `tests/unit/test_ws_and_orchestration.py` cover synthesis event ordering (`test_ws_synthesis_events_are_ordered`), cancellation (`test_ws_synthesis_events_emit_cancelled_on_cancellation`), and install orchestrator behavior (`test_install_orchestrator_maps_events_and_refreshes_after_done`, `test_install_orchestrator_does_not_refresh_on_failure`). Full end-to-end WebSocket synthesis requires real engine adapters which are gated by optional extras.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Mount authenticated `WS /v1/events` in FastAPI with token/subprotocol validation, heartbeat/status events, and structured close/error behavior.
+- Add real WebSocket client tests for install, synthesize, audio chunks, cancellation, and auth failure paths.

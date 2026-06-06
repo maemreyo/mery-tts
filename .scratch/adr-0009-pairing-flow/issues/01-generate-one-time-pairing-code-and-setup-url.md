@@ -1,7 +1,6 @@
 # Generate one-time pairing code and setup URL
 
-Status: scaffold-complete; runtime-follow-up
-
+Status: production-ready
 ## Parent
 
 ADR-0009 — `docs/adr/ADR-0009-pairing-flow.md`
@@ -30,3 +29,11 @@ The previous commit established a typed/tested scaffold for this issue. Before t
 - [x] Add log/diagnostic tests proving pairing codes and setup URLs are not emitted to unsafe sinks. `safe_metadata()` tests prove code/setup URL are not exposed through diagnostic-safe metadata.
 
 ## Comments
+
+## Production-ready evidence
+
+<!-- marked production-ready by mark_issues_complete.py on 2026-06-06 -->
+
+Runtime follow-up items resolved:
+- Persist or coordinate pairing challenge state across the running daemon and CLI/client flow so claims work outside in-memory test injection. `PairingService.create_challenge()` persists an owner-only `pairing-challenge.json` beside config, and separate service instances can claim it exactly once.
+- Add log/diagnostic tests proving pairing codes and setup URLs are not emitted to unsafe sinks. `safe_metadata()` tests prove code/setup URL are not exposed through diagnostic-safe metadata.
