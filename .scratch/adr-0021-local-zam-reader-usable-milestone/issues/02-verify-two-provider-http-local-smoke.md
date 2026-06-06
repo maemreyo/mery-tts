@@ -1,6 +1,6 @@
 # Verify two-provider HTTP local smoke
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,16 +12,16 @@ Create an end-to-end local smoke path that proves Piper and Kokoro can both synt
 
 ## Acceptance criteria
 
-- [ ] Piper installed voice synthesizes real WAV or PCM through `/v1/audio/speech`.
-- [ ] Kokoro installed voice synthesizes real WAV or PCM through `/v1/audio/speech`.
-- [ ] Piper→Kokoro fallback is exercised when Piper fails recoverably.
-- [ ] Runtime degraded mode still allows synthesis through the working provider.
+- [x] Piper installed voice synthesizes real WAV or PCM through `/v1/audio/speech`.
+- [x] Kokoro installed voice synthesizes real WAV or PCM through `/v1/audio/speech`.
+- [x] Piper→Kokoro fallback is exercised when Piper fails recoverably.
+- [x] Runtime degraded mode still allows synthesis through the working provider.
 
 ## Production-ready criteria
 
-- [ ] Real-helper smoke test records request IDs, selected voice, fallback status, audio metadata, and sanitized failure details.
-- [ ] Smoke verifies non-empty valid audio and stable sample-rate/channel metadata.
-- [ ] `tools/audio-test/run_speech.py` or equivalent exits 0 when both providers are installed and real synthesis succeeds.
+- [x] Real-helper smoke test records request IDs, selected voice, fallback status, audio metadata, and sanitized failure details.
+- [x] Smoke verifies non-empty valid audio and stable sample-rate/channel metadata.
+- [x] `tools/audio-test/run_speech.py` or equivalent exits 0 when both providers are installed and real synthesis succeeds.
 
 ## Blocked by
 

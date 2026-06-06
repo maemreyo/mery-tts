@@ -1,6 +1,6 @@
 # Introduce InstalledVoiceResolver
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,16 +12,16 @@ Introduce an `InstalledVoiceResolver` that converts manifest-level `VoiceDescrip
 
 ## Acceptance criteria
 
-- [ ] `VoiceRegistry` remains lightweight and stores no absolute paths or runtime objects.
-- [ ] Resolver validates safe relative paths from voice manifests under known artifact roots.
-- [ ] Resolver returns immutable resolved voice objects for model-file and preset/shared-artifact payloads.
-- [ ] Resolver rejects traversal, missing artifacts, missing files, ambiguous artifacts, and unsupported payload families.
+- [x] `VoiceRegistry` remains lightweight and stores no absolute paths or runtime objects.
+- [x] Resolver validates safe relative paths from voice manifests under known artifact roots.
+- [x] Resolver returns immutable resolved voice objects for model-file and preset/shared-artifact payloads.
+- [x] Resolver rejects traversal, missing artifacts, missing files, ambiguous artifacts, and unsupported payload families.
 
 ## Production-ready criteria
 
-- [ ] Unit tests cover valid Piper and Kokoro resolved payloads using temp directories.
-- [ ] Security tests prove absolute/Windows/traversal paths cannot escape artifact roots.
-- [ ] Adapters receive resolved paths only through the resolver layer, never from `RuntimePaths` directly.
+- [x] Unit tests cover valid Piper and Kokoro resolved payloads using temp directories.
+- [x] Security tests prove absolute/Windows/traversal paths cannot escape artifact roots.
+- [x] Adapters receive resolved paths only through the resolver layer, never from `RuntimePaths` directly.
 
 ## Blocked by
 

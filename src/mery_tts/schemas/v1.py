@@ -12,7 +12,27 @@ class VersionedModel(BaseModel):
 
 
 class HealthResponse(VersionedModel):
-    status: Literal["ok", "degraded", "unavailable"]
+    status: Literal["ok", "degraded", "unavailable", "ready", "unpaired", "incompatible"]
+    helper_id: str | None = None
+    helper_version: str | None = None
+    contract_version: str | None = None
+    engines: list["EngineReadinessSummaryVo"] = Field(default_factory=list)
+    total_usable_voices: int = 0
+    total_installed_voices: int = 0
+
+
+class EngineReadinessSummaryVo(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    engine_id: str
+    dependency_status: Literal["available", "missing", "unknown"] = "unknown"
+    installed_voice_count: int = 0
+    usable_voice_count: int = 0
+    smoked_voice_count: int = 0
+    smoke_passed_count: int = 0
+    smoke_failed_count: int = 0
+    status: Literal["available", "degraded", "unavailable"] = "unavailable"
+    reason: str | None = None
 
 
 class EngineSummary(BaseModel):

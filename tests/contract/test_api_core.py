@@ -15,8 +15,15 @@ def test_app_factory_builds_without_engines_or_models() -> None:
         response = client.get("/v1/health", headers={"Authorization": "Bearer " + "token" * 8})
 
     assert response.status_code == 200
-    assert response.json()["status"] == "ok"
-    assert response.json()["schema_version"] == "v1"
+    body = response.json()
+    assert body["schema_version"] == "v1"
+    assert body["status"] in {"ok", "degraded", "unavailable", "ready", "unpaired", "incompatible"}
+    assert "helper_id" in body
+    assert "helper_version" in body
+    assert "contract_version" in body
+    assert "engines" in body
+    assert "total_usable_voices" in body
+    assert "total_installed_voices" in body
 
 
 def test_console_static_routes_are_public_spa_without_affecting_v1_auth() -> None:

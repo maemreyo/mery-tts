@@ -8,19 +8,28 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.responses import Response as FastAPIResponse
 from pydantic import BaseModel
 
+from mery_tts import __version__
 from mery_tts.api.openai.speech import (
     OpenAISpeechRequest,
     iter_openai_pcm,
     synthesize_openai_speech,
+    validate_openai_model,
 )
+from mery_tts.audio.encoder import encode_wav
 from mery_tts.catalog import bundled_catalog_voice_summaries
 from mery_tts.engines import EngineRegistry, discover_engine_registry
 from mery_tts.errors import ErrorCategory, ErrorCode, diagnostic_error
 from mery_tts.jobs.install import FileInstallJobStore, InstallJobService
+from mery_tts.jobs.worker import BundledInstallWorker
 from mery_tts.models.store import ModelStore
+from mery_tts.readiness import (
+    derive_engine_summary,
+    derive_helper_status,
+)
 from mery_tts.schemas.v1 import (
     CatalogVoicesResponse,
     DiagnosticsResponse,
+    EngineReadinessSummaryVo,
     EnginesResponse,
     EngineSummary,
     HealthResponse,
@@ -38,8 +47,30 @@ from mery_tts.schemas.v1 import (
 from mery_tts.security.config import HelperConfig, HelperConfigStore
 from mery_tts.security.pairing import PairingService
 from mery_tts.settings.paths import RuntimePaths
+from mery_tts.smoke.record import SmokeRecordStore
 from mery_tts.storage.identity import StorageIdentityStore
+from mery_tts.synthesis import (
+    FallbackPolicy,
+    MeryRequestOptions,
+    SpeechSynthesisService,
+    SynthesisError,
+    SynthesisErrorKind,
+)
 from mery_tts.voice import VoiceRegistry
+
+CONTRACT_VERSION = "v1"
+
+MERY_DIAGNOSTIC_HEADERS = (
+    "X-Mery-Request-Id",
+    "X-Mery-Voice-Used",
+    "X-Mery-Fallback-Used",
+    "X-Mery-Primary-Voice",
+    "X-Mery-Fallback-Voice",
+    "X-Mery-Fallback-Reason",
+    "X-Mery-Audio-Encoding",
+    "X-Mery-Sample-Rate",
+    "X-Mery-Channels",
+)
 
 ALLOWED_ORIGINS = frozenset({"http://127.0.0.1", "http://localhost", "null"})
 ALLOWED_ORIGIN_HOSTS = frozenset({"127.0.0.1", "localhost"})
@@ -201,6 +232,7 @@ def create_app(
     catalog_voices: list[VoiceSummary] | None = None,
     storage_identity_store: StorageIdentityStore | None = None,
     install_job_service: InstallJobService | None = None,
+    smoke_record_store: SmokeRecordStore | None = None,
 ) -> FastAPI:
     paths = RuntimePaths.from_environment()
     should_reload_auth = config_store is not None or config is None
@@ -246,10 +278,19 @@ def create_app(
             job_store=FileInstallJobStore(model_store.root_path / "jobs" / "install"),
         )
 
+    if smoke_record_store is None:
+        smoke_record_store = SmokeRecordStore(data_dir=paths.base_dir)
+    smoke_records = smoke_record_store.load_all()
+
+    synthesis_service = SpeechSynthesisService(
+        voice_registry=voice_registry,
+        voice_aliases=voice_aliases,
+    )
+
     for voice in installed_voice_descriptors:
         voice_registry.register(voice)
 
-    app = FastAPI(title="Mery TTS Server", version="0.1.0")
+    app = FastAPI(title="Mery TTS Server", version=__version__)
 
     def current_auth_token() -> str:
         if should_reload_auth:
@@ -284,6 +325,29 @@ def create_app(
 
         return await call_next(request)
 
+    @app.middleware("http")
+    async def cors_middleware(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        response = await call_next(request)
+        origin = request.headers.get("origin")
+        if origin is not None and is_allowed_origin(origin):
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Headers"] = (
+                "Authorization, Content-Type, X-Requested-With"
+            )
+            response.headers["Access-Control-Allow-Methods"] = (
+                "GET, POST, PUT, DELETE, OPTIONS"
+            )
+            response.headers["Access-Control-Expose-Headers"] = ", ".join(
+                MERY_DIAGNOSTIC_HEADERS
+            )
+        if request.method == "OPTIONS":
+            return Response(status_code=204, headers=response.headers)
+        return response
+
     @app.get("/console", response_model=None)
     def console_root() -> Response:
         return _console_index_response()
@@ -305,7 +369,62 @@ def create_app(
         responses=NATIVE_ERROR_RESPONSES,
     )
     def health() -> HealthResponse:
-        return HealthResponse(request_id="local", status="ok")
+        current_smoke = smoke_record_store.load_all()
+        engine_summaries = []
+        total_installed = 0
+        total_usable = 0
+
+        for engine_id, adapter in engine_registry.adapters.items():
+            engine_health = adapter.health()
+            engine_voice_ids = [
+                v.voice_id for v in installed_voice_descriptors if v.engine_id == engine_id
+            ]
+            summary = derive_engine_summary(
+                engine_id=engine_id,
+                engine_health=engine_health,
+                installed_voices=engine_voice_ids,
+                smoke_records=current_smoke,
+            )
+            total_installed += summary.installed_voice_count
+            total_usable += summary.usable_voice_count
+            engine_summaries.append(
+                EngineReadinessSummaryVo(
+                    engine_id=summary.engine_id,
+                    dependency_status=summary.dependency_status.value,
+                    installed_voice_count=summary.installed_voice_count,
+                    usable_voice_count=summary.usable_voice_count,
+                    smoked_voice_count=summary.smoked_voice_count,
+                    smoke_passed_count=summary.smoke_passed_count,
+                    smoke_failed_count=summary.smoke_failed_count,
+                    status=summary.status,
+                    reason=summary.reason,
+                )
+            )
+
+        helper_status = derive_helper_status(
+            engine_summaries=engine_summaries,
+            is_paired=True,
+            contract_compatible=True,
+        )
+        status_map = {
+            "ready": "ready",
+            "degraded": "degraded",
+            "unavailable": "unavailable",
+            "unpaired": "unpaired",
+            "incompatible": "incompatible",
+        }
+        mapped_status = status_map.get(helper_status.value, "unavailable")
+
+        return HealthResponse(
+            request_id="local",
+            status=mapped_status,
+            helper_id=config.helper_id,
+            helper_version=__version__,
+            contract_version=CONTRACT_VERSION,
+            engines=engine_summaries,
+            total_usable_voices=total_usable,
+            total_installed_voices=total_installed,
+        )
 
     @app.get(
         "/v1/engines",
@@ -379,20 +498,33 @@ def create_app(
         checks = {result.check: result.status for result in results}
         return DiagnosticsResponse(request_id="local", checks=checks)
 
+    install_worker = BundledInstallWorker(
+        job_service=install_job_service,
+        artifacts_dir=paths.base_dir / "models" / "artifacts",
+        on_complete=lambda job_id: smoke_record_store.load_all(),
+    )
+
     @app.post(
         "/v1/models/install",
         response_model=ModelInstallResponse,
         responses=NATIVE_ERROR_RESPONSES,
     )
-    def model_install(request: ModelInstallRequest) -> ModelInstallResponse | JSONResponse:
+    async def model_install(request: ModelInstallRequest) -> ModelInstallResponse | JSONResponse:
         if not is_safe_model_id(request.model_id):
             return _invalid_model_id_response()
+
+        engine_id = "piper-plus" if "piper" in request.model_id.lower() else "kokoro"
         job = install_job_service.start_install(
             catalog_entry_id=request.model_id,
             voice_id=request.model_id,
-            engine_id="kokoro",
+            engine_id=engine_id,
             artifact_id=request.model_id,
         )
+
+        import asyncio
+
+        asyncio.create_task(install_worker.execute(job.job_id))
+
         return ModelInstallResponse(
             request_id="local",
             job_id=job.job_id,
@@ -495,13 +627,47 @@ def create_app(
                     voice_aliases=voice_aliases,
                 )
                 return StreamingResponse(stream, media_type="audio/pcm")
-            audio = await synthesize_openai_speech(
-                request,
-                voice_registry=voice_registry,
-                voice_aliases=voice_aliases,
+
+            mery_options = _extract_mery_options(request)
+            validate_openai_model(request.model)
+            result = await synthesis_service.synthesize(
+                text=request.input,
+                requested_voice=request.voice,
+                response_format=request.response_format,
+                mery_options=mery_options,
             )
-            media_type = "audio/wav" if request.response_format == "wav" else "audio/pcm"
-            return FastAPIResponse(content=audio, media_type=media_type)
+
+            if request.response_format == "wav":
+                audio = encode_wav(result.chunks)
+                media_type = "audio/wav"
+            else:
+                audio = b"".join(chunk.pcm for chunk in result.chunks)
+                media_type = "audio/pcm"
+
+            response = FastAPIResponse(content=audio, media_type=media_type)
+            diag = result.diagnostics
+            response.headers["X-Mery-Request-Id"] = diag.request_id
+            response.headers["X-Mery-Voice-Used"] = diag.selected_voice_id
+            response.headers["X-Mery-Fallback-Used"] = str(diag.fallback_used).lower()
+            if diag.primary_voice_id:
+                response.headers["X-Mery-Primary-Voice"] = diag.primary_voice_id
+            if diag.fallback_voice_id:
+                response.headers["X-Mery-Fallback-Voice"] = diag.fallback_voice_id
+            if diag.fallback_reason:
+                response.headers["X-Mery-Fallback-Reason"] = diag.fallback_reason
+            response.headers["X-Mery-Audio-Encoding"] = result.audio_metadata.encoding
+            response.headers["X-Mery-Sample-Rate"] = str(result.audio_metadata.sample_rate_hz)
+            response.headers["X-Mery-Channels"] = str(result.audio_metadata.channels)
+            return response
+        except SynthesisError as exc:
+            status_code = _synthesis_error_status(exc.kind)
+            error = diagnostic_error(
+                code=_synthesis_error_code(exc.kind),
+                category=_synthesis_error_category(exc.kind),
+                request_id="local",
+                diagnostic={"reason": str(exc), "voice_id": exc.voice_id or ""},
+            )
+            return JSONResponse(error.model_dump(mode="json"), status_code=status_code)
         except (KeyError, ValueError) as exc:
             return JSONResponse(
                 {"error": {"message": str(exc), "type": "invalid_request_error"}},
@@ -526,6 +692,65 @@ def create_app(
             contract_version=claim.contract_version,
             capabilities=claim.capabilities,
         )
+
+    def _extract_mery_options(request: OpenAISpeechRequest) -> MeryRequestOptions | None:
+        extra = request.model_extra or {}
+        mery_data = extra.get("mery")
+        if not isinstance(mery_data, dict):
+            return None
+        fallback_ids = tuple(mery_data.get("fallbackVoiceIds", []))
+        policy_str = mery_data.get("fallbackPolicy", "auto")
+        policy = FallbackPolicy.DISABLED if policy_str == "disabled" else FallbackPolicy.AUTO
+        return MeryRequestOptions(
+            fallback_voice_ids=fallback_ids,
+            fallback_policy=policy,
+            diagnostics=mery_data.get("diagnostics", "headers"),
+        )
+
+    def _synthesis_error_status(kind: SynthesisErrorKind) -> int:
+        status_map = {
+            SynthesisErrorKind.UNKNOWN_VOICE: 400,
+            SynthesisErrorKind.UNSUPPORTED_MODEL: 400,
+            SynthesisErrorKind.UNSUPPORTED_FORMAT: 400,
+            SynthesisErrorKind.ADAPTER_FAILURE: 500,
+            SynthesisErrorKind.DEPENDENCY_MISSING: 503,
+            SynthesisErrorKind.MODEL_MISSING: 503,
+            SynthesisErrorKind.TEXT_TOO_LONG: 413,
+            SynthesisErrorKind.CANCELLED: 499,
+            SynthesisErrorKind.AUTH_FAILURE: 401,
+            SynthesisErrorKind.CONTRACT_INCOMPATIBLE: 400,
+        }
+        return status_map.get(kind, 500)
+
+    def _synthesis_error_code(kind: SynthesisErrorKind) -> ErrorCode:
+        code_map = {
+            SynthesisErrorKind.UNKNOWN_VOICE: ErrorCode.ENGINE_VOICE_UNSUPPORTED,
+            SynthesisErrorKind.UNSUPPORTED_MODEL: ErrorCode.SYNTHESIS_UNSUPPORTED_FORMAT,
+            SynthesisErrorKind.UNSUPPORTED_FORMAT: ErrorCode.SYNTHESIS_UNSUPPORTED_FORMAT,
+            SynthesisErrorKind.ADAPTER_FAILURE: ErrorCode.SYNTHESIS_FAILED,
+            SynthesisErrorKind.DEPENDENCY_MISSING: ErrorCode.ENGINE_UNAVAILABLE,
+            SynthesisErrorKind.MODEL_MISSING: ErrorCode.MODEL_NOT_INSTALLED,
+            SynthesisErrorKind.TEXT_TOO_LONG: ErrorCode.SECURITY_REQUEST_TOO_LARGE,
+            SynthesisErrorKind.CANCELLED: ErrorCode.SYNTHESIS_FAILED,
+            SynthesisErrorKind.AUTH_FAILURE: ErrorCode.AUTH_TOKEN_INVALID,
+            SynthesisErrorKind.CONTRACT_INCOMPATIBLE: ErrorCode.SYNTHESIS_FAILED,
+        }
+        return code_map.get(kind, ErrorCode.SYNTHESIS_FAILED)
+
+    def _synthesis_error_category(kind: SynthesisErrorKind) -> ErrorCategory:
+        category_map = {
+            SynthesisErrorKind.UNKNOWN_VOICE: ErrorCategory.ENGINE,
+            SynthesisErrorKind.UNSUPPORTED_MODEL: ErrorCategory.SYNTHESIS,
+            SynthesisErrorKind.UNSUPPORTED_FORMAT: ErrorCategory.SYNTHESIS,
+            SynthesisErrorKind.ADAPTER_FAILURE: ErrorCategory.SYNTHESIS,
+            SynthesisErrorKind.DEPENDENCY_MISSING: ErrorCategory.ENGINE,
+            SynthesisErrorKind.MODEL_MISSING: ErrorCategory.MODEL,
+            SynthesisErrorKind.TEXT_TOO_LONG: ErrorCategory.SECURITY,
+            SynthesisErrorKind.CANCELLED: ErrorCategory.SYNTHESIS,
+            SynthesisErrorKind.AUTH_FAILURE: ErrorCategory.AUTH,
+            SynthesisErrorKind.CONTRACT_INCOMPATIBLE: ErrorCategory.SYNTHESIS,
+        }
+        return category_map.get(kind, ErrorCategory.SYNTHESIS)
 
     return app
 

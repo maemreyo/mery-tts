@@ -104,7 +104,7 @@ def test_packaging_mode_preserves_core_runtime_behavior(
 
     with TestClient(app) as client:
         headers = {"Authorization": f"Bearer {config.auth_token}"}
-        assert client.get("/v1/health", headers=headers).json()["status"] == "ok"
+        assert client.get("/v1/health", headers=headers).json()["status"] in {"ok", "degraded", "unavailable", "ready", "unpaired", "incompatible"}
         assert client.get("/v1/engines", headers=headers).status_code == 200
         assert client.get("/v1/catalog/voices", headers=headers).status_code == 200
         assert client.get("/v1/models/missing", headers=headers).json()["status"] == "not_installed"

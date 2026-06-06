@@ -11,9 +11,20 @@ import uvicorn
 from mery_tts import __version__
 from mery_tts.audio.exporter import AudioExporter
 from mery_tts.catalog import bundled_catalog_voice_summaries
-from mery_tts.diagnostics.doctor import DoctorEngine
+from mery_tts.diagnostics.doctor import (
+    CatalogAvailableCheck,
+    DiskSpaceCheck,
+    DoctorEngine,
+    EngineAvailabilityCheck,
+    EngineHealthCheck,
+    ModelAvailabilityCheck,
+    PlatformPathsCheck,
+    ServerReachabilityCheck,
+    TokenConfiguredCheck,
+)
 from mery_tts.engines.base import PCMChunk
 from mery_tts.engines.discovery import discover_engine_registry
+from mery_tts.jobs import BundledInstallWorker, FileInstallJobStore, InstallJobService
 from mery_tts.models.store import ModelStore
 from mery_tts.security.config import HelperConfigStore
 from mery_tts.security.pairing import PairingService
@@ -23,6 +34,8 @@ from mery_tts.storage.identity import StorageIdentityStore
 app = typer.Typer(no_args_is_help=True, help="Mery local TTS helper CLI.")
 storage_app = typer.Typer(help="Manage Mery storage.")
 app.add_typer(storage_app, name="storage")
+models_app = typer.Typer(help="Manage Mery models.")
+app.add_typer(models_app, name="models")
 
 
 def _version_callback(show_version: bool) -> None:
@@ -56,14 +69,101 @@ def main(
 
 
 @app.command()
-def doctor() -> None:
+def doctor(
+    deep: bool = typer.Option(False, "--deep", help="Run real synthesis smoke tests."),
+    providers: str = typer.Option(
+        "", "--providers", help="Comma-separated provider list for smoke (e.g. piper-plus,kokoro)."
+    ),
+) -> None:
     paths = _runtime_paths()
-    engine = DoctorEngine(data_dir=paths.base_dir)
+    config_store = HelperConfigStore(paths.config_dir)
+    config = config_store.load_or_create()
+
+    engine_registry = discover_engine_registry()
+    engine_ids = list(engine_registry.adapters.keys())
+
+    model_store = ModelStore(paths.models_dir)
+    installed_models = [m.model_id for m in model_store.list_installed()]
+
+    checks = [
+        EngineAvailabilityCheck(engine_ids=engine_ids),
+        EngineHealthCheck(unhealthy=[]),
+        ModelAvailabilityCheck(installed_models=installed_models),
+        TokenConfiguredCheck(config_path=paths.config_dir / "config.json"),
+        ServerReachabilityCheck(port=config.port),
+        DiskSpaceCheck(models_dir=paths.models_dir),
+        PlatformPathsCheck(writable_dirs=[paths.base_dir, paths.config_dir, paths.models_dir]),
+        CatalogAvailableCheck(),
+    ]
+
+    engine = DoctorEngine(checks=checks, data_dir=paths.base_dir)
     results = engine.run()
     typer.echo("check | status | detail")
     for result in results:
         typer.echo(f"{result.check} | {result.status} | {result.detail}")
+
+    if deep:
+        typer.echo("\n--- Deep smoke ---")
+        provider_list = [p.strip() for p in providers.split(",") if p.strip()] or [
+            "piper-plus",
+            "kokoro",
+        ]
+        _run_deep_smoke(paths, provider_list)
+
     raise typer.Exit(engine.exit_code(results))
+
+
+def _run_deep_smoke(paths: "RuntimePaths", providers: list[str]) -> None:
+    """Run deep smoke tests through the synthesis service."""
+    import asyncio
+
+    from mery_tts.engines.discovery import discover_engine_registry
+    from mery_tts.smoke.record import SmokeRecordStore
+    from mery_tts.smoke.service import SmokeService
+    from mery_tts.synthesis import SpeechSynthesisService
+    from mery_tts.voice import VoiceRegistry
+
+    registry = discover_engine_registry()
+    voice_registry = VoiceRegistry(registry.adapters)
+    store = StorageIdentityStore(paths.base_dir)
+    descriptors = store.hydrate_installed_voice_descriptors()
+    for desc in descriptors:
+        try:
+            voice_registry.register(desc)
+        except (ValueError, KeyError):
+            pass
+
+    synthesis_service = SpeechSynthesisService(
+        voice_registry=voice_registry,
+        purpose="smoke",
+    )
+    smoke_store = SmokeRecordStore(data_dir=paths.base_dir)
+    smoke_service = SmokeService(
+        synthesis_service=synthesis_service,
+        record_store=smoke_store,
+    )
+    results = asyncio.run(smoke_service.smoke_providers(providers=providers))
+    for result in results:
+        status_detail = ""
+        if result.sample_rate_hz is not None:
+            status_detail = f" ({result.sample_rate_hz}Hz, {result.channels}ch)"
+        if result.failure_detail:
+            status_detail = f" — {result.failure_detail}"
+        typer.echo(f"smoke | {result.voice_id} | {result.status.value}{status_detail}")
+
+
+@app.command()
+def smoke(
+    providers: str = typer.Option(
+        "piper-plus,kokoro",
+        "--providers",
+        help="Comma-separated provider list for smoke.",
+    ),
+) -> None:
+    """Run provider-specific smoke checks through real synthesis."""
+    paths = _runtime_paths()
+    provider_list = [p.strip() for p in providers.split(",") if p.strip()]
+    _run_deep_smoke(paths, provider_list)
 
 
 @app.command()
@@ -129,8 +229,8 @@ def catalog() -> None:
     typer.echo(json.dumps({"catalog": catalog_list}))
 
 
-@app.command()
-def models() -> None:
+@models_app.command("list")
+def models_list() -> None:
     paths = _runtime_paths()
     store = ModelStore(paths.models_dir)
     records = store.list_installed()
@@ -143,6 +243,44 @@ def models() -> None:
         for r in records
     ]
     typer.echo(json.dumps({"models": model_list}))
+
+
+@models_app.command("install")
+def models_install(
+    model_id: str = typer.Argument(..., help="Model ID to install (e.g. piper-plus.vi-vn.demo)"),
+) -> None:
+    paths = _runtime_paths()
+    storage_store = StorageIdentityStore(paths.base_dir)
+    model_store = ModelStore(paths.models_dir)
+
+    def refresh() -> None:
+        pass
+
+    job_service = InstallJobService(
+        store=storage_store,
+        refresh=refresh,
+        job_store=FileInstallJobStore(model_store.root_path / "jobs" / "install"),
+    )
+
+    worker = BundledInstallWorker(
+        job_service=job_service,
+        artifacts_dir=paths.models_dir / "artifacts",
+    )
+
+    engine_id = "piper-plus" if "piper" in model_id.lower() else "kokoro"
+    job = job_service.start_install(
+        catalog_entry_id=model_id,
+        voice_id=model_id,
+        engine_id=engine_id,
+        artifact_id=model_id,
+    )
+
+    typer.echo(f"Starting install job {job.job_id} for {model_id}...")
+    result = asyncio.run(worker.execute(job.job_id))
+    typer.echo(f"Status: {result.status.value}")
+    if result.error:
+        typer.echo(f"Error: {result.error}")
+        raise typer.Exit(1)
 
 
 @storage_app.command("show")

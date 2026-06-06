@@ -1,6 +1,6 @@
 # Implement ArtifactSource protocol and bundled source
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,16 +12,16 @@ Introduce an `ArtifactSource` protocol and implement `BundledArtifactSource` for
 
 ## Acceptance criteria
 
-- [ ] `ArtifactSource` hides whether bytes come from package resources, HTTP, or a future local import.
-- [ ] `BundledArtifactSource` reads package resources and copies artifacts to a temp target without network access.
-- [ ] Source selection is driven by catalog artifact metadata, not API route branches.
-- [ ] Tests can inject a fake source without touching package resources.
+- [x] `ArtifactSource` hides whether bytes come from package resources, HTTP, or a future local import.
+- [x] `BundledArtifactSource` reads package resources and copies artifacts to a temp target without network access.
+- [x] Source selection is driven by catalog artifact metadata, not API route branches.
+- [x] Tests can inject a fake source without touching package resources.
 
 ## Production-ready criteria
 
-- [ ] Source fetch verifies expected artifact IDs and fails safely on missing resources.
-- [ ] No API route imports package-resource paths or HTTP clients directly.
-- [ ] Bundled-source tests cover success, missing resource, size mismatch, and checksum mismatch.
+- [x] Source fetch verifies expected artifact IDs and fails safely on missing resources.
+- [x] No API route imports package-resource paths or HTTP clients directly.
+- [x] Bundled-source tests cover success, missing resource, size mismatch, and checksum mismatch.
 
 ## Blocked by
 

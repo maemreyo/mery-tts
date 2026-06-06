@@ -1,6 +1,6 @@
 # Add doctor --deep and mery smoke command
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,16 +12,16 @@ Add explicit deep smoke commands that run real synthesis through the same servic
 
 ## Acceptance criteria
 
-- [ ] `mery doctor` performs non-synthesis dependency/artifact/voice readiness checks by default.
-- [ ] `mery doctor --deep` runs real synthesis smoke for selected or configured voices.
-- [ ] `mery smoke --providers piper-plus,kokoro` or equivalent command runs provider-specific smoke checks.
-- [ ] Smoke uses `SpeechSynthesisService` with `purpose="smoke"` context and does not mutate user defaults.
+- [x] `mery doctor` performs non-synthesis dependency/artifact/voice readiness checks by default.
+- [x] `mery doctor --deep` runs real synthesis smoke for selected or configured voices.
+- [x] `mery smoke --providers piper-plus,kokoro` or equivalent command runs provider-specific smoke checks.
+- [x] Smoke uses `SpeechSynthesisService` with `purpose="smoke"` context and does not mutate user defaults.
 
 ## Production-ready criteria
 
-- [ ] CLI tests cover default doctor, deep doctor, smoke success, smoke failure, and missing voice behavior with fake runtimes.
-- [ ] Smoke text is locale-appropriate where available and never logged raw.
-- [ ] Smoke warms runtime cache but only persists smoke metadata.
+- [x] CLI tests cover default doctor, deep doctor, smoke success, smoke failure, and missing voice behavior with fake runtimes.
+- [x] Smoke text is locale-appropriate where available and never logged raw.
+- [x] Smoke warms runtime cache but only persists smoke metadata.
 
 ## Blocked by
 

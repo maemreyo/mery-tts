@@ -1,6 +1,6 @@
 # Introduce shared SpeechSynthesisService
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,16 +12,16 @@ Introduce a shared synthesis orchestration service used by REST, CLI, smoke, `/c
 
 ## Acceptance criteria
 
-- [ ] REST `/v1/audio/speech` calls `SpeechSynthesisService` instead of directly resolving `VoiceRegistry` and adapters.
-- [ ] CLI speech can call the same service for output/playback paths.
-- [ ] Service returns a transport-neutral `SynthesisResult` with PCM chunks or bytes, selected voice, audio metadata, and diagnostics.
-- [ ] Existing fake-adapter tests can exercise the service without real Piper/Kokoro dependencies.
+- [x] REST `/v1/audio/speech` calls `SpeechSynthesisService` instead of directly resolving `VoiceRegistry` and adapters.
+- [x] CLI speech can call the same service for output/playback paths.
+- [x] Service returns a transport-neutral `SynthesisResult` with PCM chunks or bytes, selected voice, audio metadata, and diagnostics.
+- [x] Existing fake-adapter tests can exercise the service without real Piper/Kokoro dependencies.
 
 ## Production-ready criteria
 
-- [ ] Unit tests cover successful synthesis, unsupported model/format, unknown voice, and adapter failure.
-- [ ] API routes remain thin and do not contain provider/fallback policy.
-- [ ] CLI and REST behavior share one service-level test fixture.
+- [x] Unit tests cover successful synthesis, unsupported model/format, unknown voice, and adapter failure.
+- [x] API routes remain thin and do not contain provider/fallback policy.
+- [x] CLI and REST behavior share one service-level test fixture.
 
 ## Blocked by
 

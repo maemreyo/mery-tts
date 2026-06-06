@@ -134,7 +134,7 @@ def test_catalog_command_delegates_to_bundled_catalog(monkeypatch, tmp_path) -> 
 def test_models_command_delegates_to_model_store(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
 
-    result = runner.invoke(app, ["models"])
+    result = runner.invoke(app, ["models", "list"])
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)

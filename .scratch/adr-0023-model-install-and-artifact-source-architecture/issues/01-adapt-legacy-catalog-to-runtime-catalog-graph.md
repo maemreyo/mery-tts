@@ -1,6 +1,6 @@
 # Adapt legacy catalog to runtime CatalogGraph
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,16 +12,16 @@ Add a compatibility adapter that converts the legacy bundled `Catalog` shape int
 
 ## Acceptance criteria
 
-- [ ] Legacy bundled `models[].files[]` entries convert into `CatalogGraph` engines, entries, artifacts, and voices.
-- [ ] Existing `/v1/catalog/voices` output remains stable or has an explicitly versioned migration path.
-- [ ] Install planning uses catalog entry IDs, artifact IDs, and voice IDs from `CatalogGraph`.
-- [ ] Duplicate/missing graph relationships fail validation before install begins.
+- [x] Legacy bundled `models[].files[]` entries convert into `CatalogGraph` engines, entries, artifacts, and voices.
+- [x] Existing `/v1/catalog/voices` output remains stable or has an explicitly versioned migration path.
+- [x] Install planning uses catalog entry IDs, artifact IDs, and voice IDs from `CatalogGraph`.
+- [x] Duplicate/missing graph relationships fail validation before install begins.
 
 ## Production-ready criteria
 
-- [ ] Unit tests cover legacy-to-graph conversion for Piper model-file and Kokoro preset/shared-artifact examples.
-- [ ] Existing catalog verifier tests still pass.
-- [ ] Docs identify legacy catalog compatibility as transitional runtime input, not the long-term model.
+- [x] Unit tests cover legacy-to-graph conversion for Piper model-file and Kokoro preset/shared-artifact examples.
+- [x] Existing catalog verifier tests still pass.
+- [x] Docs identify legacy catalog compatibility as transitional runtime input, not the long-term model.
 
 ## Blocked by
 

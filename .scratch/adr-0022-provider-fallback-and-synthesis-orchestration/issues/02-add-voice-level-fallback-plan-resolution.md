@@ -1,6 +1,6 @@
 # Add voice-level fallback plan resolution
 
-Status: planned
+Status: completed
 
 ## Parent
 
@@ -12,17 +12,17 @@ Resolve fallback at the voice level using request override, Mery user config, se
 
 ## Acceptance criteria
 
-- [ ] `VoiceFallbackPlan` or equivalent stores `primaryVoiceId`, ordered `fallbackVoiceIds`, and `fallbackPolicy`.
-- [ ] Request `mery` options can override config defaults.
-- [ ] Config defaults apply when request omits fallback options.
-- [ ] Server safe default or no fallback applies deterministically when neither request nor config specify fallback.
-- [ ] Fallback triggers only for recoverable provider/model/runtime/synthesis failures.
+- [x] `VoiceFallbackPlan` or equivalent stores `primaryVoiceId`, ordered `fallbackVoiceIds`, and `fallbackPolicy`.
+- [x] Request `mery` options can override config defaults.
+- [x] Config defaults apply when request omits fallback options.
+- [x] Server safe default or no fallback applies deterministically when neither request nor config specify fallback.
+- [x] Fallback triggers only for recoverable provider/model/runtime/synthesis failures.
 
 ## Production-ready criteria
 
-- [ ] Pure unit tests cover precedence: request > config > safe default > none.
-- [ ] Tests prove fallback does not trigger for request validation, auth/security, cancellation, incompatible contract, text length, or unsupported format errors.
-- [ ] Attempted voices and final selected voice are included in sanitized diagnostics.
+- [x] Pure unit tests cover precedence: request > config > safe default > none.
+- [x] Tests prove fallback does not trigger for request validation, auth/security, cancellation, incompatible contract, text length, or unsupported format errors.
+- [x] Attempted voices and final selected voice are included in sanitized diagnostics.
 
 ## Blocked by
 

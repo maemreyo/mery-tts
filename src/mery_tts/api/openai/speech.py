@@ -9,7 +9,7 @@ SUPPORTED_OPENAI_MODELS = frozenset({"tts-1"})
 
 
 class OpenAISpeechRequest(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="allow")
 
     model: str = Field(min_length=1)
     voice: str = Field(min_length=1)
