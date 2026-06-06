@@ -97,3 +97,28 @@ def test_config_write_preserves_previous_config_when_replace_fails(
         store._write(replacement)
 
     assert store.load_or_create() == original
+
+
+def test_config_write_cleans_up_temp_file_on_permission_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = HelperConfigStore(tmp_path)
+    store.load_or_create()
+    replacement = HelperConfig(
+        helper_id="mery-test",
+        auth_token="new-token" * 8,
+        port=8765,
+    )
+
+    def fail_chmod(path: Path, mode: int) -> None:
+        _ = mode
+        raise PermissionError("chmod failed")
+
+    monkeypatch.setattr(Path, "chmod", fail_chmod)
+
+    with pytest.raises(OSError):
+        store._write(replacement)
+
+    temp_path = store.config_path.with_name(f"{store.config_path.name}.tmp")
+    assert not temp_path.exists(), "temp file should be cleaned up on failure"

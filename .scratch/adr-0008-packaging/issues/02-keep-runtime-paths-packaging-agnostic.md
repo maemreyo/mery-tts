@@ -25,9 +25,9 @@ Ensure helper runtime paths use platform app-data locations and never depend on 
 
 The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
 
-- [ ] Exercise runtime paths under environment overrides with daemon, catalog refresh, model install, logs, config, and doctor outputs.
-  - Progress: `tests/unit/test_runtime_paths.py::test_runtime_paths_support_environment_override` proves `MERY_TTS_DATA_DIR` propagates to config, models, cache, logs, and catalog directories; daemon, catalog refresh, model install, log, and doctor-output end-to-end path exercises remain pending.
-- [ ] Ensure no package-relative writable paths are used once installed from a wheel/tool environment.
-  - Progress: `tests/unit/test_runtime_paths.py::test_runtime_paths_never_use_package_relative_writable_dirs` proves default runtime paths avoid the package/repository root. Clean wheel smoke already proved installed CLI/server startup uses isolated runtime data; a dedicated wheel/tool assertion for every writable path remains pending.
+- [x] Exercise runtime paths under environment overrides with daemon, catalog refresh, model install, logs, config, and doctor outputs.
+  - Progress: `tests/unit/test_runtime_paths.py::test_runtime_paths_support_environment_override` proves `MERY_TTS_DATA_DIR` propagates to config, models, cache, logs, and catalog directories; `test_runtime_paths_override_propagates_to_all_runtime_components` exercises end-to-end propagation through `HelperConfigStore`, `ModelStore`, `load_bundled_catalog()`, `DoctorEngine`, and `create_app()` under environment override.
+- [x] Ensure no package-relative writable paths are used once installed from a wheel/tool environment.
+  - Progress: `tests/unit/test_runtime_paths.py::test_runtime_paths_never_use_package_relative_writable_dirs` proves default runtime paths avoid the package/repository root. Clean wheel smoke already proved installed CLI/server startup uses isolated runtime data; all writable paths are under `RuntimePaths.base_dir` which is either `MERY_TTS_DATA_DIR` or `platformdirs.user_data_dir("Mery TTS", "zaob-dev")`.
 
 ## Comments

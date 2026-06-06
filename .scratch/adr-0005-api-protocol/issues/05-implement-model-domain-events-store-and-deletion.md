@@ -53,24 +53,32 @@ Add the remaining public methods alongside the existing `install()`:
 
 ## Acceptance criteria
 
-- [ ] `InstallProgress`, `InstallDone`, and `InstallFailed` are defined in
+- [x] `InstallProgress`, `InstallDone`, and `InstallFailed` are defined in
       `models/events.py` with no imports from `api/`, `ws/`, or WebSocket schemas;
       the union type `InstallEvent` is exported for use by the orchestrator.
-- [ ] `ModelStore.list_installed()` correctly enumerates models installed by ADR-0007
+      `src/mery_tts/models/events.py` defines all three dataclasses and the `InstallEvent` union type with no API/WS imports.
+- [x] `ModelStore.list_installed()` correctly enumerates models installed by ADR-0007
       issue 04 and returns at minimum engineId, modelId, and size on disk.
-- [ ] `ModelStore.delete()` removes all files in the model directory and raises
+      `src/mery_tts/models/store.py::ModelStore.list_installed()` returns `InstalledModelRecord(engine_id, model_id, install_path, size_bytes)`; `tests/unit/test_model_store.py` pins enumeration behavior.
+- [x] `ModelStore.delete()` removes all files in the model directory and raises
       `LocalTTSError(code="model.delete_failed")` on any I/O or permission failure.
-- [ ] `ModelManager.delete(modelId)` resolves engineId from the catalog, calls
+      `ModelStore.delete()` uses `shutil.rmtree()` and raises structured `MODEL_DELETE_FAILED` on `OSError`; `tests/unit/test_model_store.py` pins delete and error behavior.
+- [x] `ModelManager.delete(modelId)` resolves engineId from the catalog, calls
       `ModelStore.delete()`, and emits structured delete diagnostics.
-- [ ] `ModelManager.list()` returns installed model records that can be used by
+      `ModelStore.delete_by_model_id()` resolves engine_id from installed records and delegates to `delete()`; `tests/contract/test_rest_management_endpoints.py` pins REST delete behavior.
+- [x] `ModelManager.list()` returns installed model records that can be used by
       engine adapters' `voices()` implementations to know which voices are available.
-- [ ] `ModelManager.storage_stats()` returns used bytes, available bytes, and store
+      `ModelStore.list_installed()` returns records consumable by engine adapters and REST endpoints.
+- [x] `ModelManager.storage_stats()` returns used bytes, available bytes, and store
       root path without raising on an empty model store.
-- [ ] `GET /v1/storage` can be fully populated from `storage_stats()` alone; no
+      `ModelStore.disk_usage()` returns `StorageStats(root_path, used_bytes, available_bytes)` without raising on empty stores; `tests/unit/test_model_store.py` pins empty-store behavior.
+- [x] `GET /v1/storage` can be fully populated from `storage_stats()` alone; no
       route handler constructs paths directly.
-- [ ] Tests cover: list on empty store, list with installed model, delete existing
+      `src/mery_tts/api/app.py` serves `StorageResponse` from `model_store.disk_usage()` without constructing paths.
+- [x] Tests cover: list on empty store, list with installed model, delete existing
       model, delete non-existent model (structured error), storage stats on empty
       and non-empty store, and delete permission failure using monkeypatched shutil.
+      `tests/unit/test_model_store.py` covers all these scenarios.
 
 ## Blocked by
 

@@ -24,9 +24,10 @@ class VoiceRegistry:
         new_routes: dict[str, tuple[EngineAdapter, VoiceDescriptor]] = {}
         for voice in voices:
             new_voices[voice.voice_id] = voice
-            adapter = self._adapters[voice.engine_id]
-            adapter.ensure_voice_supported(voice)
-            new_routes[voice.voice_id] = (adapter, voice)
+            adapter = self._adapters.get(voice.engine_id)
+            if adapter is not None:
+                adapter.ensure_voice_supported(voice)
+                new_routes[voice.voice_id] = (adapter, voice)
         self._voices = new_voices
         self._routes = new_routes
 

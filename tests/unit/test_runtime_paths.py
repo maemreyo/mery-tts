@@ -47,3 +47,36 @@ def test_runtime_paths_never_use_package_relative_writable_dirs(
     ]:
         assert runtime_dir.is_relative_to(paths.base_dir)
         assert package_root not in runtime_dir.parents
+
+
+def test_runtime_paths_override_propagates_to_all_runtime_components(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """End-to-end: MERY_TTS_DATA_DIR override propagates to all runtime components."""
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+
+    from mery_tts.api.app import create_app
+    from mery_tts.catalog import load_bundled_catalog
+    from mery_tts.diagnostics.doctor import DoctorEngine
+    from mery_tts.models.store import ModelStore
+    from mery_tts.security.config import HelperConfigStore
+
+    paths = RuntimePaths.from_environment()
+
+    config_store = HelperConfigStore(paths.config_dir)
+    config = config_store.load_or_create()
+    assert config_store.config_path.is_relative_to(paths.config_dir)
+
+    model_store = ModelStore(paths.models_dir)
+    assert model_store.root_path.is_relative_to(paths.models_dir)
+
+    catalog = load_bundled_catalog()
+    assert catalog.catalog_id == "bundled-v1"
+
+    doctor = DoctorEngine(data_dir=paths.base_dir)
+    doctor.run()
+    doctor_path = paths.base_dir / "diagnostics" / "last-doctor.json"
+    assert doctor_path.exists()
+
+    app = create_app(config=config)
+    assert app is not None

@@ -117,7 +117,7 @@ def test_openai_errors_remain_separate_from_native_error_shape() -> None:
         }
     }
     assert native_response.status_code == 400
-    assert native_response.json() == {"error": "invalid_model_id"}
+    assert native_response.json()["code"] == "security.unsafe_identifier"
 
 
 def test_openai_speech_rejects_unsupported_model() -> None:

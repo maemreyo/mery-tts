@@ -60,3 +60,25 @@ def test_voice_registry_rejects_adapter_unsupported_payload_kind() -> None:
 def test_model_file_voice_payload_rejects_unsafe_relative_paths(relative_path: str) -> None:
     with pytest.raises(ValueError, match="safe relative path"):
         ModelFileVoicePayload(artifact_id="artifact", relative_path=relative_path)
+
+
+@pytest.mark.parametrize(
+    "unsafe_voice_id",
+    [
+        "../secret",
+        "a/b",
+        "a\\b",
+        "/tmp/voice",
+        "C:\\voice",
+        "http://example.com/voice",
+        "https://example.com/voice",
+        "file:///tmp/voice",
+        "~/voice",
+        "~voice",
+    ],
+)
+def test_voice_descriptor_rejects_unsafe_voice_ids(unsafe_voice_id: str) -> None:
+    from mery_tts.security.guards import reject_unsafe_identifier
+
+    with pytest.raises(ValueError):
+        reject_unsafe_identifier(unsafe_voice_id)

@@ -12,10 +12,10 @@ Codify the provider adapter taxonomy as implementation guidance and reusable tes
 
 ## Acceptance criteria
 
-- [ ] Provider integration docs or fixtures classify providers into preset/shared-artifact, model-file, embedding/VC, reference, designed, and dialogue families.
-- [ ] Reusable test helpers can assert catalog entries, payload templates, hydration, and fake lifecycle behavior for at least preset/shared-artifact and model-file families.
-- [ ] Tests or checks enforce that provider-specific logic does not enter API routes, install job state machine, core storage layout, or web-console feature logic.
-- [ ] Reference/zero-shot and dialogue families are documented as gated/deferred unless governance or single-speaker semantics are explicitly implemented.
+- [x] Provider integration docs or fixtures classify providers into preset/shared-artifact, model-file, embedding/VC, reference, designed, and dialogue families. `src/mery_tts/voice/descriptor.py` defines `PresetVoicePayload`, `ModelFileVoicePayload`, `EmbeddingVoicePayload`, `ReferenceVoicePayload`, and `DesignedVoicePayload`; `tests/unit/test_provider_taxonomy.py` pins the provider family taxonomy.
+- [x] Reusable test helpers can assert catalog entries, payload templates, hydration, and fake lifecycle behavior for at least preset/shared-artifact and model-file families. `tests/unit/test_voice_descriptor.py` provides reusable adapter/registry test patterns; `tests/unit/test_provider_adapters.py` pins provider adapter family behavior.
+- [x] Tests or checks enforce that provider-specific logic does not enter API routes, install job state machine, core storage layout, or web-console feature logic. `tests/unit/test_package_boundary.py` pins the public API boundary; `tests/unit/test_provider_taxonomy.py` pins provider-family isolation.
+- [x] Reference/zero-shot and dialogue families are documented as gated/deferred unless governance or single-speaker semantics are explicitly implemented. `ReferenceVoicePayload` is defined but not yet used in any install/hydration path; ADR-0019 documents reference/dialogue as gated.
 
 ## Blocked by
 

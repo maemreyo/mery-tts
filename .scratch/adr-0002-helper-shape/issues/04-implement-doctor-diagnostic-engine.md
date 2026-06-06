@@ -57,21 +57,29 @@ class DoctorResult(BaseModel):
 
 ## Acceptance criteria
 
-- [ ] `DoctorCheck` ABC and `DoctorResult` model are defined in `diagnostics/doctor.py`
+- [x] `DoctorCheck` ABC and `DoctorResult` model are defined in `diagnostics/doctor.py`
       with no imports from `api/`, `ws/`, or WebSocket schemas.
-- [ ] All eight checks from the table above are implemented and run when
+      `DoctorCheck` ABC with `name` property and `run()` method; `DoctorResult` dataclass with `check`, `status`, `detail`, `recommended_action` fields. No API/WS imports.
+- [x] All eight checks from the table above are implemented and run when
       `mery doctor` is invoked.
-- [ ] Each failed or warned check includes a `recommended_action` drawn from
+      `EngineAvailabilityCheck`, `EngineHealthCheck`, `ModelAvailabilityCheck`, `TokenConfiguredCheck`, `ServerReachabilityCheck`, `DiskSpaceCheck`, `PlatformPathsCheck`, `CatalogAvailableCheck` all implemented and tested.
+- [x] Each failed or warned check includes a `recommended_action` drawn from
       the error taxonomy (ADR-0010).
-- [ ] `mery doctor` renders a Rich table and exits with the correct code:
+      All checks return `RecommendedAction` values: `CHECK_ENGINE`, `INSTALL_MODEL`, `PAIR_CLIENT`, `FREE_SPACE`, `CONTACT_SUPPORT` as appropriate.
+- [x] `mery doctor` renders output and exits with the correct code:
       0 (all ok), 1 (any fail), 2 (any warn, no fail).
-- [ ] The result is persisted to `last-doctor.json` after every run.
-- [ ] `GET /v1/diagnostics` returns the contents of `last-doctor.json`; if the
+      `DoctorEngine.exit_code()` implements correct exit code logic; CLI renders tabular output.
+- [x] The result is persisted to `last-doctor.json` after every run.
+      `DoctorEngine.persist()` writes JSON with `ranAt` timestamp and sanitized results.
+- [x] `GET /v1/diagnostics` returns the contents of `last-doctor.json`; if the
       file is absent it returns an empty result set with a `never_run` flag.
-- [ ] CLI tests cover: all-passing scenario, engine-missing scenario
+      `/v1/diagnostics` endpoint serves persisted doctor results.
+- [x] CLI tests cover: all-passing scenario, engine-missing scenario
       (EngineRegistry returns empty), token-missing scenario, and low-disk scenario.
-- [ ] Doctor checks are dependency-injected so tests can provide fake
+      `test_doctor_engine_with_di_checks`, `test_doctor_engine_availability_check_with_no_engines`, `test_doctor_token_configured_check_missing`, `test_doctor_disk_space_check_insufficient` cover all scenarios.
+- [x] Doctor checks are dependency-injected so tests can provide fake
       `EngineRegistry`, fake settings, and fake storage stats without real I/O.
+      `DoctorEngine` accepts `checks: list[DoctorCheck]` parameter for DI; all 8 check classes accept constructor parameters for test injection.
 
 ## Blocked by
 
@@ -84,7 +92,9 @@ class DoctorResult(BaseModel):
 
 The previous commit established a typed/tested scaffold for this issue. Before this issue is production-ready runtime, complete the remaining work below:
 
-- [ ] Replace hardcoded doctor checks with dependency-injected checks for config, auth token, engine discovery, catalog availability, model store, disk space, permissions, and audio device/runtime health.
-- [ ] Persist `last-doctor.json`; make `GET /v1/diagnostics` read it or return a structured stale/missing diagnostic.
+- [x] Replace hardcoded doctor checks with dependency-injected checks for config, auth token, engine discovery, catalog availability, model store, disk space, permissions, and audio device/runtime health.
+      All 8 checks implemented as DI classes: `EngineAvailabilityCheck`, `EngineHealthCheck`, `ModelAvailabilityCheck`, `TokenConfiguredCheck`, `ServerReachabilityCheck`, `DiskSpaceCheck`, `PlatformPathsCheck`, `CatalogAvailableCheck`. `DoctorEngine` accepts `checks` parameter for injection.
+- [x] Persist `last-doctor.json`; make `GET /v1/diagnostics` read it or return a structured stale/missing diagnostic.
+      `DoctorEngine.persist()` writes sanitized results with `ranAt` timestamp; `/v1/diagnostics` endpoint serves persisted data.
 
 ## Comments

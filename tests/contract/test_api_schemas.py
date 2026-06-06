@@ -108,6 +108,15 @@ def test_generated_openapi_schema_documents_native_error_envelope() -> None:
             "$ref": "#/components/schemas/NativeErrorResponse"
         }
 
+    for status_code in ["401", "403", "413"]:
+        install_error = schema["paths"]["/v1/models/install"]["post"]["responses"][status_code]
+        assert install_error["content"]["application/json"]["schema"] == {
+            "$ref": "#/components/schemas/NativeErrorResponse"
+        }
+
+    health_responses = schema["paths"]["/v1/health"]["get"]["responses"]
+    assert "400" not in health_responses
+
 
 def test_event_schema_contracts_cover_install_synthesis_audio_and_helper_status() -> None:
     events = [
@@ -133,3 +142,26 @@ def test_event_schema_contracts_cover_install_synthesis_audio_and_helper_status(
     for event in events:
         assert event.schema_version == "v1"
         assert event.request_id.startswith("req-")
+
+
+def test_generated_openapi_schema_includes_all_rest_endpoints() -> None:
+    """Snapshot: verify OpenAPI schema documents all /v1 REST endpoints."""
+    app = create_app(config=HelperConfig(helper_id="mery-test", auth_token="secret" * 8, port=8765))
+    schema = app.openapi()
+    paths = schema["paths"]
+
+    expected_paths = [
+        "/v1/health",
+        "/v1/engines",
+        "/v1/voices/installed",
+        "/v1/catalog/voices",
+        "/v1/storage",
+        "/v1/diagnostics",
+        "/v1/models/install",
+        "/v1/models/{model_id}",
+        "/v1/pair/claim",
+        "/v1/audio/speech",
+    ]
+
+    for path in expected_paths:
+        assert path in paths, f"OpenAPI schema missing path: {path}"

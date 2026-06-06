@@ -1,6 +1,7 @@
 from mery_tts.errors import (
     ErrorCategory,
     ErrorCode,
+    ErrorRecoverability,
     FallbackPolicy,
     RecommendedAction,
 )
@@ -88,5 +89,80 @@ def test_fallback_policy_map_covers_representative_categories() -> None:
     assert security.fallback_policy == FallbackPolicy.NONE
 
 
+def test_connection_error_serializes_with_fallback_policy_metadata() -> None:
+    error = diagnostic_error(
+        code=ErrorCode.CONNECTION_DAEMON_UNREACHABLE,
+        category=ErrorCategory.CONNECTION,
+        request_id="req-connection",
+        diagnostic={"host": "127.0.0.1", "port": 8765},
+    )
+
+    serialized = error.model_dump(mode="json")
+
+    assert serialized["code"] == "connection.daemon_unreachable"
+    assert serialized["fallback_policy"] == "use_cached_audio"
+    assert serialized["recommended_action"] == "retry"
+    assert serialized["request_id"] == "req-connection"
+
+
 def test_every_declared_error_code_has_explicit_fallback_policy() -> None:
     assert set(POLICIES) == set(ErrorCode)
+
+
+def test_every_error_category_has_at_least_one_error_code() -> None:
+    from mery_tts.errors.taxonomy import ErrorCategory
+
+    categories_in_codes = {code.split(".")[0] for code in ErrorCode}
+    expected_categories = {category.value for category in ErrorCategory}
+
+    assert categories_in_codes == expected_categories
+
+
+def test_all_policies_use_valid_recommended_actions_and_fallback_policies() -> None:
+    from mery_tts.errors.taxonomy import FallbackPolicy, RecommendedAction
+
+    valid_actions = {action.value for action in RecommendedAction}
+    valid_fallbacks = {policy.value for policy in FallbackPolicy}
+
+    for code, policy in POLICIES.items():
+        assert policy.recommended_action.value in valid_actions, (
+            f"Policy for {code.value} has invalid recommended_action"
+        )
+        assert policy.fallback_policy.value in valid_fallbacks, (
+            f"Policy for {code.value} has invalid fallback_policy"
+        )
+
+
+def test_all_policies_use_valid_recoverability_values() -> None:
+    from mery_tts.errors.taxonomy import ErrorRecoverability
+
+    valid_recoverability = {value.value for value in ErrorRecoverability}
+
+    for code, policy in POLICIES.items():
+        assert policy.recoverability.value in valid_recoverability, (
+            f"Policy for {code.value} has invalid recoverability"
+        )
+
+
+def test_diagnostic_error_generates_correct_user_message_key() -> None:
+    error = diagnostic_error(
+        code=ErrorCode.AUTH_TOKEN_MISSING,
+        category=ErrorCategory.AUTH,
+        request_id="req-test",
+        diagnostic={"reason": "missing"},
+    )
+
+    assert error.user_message_key == "errors.auth_token_missing"
+
+
+def test_diagnostic_error_maps_code_to_correct_policy() -> None:
+    error = diagnostic_error(
+        code=ErrorCode.MODEL_NOT_INSTALLED,
+        category=ErrorCategory.MODEL,
+        request_id="req-test",
+        diagnostic={"model_id": "test.model"},
+    )
+
+    assert error.recommended_action == RecommendedAction.INSTALL_MODEL
+    assert error.fallback_policy == FallbackPolicy.USE_DEFAULT_VOICE
+    assert error.recoverability == ErrorRecoverability.USER_ACTION

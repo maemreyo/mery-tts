@@ -130,7 +130,7 @@ def test_model_routes_reject_unsafe_model_ids(tmp_path: Path) -> None:
         ]
 
     assert {response.status_code for response in responses} == {400}
-    assert {response.json()["error"] for response in responses} == {"invalid_model_id"}
+    assert {response.json()["code"] for response in responses} == {"security.unsafe_identifier"}
 
 
 def test_model_install_accepts_stable_model_id_only(tmp_path: Path) -> None:
@@ -149,12 +149,11 @@ def test_model_install_accepts_stable_model_id_only(tmp_path: Path) -> None:
         )
 
     assert response.status_code == 200
-    assert response.json() == {
-        "schema_version": "v1",
-        "request_id": "local",
-        "job_id": "not-started",
-        "status": "queued",
-    }
+    payload = response.json()
+    assert payload["schema_version"] == "v1"
+    assert payload["request_id"] == "local"
+    assert payload["job_id"].startswith("job-")
+    assert payload["status"] == "running"
 
 
 def test_model_install_rejects_paths_and_urls_before_domain_work(tmp_path: Path) -> None:
@@ -183,7 +182,7 @@ def test_model_install_rejects_paths_and_urls_before_domain_work(tmp_path: Path)
         ]
 
     assert {response.status_code for response in responses} == {400}
-    assert {response.json()["error"] for response in responses} == {"invalid_model_id"}
+    assert {response.json()["code"] for response in responses} == {"security.unsafe_identifier"}
     assert not any(tmp_path.iterdir()) or {path.name for path in tmp_path.iterdir()} == {"config"}
 
 

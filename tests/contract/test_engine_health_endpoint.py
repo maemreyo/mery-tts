@@ -116,6 +116,8 @@ def test_engines_endpoint_exposes_safe_runtime_health() -> None:
     assert "/Users" not in engines["degraded"]["reason"]
     assert "secret" not in engines["unavailable"]["reason"]
     assert "Traceback" not in engines["unavailable"]["reason"]
+    assert "traceback" not in engines["unavailable"]["reason"]
+    assert "diagnostic" in engines["unavailable"]["reason"]
     assert "kokoro_onnx" not in engines["unavailable"]["reason"]
 
 

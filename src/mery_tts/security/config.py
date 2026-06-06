@@ -54,6 +54,11 @@ class HelperConfigStore:
         payload = config.model_dump(mode="json")
         serialized = json.dumps(payload, indent=2, sort_keys=True) + "\n"
         temp_path = self.config_path.with_name(f"{self.config_path.name}.tmp")
-        temp_path.write_text(serialized)
-        temp_path.chmod(0o600)
-        temp_path.replace(self.config_path)
+        try:
+            temp_path.write_text(serialized)
+            temp_path.chmod(0o600)
+            temp_path.replace(self.config_path)
+        except OSError as exc:
+            if temp_path.exists():
+                temp_path.unlink()
+            raise OSError(f"failed to write config: {exc}") from exc

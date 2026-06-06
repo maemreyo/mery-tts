@@ -166,7 +166,7 @@ def test_websocket_events_rejects_invalid_bearer_token() -> None:
 
     with (
         TestClient(app) as client,
-        pytest.raises(WebSocketDisconnect),
+        pytest.raises(WebSocketDisconnect) as exc_info,
         client.websocket_connect(
             "/v1/events",
             headers={"Authorization": "Bearer wrong", "Origin": "null"},
@@ -174,13 +174,15 @@ def test_websocket_events_rejects_invalid_bearer_token() -> None:
     ):
         pass
 
+    assert exc_info.value.code == 1008
+
 
 def test_websocket_events_rejects_unknown_origin() -> None:
     app = create_app(config=HelperConfig(helper_id="mery-test", auth_token="secret" * 8, port=8765))
 
     with (
         TestClient(app) as client,
-        pytest.raises(WebSocketDisconnect),
+        pytest.raises(WebSocketDisconnect) as exc_info,
         client.websocket_connect(
             "/v1/events",
             headers={
@@ -191,6 +193,8 @@ def test_websocket_events_rejects_unknown_origin() -> None:
     ):
         pass
 
+    assert exc_info.value.code == 1008
+
 
 def test_websocket_events_accepts_valid_handshake() -> None:
     app = create_app(config=HelperConfig(helper_id="mery-test", auth_token="secret" * 8, port=8765))
@@ -200,6 +204,29 @@ def test_websocket_events_accepts_valid_handshake() -> None:
         client.websocket_connect(
             "/v1/events",
             headers={"Authorization": "Bearer " + "secret" * 8, "Origin": "null"},
+        ) as websocket,
+    ):
+        assert websocket.receive_json() == {
+            "schema_version": "v1",
+            "request_id": "local",
+            "event_type": "helper.statusChanged",
+            "status": "ok",
+        }
+
+
+def test_websocket_events_accepts_mery_events_subprotocol() -> None:
+    app = create_app(config=HelperConfig(helper_id="mery-test", auth_token="secret" * 8, port=8765))
+
+    with (
+        TestClient(app) as client,
+        client.websocket_connect(
+            "/v1/events",
+            headers={
+                "Authorization": "Bearer " + "secret" * 8,
+                "Origin": "null",
+                "Sec-WebSocket-Protocol": "mery.events.v1",
+            },
+            subprotocols=["mery.events.v1"],
         ) as websocket,
     ):
         assert websocket.receive_json() == {

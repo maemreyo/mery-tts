@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -77,3 +78,92 @@ def test_missing_artifact_diagnostic(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="missing artifact"):
         store.hydrate_voice_descriptor("voice.missing", engine_id="kokoro")
+
+
+def test_storage_identity_rejects_unsupported_payload_family(tmp_path: Path) -> None:
+    store = StorageIdentityStore(tmp_path)
+    store.write_artifact_manifest(engine_id="kokoro", artifact_id="artifact.test", metadata={})
+    store.voices_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = store.voices_dir / "voice.test.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "voiceId": "voice.test",
+                "artifactRefs": ["artifact.test"],
+                "payloadTemplate": {"kind": "unknown-family"},
+            }
+        )
+    )
+
+    with pytest.raises(ValueError, match="unsupported payload family"):
+        store.hydrate_installed_voice_descriptors()
+
+
+def test_storage_identity_rejects_duplicate_voice_ids(tmp_path: Path) -> None:
+    store = StorageIdentityStore(tmp_path)
+    store.write_artifact_manifest(engine_id="kokoro", artifact_id="artifact.test", metadata={})
+    store.voices_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path1 = store.voices_dir / "voice.test1.json"
+    manifest_path1.write_text(
+        json.dumps(
+            {
+                "voiceId": "voice.test",
+                "artifactRefs": ["artifact.test"],
+                "payloadTemplate": {"kind": "preset", "preset_id": "test1"},
+            }
+        )
+    )
+    manifest_path2 = store.voices_dir / "voice.test2.json"
+    manifest_path2.write_text(
+        json.dumps(
+            {
+                "voiceId": "voice.test",
+                "artifactRefs": ["artifact.test"],
+                "payloadTemplate": {"kind": "preset", "preset_id": "test2"},
+            }
+        )
+    )
+
+    with pytest.raises(ValueError, match="duplicate voice ID"):
+        store.hydrate_installed_voice_descriptors()
+
+
+def test_storage_identity_rejects_preset_missing_preset_id(tmp_path: Path) -> None:
+    store = StorageIdentityStore(tmp_path)
+    store.write_artifact_manifest(engine_id="kokoro", artifact_id="artifact.test", metadata={})
+    store.voices_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = store.voices_dir / "voice.test.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "voiceId": "voice.test",
+                "artifactRefs": ["artifact.test"],
+                "payloadTemplate": {"kind": "preset"},
+            }
+        )
+    )
+
+    with pytest.raises(ValueError, match="preset payload missing preset_id"):
+        store.hydrate_installed_voice_descriptors()
+
+
+@pytest.mark.parametrize(
+    "unsafe_id",
+    [
+        "../secret",
+        "a/b",
+        "a\\b",
+        "/tmp/storage",
+        "C:\\storage",
+        "http://example.com/storage",
+        "https://example.com/storage",
+        "file:///tmp/storage",
+        "~/storage",
+        "~storage",
+    ],
+)
+def test_storage_identity_rejects_unsafe_identifiers(unsafe_id: str) -> None:
+    from mery_tts.security.guards import reject_unsafe_identifier
+
+    with pytest.raises(ValueError):
+        reject_unsafe_identifier(unsafe_id)

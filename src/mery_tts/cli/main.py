@@ -10,11 +10,15 @@ import uvicorn
 
 from mery_tts import __version__
 from mery_tts.audio.exporter import AudioExporter
+from mery_tts.catalog import bundled_catalog_voice_summaries
 from mery_tts.diagnostics.doctor import DoctorEngine
 from mery_tts.engines.base import PCMChunk
+from mery_tts.engines.discovery import discover_engine_registry
+from mery_tts.models.store import ModelStore
 from mery_tts.security.config import HelperConfigStore
 from mery_tts.security.pairing import PairingService
 from mery_tts.settings.paths import RuntimePaths
+from mery_tts.storage.identity import StorageIdentityStore
 
 app = typer.Typer(no_args_is_help=True, help="Mery local TTS helper CLI.")
 storage_app = typer.Typer(help="Manage Mery storage.")
@@ -95,46 +99,97 @@ def pair(
 
 @app.command()
 def engines() -> None:
-    typer.echo('{"engines":[]}')
+    registry = discover_engine_registry()
+    engine_list = [
+        {"engine_id": engine_id, "status": adapter.health()}
+        for engine_id, adapter in sorted(registry.adapters.items())
+    ]
+    typer.echo(json.dumps({"engines": engine_list, "load_warnings": list(registry.load_warnings)}))
 
 
 @app.command()
 def voices() -> None:
-    typer.echo('{"voices":[]}')
+    paths = _runtime_paths()
+    store = StorageIdentityStore(paths.base_dir)
+    descriptors = store.hydrate_installed_voice_descriptors()
+    voice_list = [
+        {"voice_id": d.voice_id, "engine_id": d.engine_id, "kind": d.payload.kind}
+        for d in descriptors
+    ]
+    typer.echo(json.dumps({"voices": voice_list}))
 
 
 @app.command()
 def catalog() -> None:
-    typer.echo('{"catalog":[]}')
+    summaries = bundled_catalog_voice_summaries()
+    catalog_list = [
+        {"voice_id": s.voice_id, "engine_id": s.engine_id, "display_name": s.display_name}
+        for s in summaries
+    ]
+    typer.echo(json.dumps({"catalog": catalog_list}))
 
 
 @app.command()
 def models() -> None:
-    typer.echo('{"models":[]}')
+    paths = _runtime_paths()
+    store = ModelStore(paths.models_dir)
+    records = store.list_installed()
+    model_list = [
+        {
+            "engine_id": r.engine_id,
+            "model_id": r.model_id,
+            "size_bytes": r.size_bytes,
+        }
+        for r in records
+    ]
+    typer.echo(json.dumps({"models": model_list}))
 
 
 @storage_app.command("show")
 def storage_show() -> None:
     paths = _runtime_paths()
-    typer.echo(f"model store: {paths.models_dir}")
-    typer.echo("total installed size: 0")
-    typer.echo("available disk space: unknown")
+    store = ModelStore(paths.models_dir)
+    stats = store.disk_usage()
+    records = store.list_installed()
+
+    typer.echo(f"model store: {stats.root_path}")
+    typer.echo(f"total installed size: {stats.used_bytes} bytes")
+    available = stats.available_bytes if stats.available_bytes is not None else "unknown"
+    typer.echo(f"available disk space: {available}")
+
+    if records:
+        typer.echo("\nInstalled models:")
+        for record in records:
+            typer.echo(f"  {record.engine_id}/{record.model_id}: {record.size_bytes} bytes")
+    else:
+        typer.echo("\nNo models installed.")
 
 
 @storage_app.command("move")
 def storage_move(to: str = typer.Option(..., "--to")) -> None:
     paths = _runtime_paths()
     target = paths.base_dir / "models" if to == "default" else __import__("pathlib").Path(to)
+
+    if not paths.models_dir.exists():
+        typer.echo("storage.migration_complete: no models to migrate")
+        return
+
     target.mkdir(parents=True, exist_ok=True)
-    if paths.models_dir.exists():
+
+    try:
         shutil.copytree(paths.models_dir, target, dirs_exist_ok=True)
-    typer.echo("storage.migration_complete")
+        typer.echo(f"storage.migration_complete: migrated to {target}")
+    except OSError as exc:
+        typer.echo(f"storage.migration_failed: {exc}", err=True)
+        raise typer.Exit(1) from exc
 
 
 @storage_app.command("repair")
 def storage_repair() -> None:
     paths = _runtime_paths()
     deleted = 0
+    flagged = 0
+
     for cache_dir in [paths.cache_dir / "downloads", paths.cache_dir / "temp"]:
         if not cache_dir.exists():
             continue
@@ -142,7 +197,13 @@ def storage_repair() -> None:
             if path.is_file() and path.stat().st_size == 0:
                 path.unlink()
                 deleted += 1
-    typer.echo(f"repaired: deleted={deleted}; flagged=0")
+
+    store = ModelStore(paths.models_dir)
+    records = store.list_installed()
+
+    typer.echo(f"storage.repair_complete: deleted={deleted}; flagged={flagged}")
+    if records:
+        typer.echo(f"  verified {len(records)} installed model(s)")
 
 
 async def _single_pcm_chunk(text: str) -> AsyncIterator[PCMChunk]:

@@ -59,8 +59,13 @@ class StorageIdentityStore:
         if not self.voices_dir.exists():
             return []
         descriptors: list[VoiceDescriptor] = []
+        seen_voice_ids: set[str] = set()
         for manifest_path in sorted(self.voices_dir.glob("*.json")):
             manifest = self._load_manifest(manifest_path)
+            voice_id = str(manifest.get("voiceId", ""))
+            if voice_id in seen_voice_ids:
+                raise ValueError(f"duplicate voice ID: {voice_id}")
+            seen_voice_ids.add(voice_id)
             engine_id = self._engine_id_for_manifest(manifest)
             descriptors.append(self._descriptor_from_manifest(manifest, engine_id=engine_id))
         return descriptors
@@ -101,13 +106,18 @@ class StorageIdentityStore:
             if not self._artifact_exists(engine_id=engine_id, artifact_id=str(artifact_ref)):
                 raise ValueError(f"missing artifact '{artifact_ref}'")
         payload_template = manifest["payloadTemplate"]
-        if payload_template.get("kind") != "preset":
-            raise ValueError("unsupported payload template")
-        return VoiceDescriptor(
-            voice_id=voice_id,
-            engine_id=engine_id,
-            payload=PresetVoicePayload(preset_id=str(payload_template["preset_id"])),
-        )
+        kind = payload_template.get("kind")
+        if kind not in {"preset", "model-file", "embedding", "reference", "designed"}:
+            raise ValueError(f"unsupported payload family: {kind}")
+        if kind == "preset":
+            if "preset_id" not in payload_template:
+                raise ValueError("preset payload missing preset_id")
+            return VoiceDescriptor(
+                voice_id=voice_id,
+                engine_id=engine_id,
+                payload=PresetVoicePayload(preset_id=str(payload_template["preset_id"])),
+            )
+        raise ValueError(f"payload family '{kind}' not yet implemented")
 
     def _engine_id_for_manifest(self, manifest: dict[str, Any]) -> str:
         artifact_refs = list(manifest["artifactRefs"])

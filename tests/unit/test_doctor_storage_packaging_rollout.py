@@ -5,7 +5,19 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from mery_tts.cli.main import app
-from mery_tts.diagnostics.doctor import DoctorEngine, DoctorResult
+from mery_tts.diagnostics.doctor import (
+    CatalogAvailableCheck,
+    DiskSpaceCheck,
+    DoctorEngine,
+    DoctorResult,
+    EngineAvailabilityCheck,
+    EngineHealthCheck,
+    ModelAvailabilityCheck,
+    PlatformPathsCheck,
+    ServerReachabilityCheck,
+    TokenConfiguredCheck,
+)
+from mery_tts.errors import RecommendedAction
 from mery_tts.providers.rollout import provider_rollout_status
 
 
@@ -92,7 +104,7 @@ def test_storage_cli_show_move_and_repair(monkeypatch, tmp_path: Path) -> None:
     assert move.exit_code == 0
     assert "storage.migration_complete" in move.stdout
     assert repair.exit_code == 0
-    assert "repaired" in repair.stdout
+    assert "storage.repair_complete" in repair.stdout
 
 
 def test_provider_rollout_status_marks_platform_integrated() -> None:
@@ -121,3 +133,145 @@ def test_readme_documents_phase_one_uv_and_pipx() -> None:
     assert 'mery speak --text "Hello from Mery"' in readme
     assert "mery speak --file input.txt --output hello.wav" in readme
     assert "--play" not in readme
+
+
+def test_doctor_engine_availability_check_with_loaded_engines() -> None:
+    check = EngineAvailabilityCheck(engine_ids=["kokoro", "piper-plus"])
+    result = check.run()
+
+    assert result.check == "engine_availability"
+    assert result.status == "ok"
+    assert "kokoro" in result.detail
+    assert "piper-plus" in result.detail
+
+
+def test_doctor_engine_availability_check_with_no_engines() -> None:
+    check = EngineAvailabilityCheck(engine_ids=[])
+    result = check.run()
+
+    assert result.status == "warn"
+    assert result.recommended_action == RecommendedAction.CHECK_ENGINE
+
+
+def test_doctor_engine_health_check_all_healthy() -> None:
+    check = EngineHealthCheck(unhealthy=[])
+    result = check.run()
+
+    assert result.status == "ok"
+    assert "healthy" in result.detail
+
+
+def test_doctor_engine_health_check_with_unhealthy() -> None:
+    check = EngineHealthCheck(unhealthy=["kokoro"])
+    result = check.run()
+
+    assert result.status == "warn"
+    assert "kokoro" in result.detail
+    assert result.recommended_action == RecommendedAction.CHECK_ENGINE
+
+
+def test_doctor_model_availability_check_with_models(tmp_path: Path) -> None:
+    check = ModelAvailabilityCheck(installed_models=["model-a", "model-b"])
+    result = check.run()
+
+    assert result.status == "ok"
+    assert "2 model(s)" in result.detail
+
+
+def test_doctor_model_availability_check_no_models() -> None:
+    check = ModelAvailabilityCheck(installed_models=[])
+    result = check.run()
+
+    assert result.status == "warn"
+    assert result.recommended_action == RecommendedAction.INSTALL_MODEL
+
+
+def test_doctor_token_configured_check_valid(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"auth_token": "secret123"}))
+
+    check = TokenConfiguredCheck(config_path=config_path)
+    result = check.run()
+
+    assert result.status == "ok"
+
+
+def test_doctor_token_configured_check_missing(tmp_path: Path) -> None:
+    check = TokenConfiguredCheck(config_path=tmp_path / "missing.json")
+    result = check.run()
+
+    assert result.status == "fail"
+    assert result.recommended_action == RecommendedAction.PAIR_CLIENT
+
+
+def test_doctor_token_configured_check_empty_token(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"auth_token": ""}))
+
+    check = TokenConfiguredCheck(config_path=config_path)
+    result = check.run()
+
+    assert result.status == "fail"
+
+
+def test_doctor_server_reachability_check_unreachable() -> None:
+    check = ServerReachabilityCheck(port=19999)
+    result = check.run()
+
+    assert result.status == "warn"
+
+
+def test_doctor_disk_space_check_sufficient(tmp_path: Path) -> None:
+    check = DiskSpaceCheck(models_dir=tmp_path, min_free_bytes=1)
+    result = check.run()
+
+    assert result.status == "ok"
+
+
+def test_doctor_disk_space_check_insufficient(tmp_path: Path) -> None:
+    check = DiskSpaceCheck(models_dir=tmp_path, min_free_bytes=10**18)
+    result = check.run()
+
+    assert result.status == "warn"
+    assert result.recommended_action == RecommendedAction.FREE_SPACE
+
+
+def test_doctor_platform_paths_check_writable(tmp_path: Path) -> None:
+    check = PlatformPathsCheck(writable_dirs=[tmp_path / "test-dir"])
+    result = check.run()
+
+    assert result.status == "ok"
+    assert "writable" in result.detail
+
+
+def test_doctor_catalog_available_check() -> None:
+    check = CatalogAvailableCheck()
+    result = check.run()
+
+    assert result.status == "ok"
+    assert "model(s)" in result.detail
+
+
+def test_doctor_engine_with_di_checks(tmp_path: Path) -> None:
+    engine = DoctorEngine(
+        checks=[
+            EngineAvailabilityCheck(engine_ids=["kokoro"]),
+            EngineHealthCheck(unhealthy=[]),
+            ModelAvailabilityCheck(installed_models=["model-a"]),
+            TokenConfiguredCheck(config_path=tmp_path / "missing.json"),
+            ServerReachabilityCheck(port=19999),
+            DiskSpaceCheck(models_dir=tmp_path, min_free_bytes=1),
+            PlatformPathsCheck(writable_dirs=[tmp_path]),
+            CatalogAvailableCheck(),
+        ],
+        data_dir=tmp_path,
+    )
+
+    results = engine.run()
+
+    assert len(results) == 8
+    assert engine.exit_code(results) == 1
+    assert (tmp_path / "diagnostics" / "last-doctor.json").exists()
+    check_names = [r.check for r in results]
+    assert "engine_availability" in check_names
+    assert "catalog_available" in check_names

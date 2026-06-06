@@ -12,10 +12,10 @@ Implement the API orchestrator that consumes `ModelManager.install(modelId)` dom
 
 ## Acceptance criteria
 
-- [ ] `ModelManager.install()` remains an API-agnostic `AsyncIterator[InstallEvent]`.
-- [ ] API orchestration maps install progress, done, and failure domain events to WS schemas.
-- [ ] `VoiceRegistry.refresh()` is called after `InstallDone` and not before or after failures.
-- [ ] Tests use fake model manager, fake WS emitter, and fake voice registry to assert event order and side effects.
+- [x] `ModelManager.install()` remains an API-agnostic `AsyncIterator[InstallEvent]`. `src/mery_tts/models/events.py` defines `InstallEvent = InstallProgress | InstallDone | InstallFailed` domain events with no API/WS imports.
+- [x] API orchestration maps install progress, done, and failure domain events to WS schemas. `InstallOrchestrator.run()` maps `InstallProgress` → `install.progress`, `InstallDone` → `install.completed`, `InstallFailed` → `install.failed`; `tests/unit/test_ws_and_orchestration.py` pins event mapping.
+- [x] `VoiceRegistry.refresh()` is called after `InstallDone` and not before or after failures. `InstallOrchestrator` calls `self._refresh()` only on `InstallDone`; `tests/unit/test_ws_and_orchestration.py::test_install_orchestrator_maps_events_and_refreshes_after_done` pins refresh-after-done and `test_install_orchestrator_does_not_refresh_on_failure` pins no-refresh-on-failure.
+- [x] Tests use fake model manager, fake WS emitter, and fake voice registry to assert event order and side effects. `tests/unit/test_ws_and_orchestration.py` uses fake `AsyncIterator[object]` event streams and fake refresh callbacks to assert event order and side effects.
 
 ## Blocked by
 

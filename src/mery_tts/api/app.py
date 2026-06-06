@@ -15,6 +15,7 @@ from mery_tts.api.openai.speech import (
 from mery_tts.catalog import bundled_catalog_voice_summaries
 from mery_tts.engines import EngineRegistry, discover_engine_registry
 from mery_tts.errors import ErrorCategory, ErrorCode, diagnostic_error
+from mery_tts.jobs.install import InstallJobService
 from mery_tts.models.store import ModelStore
 from mery_tts.schemas.v1 import (
     CatalogVoicesResponse,
@@ -113,7 +114,13 @@ def is_safe_model_id(model_id: str) -> bool:
 
 
 def _invalid_model_id_response() -> JSONResponse:
-    return JSONResponse({"error": "invalid_model_id"}, status_code=400)
+    error = diagnostic_error(
+        code=ErrorCode.SECURITY_UNSAFE_IDENTIFIER,
+        category=ErrorCategory.SECURITY,
+        request_id="local",
+        diagnostic={"reason": "unsafe model identifier"},
+    )
+    return JSONResponse(error.model_dump(mode="json"), status_code=400)
 
 
 def _auth_error_response(*, missing: bool) -> JSONResponse:
@@ -161,6 +168,7 @@ def create_app(
     voice_aliases: dict[str, str] | None = None,
     catalog_voices: list[VoiceSummary] | None = None,
     storage_identity_store: StorageIdentityStore | None = None,
+    install_job_service: InstallJobService | None = None,
 ) -> FastAPI:
     paths = RuntimePaths.from_environment()
     should_reload_auth = config_store is not None or config is None
@@ -194,6 +202,20 @@ def create_app(
         )
         for voice in installed_voice_descriptors
     ]
+
+    def _refresh_voice_registry() -> None:
+        descriptors = storage_identity_store.hydrate_installed_voice_descriptors()
+        for voice in descriptors:
+            voice_registry.register(voice)
+
+    if install_job_service is None:
+        install_job_service = InstallJobService(
+            store=storage_identity_store,
+            refresh=_refresh_voice_registry,
+        )
+
+    for voice in installed_voice_descriptors:
+        voice_registry.register(voice)
 
     app = FastAPI(title="Mery TTS Server", version="0.1.0")
 
@@ -287,7 +309,14 @@ def create_app(
         responses=NATIVE_ERROR_RESPONSES,
     )
     def diagnostics_get() -> DiagnosticsResponse:
-        return DiagnosticsResponse(request_id="local", checks={"daemon": "ok"})
+        doctor_path = RuntimePaths.from_environment().base_dir / "diagnostics" / "last-doctor.json"
+        if doctor_path.exists():
+            import json
+
+            payload = json.loads(doctor_path.read_text())
+            checks = {result["check"]: result["status"] for result in payload.get("results", [])}
+            return DiagnosticsResponse(request_id="local", checks=checks)
+        return DiagnosticsResponse(request_id="local", checks={"never_run": "true"})
 
     @app.post(
         "/v1/diagnostics",
@@ -295,7 +324,13 @@ def create_app(
         responses=NATIVE_ERROR_RESPONSES,
     )
     def diagnostics_post() -> DiagnosticsResponse:
-        return DiagnosticsResponse(request_id="local", checks={"daemon": "ok"})
+        from mery_tts.diagnostics.doctor import DoctorEngine
+
+        paths = RuntimePaths.from_environment()
+        engine = DoctorEngine(data_dir=paths.base_dir)
+        results = engine.run()
+        checks = {result.check: result.status for result in results}
+        return DiagnosticsResponse(request_id="local", checks=checks)
 
     @app.get(
         "/v1/models/{model_id:path}",
@@ -327,10 +362,16 @@ def create_app(
     def model_install(request: ModelInstallRequest) -> ModelInstallResponse | JSONResponse:
         if not is_safe_model_id(request.model_id):
             return _invalid_model_id_response()
+        job = install_job_service.start_install(
+            catalog_entry_id=request.model_id,
+            voice_id=request.model_id,
+            engine_id="kokoro",
+            artifact_id=request.model_id,
+        )
         return ModelInstallResponse(
             request_id="local",
-            job_id="not-started",
-            status="queued",
+            job_id=job.job_id,
+            status=job.status.value,
         )
 
     @app.websocket("/v1/events")

@@ -50,7 +50,9 @@ class CatalogInstaller:
     ) -> Path:
         installed_path: Path | None = None
         for file in model.files:
-            url = f"https://allowed.example/{file.filename}"
+            url = file.download_url
+            if url is None:
+                raise InstallError("missing_download_url")
             host = urlparse(url).hostname
             if host not in self.allowed_hosts:
                 raise InstallError("disallowed_host")

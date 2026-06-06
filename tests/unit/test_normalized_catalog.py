@@ -149,3 +149,47 @@ def test_normalized_catalog_rejects_missing_refs_and_duplicate_ids() -> None:
                 ),
             ],
         )
+
+
+@pytest.mark.parametrize(
+    "unsafe_id",
+    [
+        "../secret",
+        "a/b",
+        "a\\b",
+        "/tmp/entry",
+        "C:\\entry",
+        "http://example.com/entry",
+        "https://example.com/entry",
+        "file:///tmp/entry",
+        "~/entry",
+        "~entry",
+    ],
+)
+def test_catalog_entry_rejects_unsafe_catalog_entry_ids(unsafe_id: str) -> None:
+    from mery_tts.security.guards import reject_unsafe_identifier
+
+    with pytest.raises(ValueError):
+        reject_unsafe_identifier(unsafe_id)
+
+
+@pytest.mark.parametrize(
+    "unsafe_id",
+    [
+        "../secret",
+        "a/b",
+        "a\\b",
+        "/tmp/artifact",
+        "C:\\artifact",
+        "http://example.com/artifact",
+        "https://example.com/artifact",
+        "file:///tmp/artifact",
+        "~/artifact",
+        "~artifact",
+    ],
+)
+def test_artifact_entry_rejects_unsafe_artifact_ids(unsafe_id: str) -> None:
+    from mery_tts.security.guards import reject_unsafe_identifier
+
+    with pytest.raises(ValueError):
+        reject_unsafe_identifier(unsafe_id)

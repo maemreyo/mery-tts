@@ -91,3 +91,62 @@ def test_serve_starts_uvicorn_with_configured_port(monkeypatch, tmp_path) -> Non
     config = json.loads((tmp_path / "config" / "config.json").read_text())
     assert config["port"] == 9876
     assert config["bound_port"] == 9876
+
+
+def test_engines_command_delegates_to_engine_registry(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+
+    result = runner.invoke(app, ["engines"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert "engines" in payload
+    assert "load_warnings" in payload
+    assert isinstance(payload["engines"], list)
+    assert isinstance(payload["load_warnings"], list)
+
+
+def test_voices_command_delegates_to_storage_identity_store(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+
+    result = runner.invoke(app, ["voices"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert "voices" in payload
+    assert isinstance(payload["voices"], list)
+
+
+def test_catalog_command_delegates_to_bundled_catalog(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+
+    result = runner.invoke(app, ["catalog"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert "catalog" in payload
+    assert isinstance(payload["catalog"], list)
+    assert len(payload["catalog"]) > 0
+    assert payload["catalog"][0]["voice_id"].startswith("catalog.")
+
+
+def test_models_command_delegates_to_model_store(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+
+    result = runner.invoke(app, ["models"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert "models" in payload
+    assert isinstance(payload["models"], list)
+
+
+def test_storage_show_command_delegates_to_model_store_disk_usage(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+
+    result = runner.invoke(app, ["storage", "show"])
+
+    assert result.exit_code == 0
+    assert "model store:" in result.stdout
+    assert "total installed size:" in result.stdout
+    assert "available disk space:" in result.stdout

@@ -11,6 +11,7 @@ class CatalogFile(BaseModel):
     filename: str = Field(min_length=1)
     sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
     size_bytes: int = Field(gt=0)
+    download_url: str | None = None
 
 
 class CatalogModel(BaseModel):

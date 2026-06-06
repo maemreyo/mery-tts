@@ -52,3 +52,54 @@ async def test_ws_synthesis_events_are_ordered() -> None:
         assert event["schema_version"] == "v1"
         assert event["request_id"] == "req"
         assert event["session_id"] == "sess"
+
+
+@pytest.mark.asyncio
+async def test_ws_synthesis_events_emit_cancelled_on_cancellation() -> None:
+    import asyncio
+
+    cancellation = asyncio.Event()
+
+    async def stream() -> AsyncIterator[PCMChunk]:
+        yield PCMChunk(pcm=b"a", sample_rate_hz=24_000, channels=1)
+        cancellation.set()
+        yield PCMChunk(pcm=b"b", sample_rate_hz=24_000, channels=1)
+
+    events = [
+        event
+        async for event in synthesize_events(
+            "sess", stream(), request_id="req", cancellation=cancellation
+        )
+    ]
+
+    event_types = [event["event_type"] for event in events]
+    assert "synthesize.started" in event_types
+    assert "audio.chunk" in event_types
+    assert "synthesize.cancelled" in event_types
+    assert "audio.completed" not in event_types
+    cancelled_index = event_types.index("synthesize.cancelled")
+    chunk_indices = [i for i, t in enumerate(event_types) if t == "audio.chunk"]
+    assert all(idx < cancelled_index for idx in chunk_indices)
+
+
+@pytest.mark.asyncio
+async def test_ws_synthesis_events_complete_without_cancellation() -> None:
+    import asyncio
+
+    cancellation = asyncio.Event()
+
+    async def stream() -> AsyncIterator[PCMChunk]:
+        yield PCMChunk(pcm=b"a", sample_rate_hz=24_000, channels=1)
+
+    events = [
+        event
+        async for event in synthesize_events(
+            "sess", stream(), request_id="req", cancellation=cancellation
+        )
+    ]
+
+    assert [event["event_type"] for event in events] == [
+        "synthesize.started",
+        "audio.chunk",
+        "audio.completed",
+    ]

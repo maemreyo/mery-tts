@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 
 from mery_tts.audio.encoder import AudioEncoder
@@ -9,6 +10,7 @@ async def synthesize_events(
     stream: AsyncIterator[PCMChunk],
     *,
     request_id: str,
+    cancellation: asyncio.Event | None = None,
 ) -> AsyncIterator[dict[str, object]]:
     yield {
         "schema_version": "v1",
@@ -18,6 +20,14 @@ async def synthesize_events(
     }
     index = 0
     async for chunk in stream:
+        if cancellation is not None and cancellation.is_set():
+            yield {
+                "schema_version": "v1",
+                "request_id": request_id,
+                "event_type": "synthesize.cancelled",
+                "session_id": session_id,
+            }
+            return
         yield {
             "schema_version": "v1",
             "request_id": request_id,

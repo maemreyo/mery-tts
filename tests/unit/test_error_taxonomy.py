@@ -65,3 +65,27 @@ def test_machine_codes_are_stable_typed_values() -> None:
         "storage.manifest_missing",
         "security.unsafe_identifier",
     }
+
+
+def test_all_error_codes_follow_category_dot_specific_naming_convention() -> None:
+    categories = {category.value for category in ErrorCategory}
+
+    for code in ErrorCode:
+        parts = code.value.split(".")
+        assert len(parts) == 2, f"Error code {code.value} must be category.specific"
+        category, specific = parts
+        assert category in categories, f"Error code {code.value} has unknown category"
+        assert specific, f"Error code {code.value} has empty specific part"
+        assert "_" in specific or specific.isalpha(), (
+            f"Error code {code.value} has invalid specific part"
+        )
+
+
+def test_all_error_codes_have_consistent_user_message_key_pattern() -> None:
+    for code in ErrorCode:
+        assert code.value.count(".") == 1, f"Error code {code.value} must have exactly one dot"
+        category, specific = code.value.split(".")
+        assert category.isalpha(), f"Error code {code.value} category must be alphabetic"
+        assert "_" in specific or specific.isalpha(), (
+            f"Error code {code.value} specific part must use underscores or be alphabetic"
+        )

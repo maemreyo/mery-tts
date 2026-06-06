@@ -30,6 +30,7 @@ def catalog_with_file(*, sha256: str, size_bytes: int, source: str = "remote") -
                         filename="voice.bin",
                         sha256=sha256,
                         size_bytes=size_bytes,
+                        download_url=VOICE_URL,
                     )
                 ],
             )
@@ -90,3 +91,25 @@ def test_catalog_installer_rejects_disallowed_host(tmp_path: Path) -> None:
 
     with pytest.raises(InstallError, match="disallowed_host"):
         installer.install("kokoro.en-us.demo", downloads={VOICE_URL: b"x"})
+
+
+def test_install_error_messages_are_safe_generic_codes() -> None:
+    """InstallError messages should be safe generic codes without sensitive information."""
+    from mery_tts.catalog.installer import InstallError
+
+    safe_codes = [
+        "model_not_found",
+        "disallowed_host",
+        "size_mismatch",
+        "checksum_mismatch",
+        "no_files",
+    ]
+
+    for code in safe_codes:
+        error = InstallError(code)
+        assert str(error) == code
+        assert "/" not in str(error)
+        assert "\\" not in str(error)
+        assert "http" not in str(error).lower()
+        assert "token" not in str(error).lower()
+        assert "secret" not in str(error).lower()
