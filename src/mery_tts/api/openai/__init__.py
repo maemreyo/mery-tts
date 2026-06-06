@@ -1,3 +1,15 @@
-from .speech import OpenAISpeechRequest, openai_error, synthesize_openai_speech
+from .speech import (
+    OpenAISpeechRequest,
+    build_openai_streaming_response,
+    openai_error,
+    resolve_openai_streaming_request,
+    synthesize_openai_speech,
+)
 
-__all__ = ["OpenAISpeechRequest", "openai_error", "synthesize_openai_speech"]
+__all__ = [
+    "OpenAISpeechRequest",
+    "build_openai_streaming_response",
+    "openai_error",
+    "resolve_openai_streaming_request",
+    "synthesize_openai_speech",
+]

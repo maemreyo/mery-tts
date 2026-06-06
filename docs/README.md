@@ -34,6 +34,10 @@ Start here if you are integrating a client with Mery. The integration docs are o
 2. [`integration/client-quickstart.md`](integration/client-quickstart.md) — **copy-paste integration patterns** for browser extensions, Electron, Tauri, CLI scripts, LLM assistants, Node.js, and Python. Use this to bootstrap a new client.
 3. [`integration/setup-integration-guide.md`](integration/setup-integration-guide.md) — **setup flow deep-dive**. How clients detect readiness, guide users through voice pack install, and poll for completion.
 
+### Streaming
+
+- [`integration/openai-streaming.md`](integration/openai-streaming.md) — **raw PCM streaming on the OpenAI-compatible `POST /v1/audio/speech` endpoint**. Content-Type semantics, diagnostic headers, error split (pre/post first byte), capability discovery, decoding raw PCM in Python/Node/browser. Pairs with [`../../examples/openai_streaming/`](../../examples/openai_streaming/) for runnable clients.
+
 ### Contracts and policy
 
 - [`integration/client-boundary-and-readiness-policy.md`](integration/client-boundary-and-readiness-policy.md) — client responsibilities and fallback policy (what clients own vs what Mery owns).

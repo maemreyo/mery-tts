@@ -12,7 +12,8 @@ from pydantic import BaseModel
 from mery_tts import __version__
 from mery_tts.api.openai.speech import (
     OpenAISpeechRequest,
-    iter_openai_pcm,
+    build_openai_streaming_response,
+    resolve_openai_streaming_request,
     validate_openai_model,
 )
 from mery_tts.audio.encoder import encode_wav
@@ -23,6 +24,7 @@ from mery_tts.catalog import (
 )
 from mery_tts.catalog.graph_adapter import legacy_catalog_to_graph
 from mery_tts.engines import EngineRegistry, discover_engine_registry
+from mery_tts.engines.base import EngineAdapter
 from mery_tts.errors import ErrorCategory, ErrorCode, diagnostic_error
 from mery_tts.jobs.install import FileInstallJobStore, InstallJobService
 from mery_tts.jobs.worker import BundledInstallWorker
@@ -53,6 +55,7 @@ from mery_tts.schemas.v1 import (
     SetupRecommendationsResponse,
     SetupRecommendationVo,
     StorageResponse,
+    StreamingCapabilityInfoVo,
     VoicePackInstallResponse,
     VoicePacksResponse,
     VoicePackSummary,
@@ -72,6 +75,11 @@ from mery_tts.setup.services import (
 )
 from mery_tts.smoke.record import SmokeRecordStore
 from mery_tts.storage.identity import StorageIdentityStore
+from mery_tts.streaming.capabilities import (
+    StreamingCapability,
+    StreamingCapabilityInfo,
+)
+from mery_tts.streaming.config import StreamingConfig
 from mery_tts.synthesis import (
     FallbackPolicy,
     MeryRequestOptions,
@@ -79,7 +87,7 @@ from mery_tts.synthesis import (
     SynthesisError,
     SynthesisErrorKind,
 )
-from mery_tts.voice import VoiceRegistry
+from mery_tts.voice import VoiceDescriptor, VoiceRegistry
 
 CONTRACT_VERSION = "v1"
 
@@ -185,6 +193,65 @@ def _engine_summary(engine_id: str, health: str) -> EngineSummary:
         status=cast(Literal["available", "degraded", "unavailable"], normalized_status),
         reason=safe_reason,
     )
+
+
+def _engine_summary_with_streaming(
+    engine_id: str, health: str, adapter: EngineAdapter
+) -> EngineSummary:
+    base = _engine_summary(engine_id, health)
+    return base.model_copy(
+        update={
+            "streaming": _capability_info_vo(
+                _effective_streaming_capability(adapter=adapter, voice=None)
+            )
+        }
+    )
+
+
+def _capability_info_vo(info: StreamingCapabilityInfo | None) -> StreamingCapabilityInfoVo | None:
+    if info is None:
+        return None
+    return StreamingCapabilityInfoVo(
+        supported=info.supported,
+        mode=info.mode.value,
+        granularity=info.granularity,
+        true_incremental=info.true_incremental,
+        format=info.format,
+        sample_rates_hz=list(info.sample_rates_hz),
+    )
+
+
+def _effective_streaming_capability(
+    *,
+    adapter: EngineAdapter,
+    voice: VoiceDescriptor | None,
+) -> StreamingCapabilityInfo:
+    """Combine adapter baseline + voice metadata + runtime health.
+
+    ADR-0035 layered source of truth: the adapter's static baseline is
+    narrowed by installed voice/model metadata and may be disabled by
+    runtime health. P1 does not perform synthesis probing; runtime
+    health is reflected via ``adapter.health()``.
+    """
+    baseline = adapter.streaming_capability()
+    if voice is not None and voice.engine_id != adapter.engine_id:
+        return baseline
+    if not baseline.supported:
+        return baseline
+    # Runtime health check: if the engine reports anything other than
+    # 'available', the capability is downgraded. Adapter.health() is the
+    # cheap signal; we do not probe synthesis (ADR-0035).
+    health = adapter.health()
+    if health != "available":
+        return StreamingCapabilityInfo(
+            supported=False,
+            mode=StreamingCapability.NOT_SUPPORTED,
+            granularity="none",
+            true_incremental=False,
+            format=baseline.format,
+            sample_rates_hz=baseline.sample_rates_hz,
+        )
+    return baseline
 
 
 def _display_name(identifier: str) -> str:
@@ -306,6 +373,7 @@ def create_app(
     storage_identity_store: StorageIdentityStore | None = None,
     install_job_service: InstallJobService | None = None,
     smoke_record_store: SmokeRecordStore | None = None,
+    streaming_config: StreamingConfig | None = None,
 ) -> FastAPI:
     paths = RuntimePaths.from_environment()
     should_reload_auth = config_store is not None or config is None
@@ -336,6 +404,14 @@ def create_app(
             voice_id=voice.voice_id,
             engine_id=voice.engine_id,
             display_name=_display_name(voice.voice_id),
+            streaming=_capability_info_vo(
+                _effective_streaming_capability(
+                    adapter=engine_registry.adapters[voice.engine_id],
+                    voice=voice,
+                )
+            )
+            if voice.engine_id in engine_registry.adapters
+            else None,
         )
         for voice in installed_voice_descriptors
     ]
@@ -353,6 +429,9 @@ def create_app(
 
     if smoke_record_store is None:
         smoke_record_store = SmokeRecordStore(data_dir=paths.base_dir)
+
+    if streaming_config is None:
+        streaming_config = StreamingConfig()
 
     bundled_catalog = load_bundled_catalog()
     voice_pack_graph = bundled_catalog_to_voice_pack_graph(bundled_catalog)
@@ -553,7 +632,7 @@ def create_app(
         return EnginesResponse(
             request_id="local",
             engines=[
-                _engine_summary(engine_id, adapter.health())
+                _engine_summary_with_streaming(engine_id, adapter.health(), adapter)
                 for engine_id, adapter in engine_registry.adapters.items()
             ],
         )
@@ -861,14 +940,21 @@ def create_app(
                 )
                 return JSONResponse(error.model_dump(mode="json"), status_code=413)
             if request.stream:
-                if request.response_format != "pcm":
-                    raise ValueError("streaming only supports pcm")
-                stream = iter_openai_pcm(
-                    request,
-                    voice_registry=voice_registry,
-                    voice_aliases=voice_aliases,
+                try:
+                    _validated, _voice_id, pipeline = resolve_openai_streaming_request(
+                        request,
+                        voice_registry=voice_registry,
+                        voice_aliases=voice_aliases,
+                    )
+                except (KeyError, ValueError) as exc:
+                    return JSONResponse(
+                        {"error": {"message": str(exc), "type": "invalid_request_error"}},
+                        status_code=400,
+                    )
+                streaming_result = await build_openai_streaming_response(
+                    pipeline=pipeline, config=streaming_config
                 )
-                return StreamingResponse(stream, media_type="audio/pcm")
+                return streaming_result
 
             mery_options = _extract_mery_options(request)
             validate_openai_model(request.model)

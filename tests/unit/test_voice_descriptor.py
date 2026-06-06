@@ -16,7 +16,13 @@ class FakePresetAdapter(EngineAdapter):
     engine_id = "fake-preset"
     accepted_voice_kinds = frozenset({"preset"})
 
-    async def synthesize(self, text: str, voice: VoiceDescriptor) -> AsyncIterator[PCMChunk]:
+    async def synthesize(
+        self,
+        text: str,
+        voice: VoiceDescriptor,
+        *,
+        request_id: str | None = None,
+    ) -> AsyncIterator[PCMChunk]:
         self.ensure_voice_supported(voice)
         yield PCMChunk(pcm=b"pcm", sample_rate_hz=24_000, channels=1)
 

@@ -3,10 +3,29 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from mery_tts.streaming.capabilities import StreamingGranularity
+
+StreamingCapabilityMode = Literal[
+    "not_supported",
+    "route_chunked",
+    "sentence_chunked",
+    "native_incremental",
+]
+
+
+class StreamingCapabilityInfoVo(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    supported: bool
+    mode: StreamingCapabilityMode
+    granularity: StreamingGranularity = "none"
+    true_incremental: bool = False
+    format: str = "pcm_s16le"
+    sample_rates_hz: list[int] = Field(default_factory=list)
+
 
 class VersionedModel(BaseModel):
     model_config = ConfigDict(frozen=True)
-
     schema_version: Literal["v1"] = "v1"
     request_id: str = Field(min_length=1)
 
@@ -41,6 +60,7 @@ class EngineSummary(BaseModel):
     engine_id: str
     status: Literal["available", "degraded", "unavailable"]
     reason: str | None = None
+    streaming: StreamingCapabilityInfoVo | None = None
 
 
 class EnginesResponse(VersionedModel):
@@ -53,6 +73,7 @@ class VoiceSummary(BaseModel):
     voice_id: str
     engine_id: str
     display_name: str
+    streaming: StreamingCapabilityInfoVo | None = None
 
 
 class InstalledVoicesResponse(VersionedModel):

@@ -17,13 +17,25 @@ class SpeechAdapter(EngineAdapter):
     engine_id = "fake"
     accepted_voice_kinds = frozenset({"preset"})
 
-    async def synthesize(self, text: str, voice: VoiceDescriptor) -> AsyncIterator[PCMChunk]:
+    async def synthesize(
+        self,
+        text: str,
+        voice: VoiceDescriptor,
+        *,
+        request_id: str | None = None,
+    ) -> AsyncIterator[PCMChunk]:
         self.ensure_voice_supported(voice)
         yield PCMChunk(pcm=f"pcm:{text}".encode(), sample_rate_hz=24_000, channels=1)
 
 
 class UnstableMetadataAdapter(SpeechAdapter):
-    async def synthesize(self, text: str, voice: VoiceDescriptor) -> AsyncIterator[PCMChunk]:
+    async def synthesize(
+        self,
+        text: str,
+        voice: VoiceDescriptor,
+        *,
+        request_id: str | None = None,
+    ) -> AsyncIterator[PCMChunk]:
         self.ensure_voice_supported(voice)
         yield PCMChunk(pcm=b"first", sample_rate_hz=24_000, channels=1)
         yield PCMChunk(pcm=b"second", sample_rate_hz=48_000, channels=1)
@@ -270,7 +282,15 @@ def test_openai_streaming_speech_returns_ordered_pcm_chunks() -> None:
         )
 
     assert response.status_code == 200
-    assert response.headers["content-type"] == "audio/pcm"
+    assert response.headers["content-type"] == "audio/L16;rate=24000;channels=1"
+    assert response.headers["x-mery-audio-encoding"] == "pcm_s16le"
+    assert response.headers["x-mery-sample-rate"] == "24000"
+    assert response.headers["x-mery-channels"] == "1"
+    assert response.headers["x-mery-sample-width-bytes"] == "2"
+    assert response.headers["x-mery-stream-format"] == "raw-pcm"
+    assert response.headers["x-accel-buffering"] == "no"
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["x-mery-request-id"].startswith("req-")
     assert response.content == b"pcm:hello"
 
 
@@ -330,6 +350,6 @@ def test_openai_streaming_speech_uses_http_transport_without_ws_events() -> None
         )
 
     assert response.status_code == 200
-    assert response.headers["content-type"] == "audio/pcm"
+    assert response.headers["content-type"] == "audio/L16;rate=24000;channels=1"
     assert b"event_type" not in response.content
     assert response.content == b"pcm:hello"

@@ -33,7 +33,7 @@ class _MockEngineAdapter(EngineAdapter):
     def health(self) -> str:
         return self._health
 
-    async def synthesize(self, text: str, voice):  # type: ignore[no-untyped-def]
+    async def synthesize(self, text: str, voice, *, request_id: str | None = None):  # type: ignore[no-untyped-def]
         return
         yield  # makes this an async generator
 

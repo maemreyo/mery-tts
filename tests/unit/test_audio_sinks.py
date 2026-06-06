@@ -41,7 +41,13 @@ class FakeEngineAdapter(EngineAdapter):
     engine_id = "fake-sine"
     accepted_voice_kinds = frozenset({"preset"})
 
-    async def synthesize(self, text: str, voice: VoiceDescriptor) -> AsyncIterator[PCMChunk]:
+    async def synthesize(
+        self,
+        text: str,
+        voice: VoiceDescriptor,
+        *,
+        request_id: str | None = None,
+    ) -> AsyncIterator[PCMChunk]:
         _ = text
         _ = voice
         sine = fake_sine_pcm_bytes()

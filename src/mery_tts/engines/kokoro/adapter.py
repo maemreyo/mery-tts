@@ -12,6 +12,7 @@ from collections.abc import AsyncIterator, Callable, Iterable
 from typing import Any, Protocol, cast
 
 from mery_tts.engines.base import EngineAdapter, PCMChunk
+from mery_tts.streaming.capabilities import StreamingCapability, StreamingCapabilityInfo
 from mery_tts.voice import PresetVoicePayload, VoiceDescriptor
 from mery_tts.voice.resolver import ResolvedPresetPayload, ResolvedVoice
 
@@ -130,10 +131,34 @@ class KokoroAdapter(EngineAdapter):
             return "dependency_missing: kokoro package is not installed"
         return "available"
 
+    def streaming_capability(self) -> StreamingCapabilityInfo:
+        has_kokoro = importlib.util.find_spec("kokoro") is not None
+        has_kokoro_onnx = importlib.util.find_spec("kokoro_onnx") is not None
+        runtime_present = has_kokoro or has_kokoro_onnx
+        if not runtime_present:
+            return StreamingCapabilityInfo(
+                supported=False,
+                mode=StreamingCapability.NOT_SUPPORTED,
+            )
+        return StreamingCapabilityInfo(
+            supported=True,
+            mode=StreamingCapability.SENTENCE_CHUNKED,
+            granularity="sentence",
+            true_incremental=False,
+            format="pcm_s16le",
+            sample_rates_hz=(24_000,),
+        )
+
     def cancel(self, request_id: str) -> None:
         self._cancelled_requests.add(request_id)
 
-    async def synthesize(self, text: str, voice: VoiceDescriptor) -> AsyncIterator[PCMChunk]:
+    async def synthesize(
+        self,
+        text: str,
+        voice: VoiceDescriptor,
+        *,
+        request_id: str | None = None,
+    ) -> AsyncIterator[PCMChunk]:
         self.ensure_voice_supported(voice)
 
         resolved = self._resolved_voices.get(voice.voice_id)
@@ -152,9 +177,17 @@ class KokoroAdapter(EngineAdapter):
                 raise RuntimeError(f"{exc.kind}: {exc.message}") from exc
 
         for pcm in chunks:
+            if request_id is not None and request_id in self._cancelled_requests:
+                break
             if voice.voice_id in self._cancelled_requests or "*" in self._cancelled_requests:
                 break
-            yield PCMChunk(pcm=pcm, sample_rate_hz=24_000, channels=1)
+            yield PCMChunk(
+                pcm=pcm,
+                sample_rate_hz=24_000,
+                channels=1,
+                sample_width_bytes=2,
+                encoding="pcm_s16le",
+            )
 
     def _synthesize_with_runtime(
         self, text: str, runtime: _KokoroRuntime, voice: VoiceDescriptor

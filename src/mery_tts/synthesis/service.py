@@ -201,6 +201,7 @@ class SpeechSynthesisService:
             voice_registry=voice_registry,
         )
         self._purpose = purpose
+        self._last_request_id: str | None = None
 
     @property
     def purpose(self) -> str:
@@ -226,6 +227,7 @@ class SpeechSynthesisService:
         native_voice_id = self._resolve_native_voice_id(requested_voice)
         plan = self._plan_resolver.resolve(native_voice_id, mery_options=mery_options)
         request_id = f"req-{uuid4().hex[:12]}"
+        self._last_request_id = request_id
 
         attempts: list[VoiceAttempt] = []
         last_error: SynthesisError | None = None
@@ -295,7 +297,7 @@ class SpeechSynthesisService:
 
         try:
             chunks: list[PCMChunk] = []
-            async for chunk in adapter.synthesize(text, voice):
+            async for chunk in adapter.synthesize(text, voice, request_id=self._last_request_id):
                 chunks.append(chunk)
             return chunks
         except RuntimeError as exc:
