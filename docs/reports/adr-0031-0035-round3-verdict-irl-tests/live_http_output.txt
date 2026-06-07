@@ -1,0 +1,66 @@
+=== Test 2.1: GET /v1/health ===
+HTTP/1.1 200 OK
+date: Sun, 07 Jun 2026 03:22:25 GMT
+server: uvicorn
+content-length: 717
+content-type: application/json
+
+{"schema_version":"v1","request_id":"local","status":"degraded","helper_id":"mery-3c05b6067165412d809d63495e163290","helper_version":"0.1.0","contract_version":"v1","engines":[{"engine_id":"kokoro","dependency_status":"missing","installed_voice_count":0,"usable_voice_count":0,"smoked_voice_count":1,"smoke_passed_count":0,"smoke_failed_count":1,"status":"unavailable","reason":"dependency_missing: kokoro package is not installed"},{"engine_id":"piper-plus","dependency_status":"available","installed_voice_count":2,"usable_voice_count":1,"smoked_voice_count":1,"smoke_passed_count":0,"smoke_failed_count":1,"status":"degraded","reason":"0/2 voices smoke-passed"}],"total_usable_voices":1,"total_installed_voices":2}
+
+=== Test 2.2: GET /v1/engines ===
+HTTP/1.1 200 OK
+date: Sun, 07 Jun 2026 03:22:25 GMT
+server: uvicorn
+content-length: 530
+content-type: application/json
+
+{"schema_version":"v1","request_id":"local","engines":[{"engine_id":"kokoro","status":"unavailable","reason":"dependency_missing: kokoro package is not installed","streaming":{"supported":false,"mode":"not_supported","granularity":"none","true_incremental":false,"format":"pcm_s16le","sample_rates_hz":[]}},{"engine_id":"piper-plus","status":"available","reason":null,"streaming":{"supported":true,"mode":"sentence_chunked","granularity":"sentence","true_incremental":false,"format":"pcm_s16le","sample_rates_hz":[22050,24000]}}]}
+
+=== Test 2.3: GET /v1/voices/installed ===
+HTTP/1.1 200 OK
+date: Sun, 07 Jun 2026 03:22:25 GMT
+server: uvicorn
+content-length: 593
+content-type: application/json
+
+{"schema_version":"v1","request_id":"local","voices":[{"voice_id":"catalog.piper-plus.vi-vn.demo","engine_id":"piper-plus","display_name":"Catalog Piper Plus Vi Vn Demo","streaming":{"supported":true,"mode":"sentence_chunked","granularity":"sentence","true_incremental":false,"format":"pcm_s16le","sample_rates_hz":[22050,24000]}},{"voice_id":"piper-plus.vi-vn.demo","engine_id":"piper-plus","display_name":"Piper Plus Vi Vn Demo","streaming":{"supported":true,"mode":"sentence_chunked","granularity":"sentence","true_incremental":false,"format":"pcm_s16le","sample_rates_hz":[22050,24000]}}]}
+
+=== Test 2.4: POST /v1/audio/speech (non-streaming, valid voice) ===
+HTTP/1.1 503 Service Unavailable
+date: Sun, 07 Jun 2026 03:22:25 GMT
+server: uvicorn
+content-length: 421
+content-type: application/json
+
+{"code":"model.not_installed","category":"model","severity":"error","recoverability":"user_action","user_message_key":"errors.model_not_installed","recommended_action":"install_model","fallback_policy":"use_default_voice","sanitized_diagnostic":"reason=model_missing: piper-plus model loading is not configured for this voice,voice_id=piper-plus.vi-vn.demo","request_id":"local","timestamp":"2026-06-07T03:22:25.835562Z"}
+
+=== Test 2.5: POST /v1/audio/speech (streaming, stream:true, valid voice) ===
+HTTP/1.1 400 Bad Request
+date: Sun, 07 Jun 2026 03:22:25 GMT
+server: uvicorn
+content-length: 85
+content-type: application/json
+
+{"error":{"message":"'voice alias is not installed'","type":"invalid_request_error"}}
+
+=== Test 2.6: POST /v1/audio/speech (streaming, alloy alias) ===
+HTTP/1.1 400 Bad Request
+date: Sun, 07 Jun 2026 03:22:25 GMT
+server: uvicorn
+content-length: 85
+content-type: application/json
+
+{"error":{"message":"'voice alias is not installed'","type":"invalid_request_error"}}zsh:42: device not configured: /dev/tty
+=== files ===
+total 104
+drwxr-xr-x@  8 trung.ngo  wheel    256 Jun  7 10:22 .
+drwxrwxrwt  70 root       wheel   2240 Jun  7 09:40 ..
+-rw-r--r--@  1 trung.ngo  wheel  12323 Jun  7 10:22 TEST_RESULTS.md
+-rw-r--r--@  1 trung.ngo  wheel   3606 Jun  7 10:22 live_http_output.txt
+drwxr-xr-x@  9 trung.ngo  wheel    288 Jun  7 09:09 model
+-rw-r--r--@  1 trung.ngo  wheel    782 Jun  7 10:22 server.log
+-rw-r--r--@  1 trung.ngo  wheel   3658 Jun  7 10:21 smoke_output.txt
+-rw-r--r--@  1 trung.ngo  wheel  21024 Jun  7 09:09 smoke_test.py
+
+=== live_http_output.txt size ===
+      65 /tmp/mery-smoke/live_http_output.txt
