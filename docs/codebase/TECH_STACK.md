@@ -373,8 +373,8 @@ Recommended extensions: `charliermarsh.ruff`, `ms-python.mypy-type-checker`,
 ### First-run setup (for new contributors)
 
 ```bash
-git clone https://github.com/zaob-dev/mery-tts-server
-cd mery-tts-server
+git clone https://github.com/maemreyo/mery-tts
+cd mery-tts
 
 # Install uv (if needed)
 curl -LsSf https://astral.sh/uv/install.sh | sh

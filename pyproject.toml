@@ -5,7 +5,7 @@ description = "Standalone local TTS server — offline-first, any-client, localh
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
 requires-python = ">=3.12"
-authors = [{ name = "zaob-dev" }]
+authors = [{ name = "maemreyo" }]
 keywords = ["tts", "text-to-speech", "local", "offline", "piper", "kokoro", "speech-synthesis", "voice", "localhost"]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
@@ -69,8 +69,8 @@ piper-plus = "mery_tts.engines.piper_plus.adapter:PiperPlusAdapter"
 kokoro     = "mery_tts.engines.kokoro.adapter:KokoroAdapter"
 
 [project.urls]
-Repository = "https://github.com/zaob-dev/mery-tts-server"
-Issues     = "https://github.com/zaob-dev/mery-tts-server/issues"
+Repository = "https://github.com/maemreyo/mery-tts"
+Issues     = "https://github.com/maemreyo/mery-tts/issues"
 
 # ---------------------------------------------------------------------------
 # Build

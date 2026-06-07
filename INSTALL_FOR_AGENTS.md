@@ -1,7 +1,12 @@
 # Mery — AI Agent Install & Use Contract
 
 **This is the only file an AI agent needs to read to install and use Mery in any project.**
-All facts below are verified by the test suite in `tests/integration/test_full_client_flow.py` (33 tests, 5 with real Piper audio). If this file ever conflicts with reality, the test suite wins — open an issue.
+
+- **Repository:** https://github.com/maemreyo/mery-tts
+- **Issue tracker:** https://github.com/maemreyo/mery-tts/issues
+- **Open the file at:** `https://github.com/maemreyo/mery-tts/blob/main/INSTALL_FOR_AGENTS.md`
+
+All facts below are verified by the test suite in `tests/integration/test_full_client_flow.py` (33 tests, 5 with real Piper audio). If this contract ever conflicts with reality, the test suite wins — [open an issue](https://github.com/maemreyo/mery-tts/issues).
 
 ## What Mery is
 
