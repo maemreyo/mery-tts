@@ -2,9 +2,10 @@
 
 ADR-0032: the pipeline assigns deterministic transport sequence numbers
 (0, 1, 2, ...) for adapters that emit the default ``sequence=0`` on
-every chunk, OR validates strict monotonic increase starting from 0 for
-adapters that emit explicit non-zero sequences. The mode is locked by
-the first chunk — adapters MUST NOT mix the two modes in one stream.
+every chunk, OR validates strict monotonic increase starting from the
+first chunk's value for adapters that emit explicit non-zero sequences.
+The mode is locked by the first chunk — adapters MUST NOT mix the two
+modes in one stream.
 """
 
 from __future__ import annotations
