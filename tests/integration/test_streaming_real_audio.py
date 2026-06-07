@@ -20,7 +20,6 @@ import urllib.request
 import wave
 from collections.abc import AsyncIterator, Iterable
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -81,19 +80,22 @@ def _ensure_nltk_data() -> bool:
     )
 
 
-def _build_real_synthesizer(model_path: Path, config_path: Path) -> Any:
-    """Build a synthesizer callable that uses a real Piper voice."""
-    import piper  # type: ignore[import-not-found]
-
-    voice = piper.PiperVoice.load(str(model_path), str(config_path))
-
-    def _synth(text: str, _voice: VoiceDescriptor) -> Iterable[bytes]:
-        raw = voice.synthesize_stream_raw(text)
-        if isinstance(raw, bytes):
-            return [raw]
-        return list(raw)
-
-    return _synth
+def _resolved_amy_voice(model_dir: Path) -> ResolvedVoice:
+    """Build a ResolvedVoice for amy-low with native_sample_rate_hz from the real config."""
+    model_path = model_dir / "en_US-amy-low.onnx"
+    config_path = model_dir / "en_US-amy-low.onnx.json"
+    config_data = json.loads(config_path.read_text())
+    native_rate = config_data.get("audio", {}).get("sample_rate") or config_data.get("sample_rate")
+    return ResolvedVoice(
+        voice_id="en_US-amy-low",
+        engine_id="piper-plus",
+        payload=ResolvedModelFilePayload(
+            artifact_id="real-piper-amy",
+            model_path=model_path,
+            config_path=config_path,
+            native_sample_rate_hz=native_rate,
+        ),
+    )
 
 
 def _download_file(url: str, dest: Path) -> None:
@@ -122,39 +124,24 @@ def piper_model(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 @pytest.fixture()
 def piper_adapter(piper_model: Path) -> PiperPlusAdapter:
-    """A Piper adapter wired to the real model via custom synthesizer.
+    """A Piper adapter wired to the real model with a resolved voice registered.
 
-    We deliberately do NOT register a resolved voice — that would route
-    synthesis through ``_runtime_cache._load_runtime`` which calls the
-    non-existent ``piper.PiperConfig.load``. The custom synthesizer path
-    uses ``piper.PiperVoice.load`` directly, which is the supported API.
+    The resolved voice carries ``native_sample_rate_hz`` read from the
+    real config JSON, so synthesis uses the correct 16 kHz rate and the
+    capability endpoint narrows to the model's native rate.
     """
-    model_path = piper_model / "en_US-amy-low.onnx"
-    config_path = piper_model / "en_US-amy-low.onnx.json"
-    return PiperPlusAdapter(synthesizer=_build_real_synthesizer(model_path, config_path))
+    resolved = _resolved_amy_voice(piper_model)
+    adapter = PiperPlusAdapter()
+    adapter.register_resolved_voice(resolved)
+    return adapter
 
 
 @pytest.fixture()
 def piper_adapter_with_resolved(piper_model: Path) -> PiperPlusAdapter:
-    """Adapter with a resolved voice registered (for capability tests only).
-
-    The resolved-voice path is what ``voice_streaming_capability`` inspects
-    to narrow sample rates from the real config JSON.
-    """
-    model_path = piper_model / "en_US-amy-low.onnx"
-    config_path = piper_model / "en_US-amy-low.onnx.json"
-    adapter = PiperPlusAdapter(synthesizer=_build_real_synthesizer(model_path, config_path))
-    adapter.register_resolved_voice(
-        ResolvedVoice(
-            voice_id="en_US-amy-low",
-            engine_id="piper-plus",
-            payload=ResolvedModelFilePayload(
-                artifact_id="real-piper-amy",
-                model_path=model_path,
-                config_path=config_path,
-            ),
-        )
-    )
+    """Adapter with a resolved voice registered (for capability tests)."""
+    resolved = _resolved_amy_voice(piper_model)
+    adapter = PiperPlusAdapter()
+    adapter.register_resolved_voice(resolved)
     return adapter
 
 
