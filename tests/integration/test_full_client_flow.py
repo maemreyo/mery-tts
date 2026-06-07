@@ -704,3 +704,206 @@ def test_cors_preflight_allows_authorized_origin(tmp_path: Path) -> None:
     assert resp.headers.get("access-control-allow-origin") == "http://127.0.0.1:8765"
     allowed_methods = resp.headers.get("access-control-allow-methods", "").upper()
     assert "POST" in allowed_methods
+
+
+# ---------------------------------------------------------------------------
+# Additional endpoint coverage (packs, diagnostics, runtimes, models CRUD)
+# ---------------------------------------------------------------------------
+
+
+def test_voice_packs_endpoint_returns_populated_packs(tmp_path: Path) -> None:
+    """/v1/voice-packs must return at least one pack per supported locale."""
+    app = _build_flow_app(tmp_path)
+    with TestClient(app) as client:
+        body = client.get("/v1/voice-packs", headers=AUTH_HEADERS).json()
+    assert "voice_packs" in body
+    pack_ids = {p["voice_pack_id"] for p in body["voice_packs"]}
+    assert "pack.en-us" in pack_ids
+    assert "pack.vi-vn" in pack_ids
+
+
+def test_diagnostics_endpoint_runs_eight_checks(tmp_path: Path) -> None:
+    """/v1/diagnostics must return at least the 8 standard check names."""
+    app = _build_flow_app(tmp_path)
+    with TestClient(app) as client:
+        body = client.get("/v1/diagnostics", headers=AUTH_HEADERS).json()
+    assert "checks" in body
+    checks = body["checks"]
+    expected = {
+        "engine_availability",
+        "engine_health",
+        "model_availability",
+        "token_configured",
+        "server_reachability",
+        "disk_space",
+        "platform_paths",
+        "catalog_available",
+    }
+    assert expected.issubset(checks.keys()), f"missing checks: {expected - checks.keys()}"
+    for status in checks.values():
+        assert status in ("ok", "warn", "fail"), f"unexpected status: {status}"
+
+
+def test_provider_runtimes_endpoint_lists_runtimes(tmp_path: Path) -> None:
+    """/v1/provider-runtimes must list piper-plus and kokoro runtimes."""
+    app = _build_flow_app(tmp_path)
+    with TestClient(app) as client:
+        body = client.get("/v1/provider-runtimes", headers=AUTH_HEADERS).json()
+    assert "provider_runtimes" in body
+    runtimes = body["provider_runtimes"]
+    assert len(runtimes) >= 2
+    provider_ids = {r["provider_id"] for r in runtimes}
+    assert {"piper-plus", "kokoro"}.issubset(provider_ids)
+
+
+def test_get_model_details_returns_status(tmp_path: Path) -> None:
+    """GET /v1/models/{id} must return 200 with the model's install status."""
+    app = _build_flow_app(tmp_path)
+    with TestClient(app) as client:
+        resp = client.get("/v1/models/piper-plus.vi-vn.demo", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["model_id"] == "piper-plus.vi-vn.demo"
+    assert body["status"] in ("installed", "not_installed", "installing", "failed")
+
+
+def test_delete_model_returns_deleted_true(tmp_path: Path) -> None:
+    """DELETE /v1/models/{id} must return 200 with `deleted: true`."""
+    app = _build_flow_app(tmp_path)
+    with TestClient(app) as client:
+        resp = client.delete("/v1/models/piper-plus.vi-vn.demo", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["model_id"] == "piper-plus.vi-vn.demo"
+    assert body["deleted"] is True
+
+
+# ---------------------------------------------------------------------------
+# Security middleware: origin allowlist, body size, text length
+# ---------------------------------------------------------------------------
+
+
+def test_origin_not_in_allowlist_rejected(tmp_path: Path) -> None:
+    """A request with an Origin header outside 127.0.0.1/localhost must be 403."""
+    app = _build_flow_app(tmp_path)
+    with TestClient(app) as client:
+        resp = client.get(
+            "/v1/health",
+            headers={**AUTH_HEADERS, "Origin": "http://evil.com"},
+        )
+    assert resp.status_code == 403
+
+
+def test_oversized_body_returns_413(tmp_path: Path) -> None:
+    """A request body larger than max_body_bytes (1 MB default) must be 413."""
+    app = _build_flow_app(tmp_path)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/v1/audio/speech",
+            headers={**AUTH_HEADERS, "Content-Length": str(2_000_000)},
+            content=b"x" * 2_000_000,
+        )
+    assert resp.status_code == 413
+
+
+def test_text_too_long_returns_413(real_piper_app: Any) -> None:
+    """A synthesis request with input > max_text_chars (10 000) must be 413."""
+    long_text = "x" * 10_001
+    with TestClient(real_piper_app) as client:
+        resp = client.post(
+            "/v1/audio/speech",
+            headers=AUTH_HEADERS,
+            json={
+                "model": "tts-1",
+                "voice": "alloy",
+                "input": long_text,
+                "response_format": "pcm",
+            },
+        )
+    assert resp.status_code == 413
+
+
+# ---------------------------------------------------------------------------
+# OpenAI speech edge cases: empty/missing input, PCM blocking, Mery options
+# ---------------------------------------------------------------------------
+
+
+def test_openai_speech_empty_input_rejected(tmp_path: Path) -> None:
+    """input="" must fail Pydantic min_length=1 validation → 422."""
+    app = _build_flow_app(tmp_path)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/v1/audio/speech",
+            headers=AUTH_HEADERS,
+            json={
+                "model": "tts-1",
+                "voice": "alloy",
+                "input": "",
+                "response_format": "wav",
+            },
+        )
+    assert resp.status_code == 422
+
+
+def test_openai_speech_missing_input_field_rejected(tmp_path: Path) -> None:
+    """A request without the required `input` field must be 422."""
+    app = _build_flow_app(tmp_path)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/v1/audio/speech",
+            headers=AUTH_HEADERS,
+            json={
+                "model": "tts-1",
+                "voice": "alloy",
+                "response_format": "wav",
+            },
+        )
+    assert resp.status_code == 422
+
+
+@pytest.mark.engine
+@pytest.mark.integration
+def test_openai_speech_blocking_pcm_returns_200_with_real_piper(
+    real_piper_app: Any,
+) -> None:
+    """response_format=pcm without stream=true must return HTTP 200 + raw PCM bytes."""
+    with TestClient(real_piper_app) as client:
+        resp = client.post(
+            "/v1/audio/speech",
+            headers=AUTH_HEADERS,
+            json={
+                "model": "tts-1",
+                "voice": "alloy",
+                "input": "Blocking PCM test with real Piper audio.",
+                "response_format": "pcm",
+            },
+        )
+    assert resp.status_code == 200, f"expected 200 OK, got {resp.status_code}: {resp.text[:200]}"
+    assert resp.headers["content-type"] == "audio/pcm"
+    body = resp.content
+    assert len(body) > 0, "blocking PCM response must contain real audio bytes"
+    # PCM samples are 16-bit LE — first sample must not be a JSON envelope
+    assert body[:2] != b'{"', "first bytes look like a JSON error, not PCM audio"
+
+
+def test_openai_speech_accepts_mery_fallback_options(tmp_path: Path) -> None:
+    """The `mery.fallbackVoiceIds` extra field must be accepted (200 OK)."""
+    app = _build_flow_app(tmp_path)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/v1/audio/speech",
+            headers=AUTH_HEADERS,
+            json={
+                "model": "tts-1",
+                "voice": "alloy",
+                "input": "fallback test",
+                "response_format": "wav",
+                "mery": {
+                    "fallbackVoiceIds": ["kokoro.en-us.af-heart.demo"],
+                    "fallbackPolicy": "auto",
+                    "diagnostics": "headers",
+                },
+            },
+        )
+    assert resp.status_code == 200, f"expected 200 OK, got {resp.status_code}: {resp.text[:200]}"
+    assert resp.content[:4] == b"RIFF"
