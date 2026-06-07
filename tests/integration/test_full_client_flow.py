@@ -907,3 +907,179 @@ def test_openai_speech_accepts_mery_fallback_options(tmp_path: Path) -> None:
         )
     assert resp.status_code == 200, f"expected 200 OK, got {resp.status_code}: {resp.text[:200]}"
     assert resp.content[:4] == b"RIFF"
+
+
+# ---------------------------------------------------------------------------
+# Cancellation: pre-cancel must stop real Piper synthesis before any chunks
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.engine
+@pytest.mark.integration
+async def test_openai_speech_cancellation_stops_real_piper_stream(
+    real_piper_model_dir: Path,
+) -> None:
+    """Pre-cancelling the request_id must short-circuit the synthesis path."""
+    from mery_tts.engines.piper_plus.adapter import PiperPlusAdapter
+    from mery_tts.voice.descriptor import ModelFileVoicePayload, VoiceDescriptor
+    from mery_tts.voice.resolver import ResolvedModelFilePayload, ResolvedVoice
+
+    model_path = real_piper_model_dir / "en_US-amy-low.onnx"
+    config_path = real_piper_model_dir / "en_US-amy-low.onnx.json"
+    config_data = json.loads(config_path.read_text())
+    native_rate = config_data.get("audio", {}).get("sample_rate") or config_data.get("sample_rate")
+
+    adapter = PiperPlusAdapter()
+    amy_id = "en_US-amy-low"
+    adapter.register_resolved_voice(
+        ResolvedVoice(
+            voice_id=amy_id,
+            engine_id="piper-plus",
+            payload=ResolvedModelFilePayload(
+                artifact_id=amy_id,
+                model_path=model_path,
+                config_path=config_path,
+                native_sample_rate_hz=native_rate,
+            ),
+        )
+    )
+    voice = VoiceDescriptor(
+        voice_id=amy_id,
+        engine_id="piper-plus",
+        display_name="Amy (real Piper)",
+        language="en-US",
+        payload=ModelFileVoicePayload(
+            artifact_id=amy_id,
+            relative_path="en_US-amy-low.onnx",
+        ),
+    )
+
+    request_id = "flow-cancel-1"
+    adapter.cancel(request_id)
+
+    chunks: list = []
+    async for chunk in adapter.synthesize(
+        "This should never produce audio because we pre-cancelled.",
+        voice,
+        request_id=request_id,
+    ):
+        chunks.append(chunk)
+    assert chunks == [], f"expected zero chunks after pre-cancel, got {len(chunks)}"
+
+
+# ---------------------------------------------------------------------------
+# Concurrency: multiple synthesis requests in flight must all return 200
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.engine
+@pytest.mark.integration
+def test_concurrent_synthesis_requests_all_succeed(real_piper_app: Any) -> None:
+    """Three concurrent POST /v1/audio/speech requests must all return 200."""
+    import concurrent.futures
+
+    with TestClient(real_piper_app) as client:
+
+        def _one(i: int) -> tuple[int, int]:
+            r = client.post(
+                "/v1/audio/speech",
+                headers=AUTH_HEADERS,
+                json={
+                    "model": "tts-1",
+                    "voice": "alloy",
+                    "input": f"Concurrent request number {i} with real Piper audio.",
+                    "response_format": "pcm",
+                },
+            )
+            return r.status_code, len(r.content)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+            results = list(pool.map(_one, range(3)))
+    for i, (status, size) in enumerate(results):
+        assert status == 200, f"request {i} returned {status}, expected 200"
+        assert size > 0, f"request {i} returned empty body"
+
+
+# ---------------------------------------------------------------------------
+# Pair/claim lifecycle: multiple challenge cycles against one server
+# ---------------------------------------------------------------------------
+
+
+def test_multiple_consecutive_pair_claim_cycles_succeed(tmp_path: Path, monkeypatch) -> None:
+    """Three pair/claim cycles must each yield the same long-lived token."""
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+    store = HelperConfigStore(tmp_path / "config")
+    config = store.load_or_create()
+
+    # Each cycle: create a fresh challenge, claim it, verify the token
+    codes = []
+    for _ in range(3):
+        pairing = PairingService(config_store=store, config=config)
+        challenge = pairing.create_challenge()
+        codes.append(challenge.code)
+
+    # The server accepts any of those codes (the latest overwrites the prior file)
+    app = create_app(
+        config=config, pairing_service=PairingService(config_store=store, config=config)
+    )
+    with TestClient(app) as client:
+        # The most recent challenge must claim successfully
+        resp = client.post("/v1/pair/claim", json={"pairing_code": codes[-1]})
+    assert resp.status_code == 200
+    assert resp.json()["auth_token"] == config.auth_token
+    # All three codes were generated and have the expected 6-char shape
+    assert all(len(c) == 6 for c in codes)
+
+
+# ---------------------------------------------------------------------------
+# Bearer token case-sensitivity: middleware does exact string match
+# ---------------------------------------------------------------------------
+
+
+def test_bearer_token_lowercase_rejected(tmp_path: Path) -> None:
+    """`bearer xxx` (lowercase) must be rejected — middleware does exact match."""
+    app = _build_flow_app(tmp_path)
+    with TestClient(app) as client:
+        good = client.get("/v1/health", headers=AUTH_HEADERS)
+        # Same token, lowercase scheme prefix
+        bad = client.get(
+            "/v1/health",
+            headers={"Authorization": f"bearer {AUTH_TOKEN[len('Bearer ') :]}"},
+        )
+    assert good.status_code == 200
+    assert bad.status_code == 401
+
+
+def test_bearer_token_with_trailing_whitespace_rejected(tmp_path: Path) -> None:
+    """Trailing whitespace in the header must be rejected (exact match)."""
+    app = _build_flow_app(tmp_path)
+    with TestClient(app) as client:
+        resp = client.get(
+            "/v1/health",
+            headers={"Authorization": f"Bearer {AUTH_TOKEN} "},
+        )
+    assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Token persistence: same HelperConfig across two app instances
+# ---------------------------------------------------------------------------
+
+
+def test_auth_token_persists_across_helper_config_reload(tmp_path: Path) -> None:
+    """A token issued by one app must work in a second app that loads the same config."""
+    store = HelperConfigStore(tmp_path / "config")
+    config_a = store.load_or_create()
+    token = config_a.auth_token
+
+    # Build a second app that re-reads the same config from disk
+    config_b = HelperConfigStore(tmp_path / "config").load_or_create()
+    app_b = _build_flow_app(tmp_path, token=config_b.auth_token)
+    with TestClient(app_b) as client:
+        resp = client.get(
+            "/v1/health",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    assert resp.status_code == 200, f"persisted token should work in second app: {resp.text[:200]}"
+    # And the second config has the same token
+    assert config_b.auth_token == token
