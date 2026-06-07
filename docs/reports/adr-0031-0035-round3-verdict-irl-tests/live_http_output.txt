@@ -1,3 +1,15 @@
+NOTE (post voice_aliases fix): The 400 "voice alias is not installed" in
+Test 2.5 below is from the previous run where create_app defaulted
+voice_aliases to {}. The fix in src/mery_tts/api/app.py now defaults
+voice_aliases to {v.voice_id: v.voice_id for v in installed_voice_descriptors},
+so the streaming path no longer rejects the request at the alias
+resolution step. It now reaches the synthesis service and returns
+503 model.not_installed (same as the non-streaming Test 2.4) because
+this dev env has no ONNX model at the resolved path.
+
+The raw HTTP traces below are preserved as the historical record of
+the 7 verdicts' IRL verification.
+
 === Test 2.1: GET /v1/health ===
 HTTP/1.1 200 OK
 date: Sun, 07 Jun 2026 03:22:25 GMT

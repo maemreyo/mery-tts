@@ -221,6 +221,15 @@ def _capability_info_vo(info: StreamingCapabilityInfo | None) -> StreamingCapabi
     )
 
 
+def _voice_streaming_capability_vo(
+    *, adapter: EngineAdapter, voice: VoiceDescriptor
+) -> StreamingCapabilityInfoVo | None:
+    info = _effective_streaming_capability(adapter=adapter, voice=voice)
+    if not info.supported:
+        return None
+    return _capability_info_vo(info)
+
+
 def _effective_streaming_capability(
     *,
     adapter: EngineAdapter,
@@ -396,22 +405,24 @@ def create_app(
         engine_registry = discover_engine_registry()
     if voice_registry is None:
         voice_registry = VoiceRegistry(engine_registry.adapters)
-    if voice_aliases is None:
-        voice_aliases = {}
     if catalog_voices is None:
         catalog_voices = bundled_catalog_voice_summaries()
     installed_voice_descriptors = storage_identity_store.hydrate_installed_voice_descriptors()
+    if voice_aliases is None:
+        # Default: every installed voice is addressable by its own
+        # voice_id. This makes the OpenAI-compatible endpoint usable
+        # in dev with no explicit alias configuration. Callers can
+        # pass voice_aliases explicitly to override or extend.
+        voice_aliases = {v.voice_id: v.voice_id for v in installed_voice_descriptors}
 
     installed_voice_summaries = [
         VoiceSummary(
             voice_id=voice.voice_id,
             engine_id=voice.engine_id,
             display_name=_display_name(voice.voice_id),
-            streaming=_capability_info_vo(
-                _effective_streaming_capability(
-                    adapter=engine_registry.adapters[voice.engine_id],
-                    voice=voice,
-                )
+            streaming=_voice_streaming_capability_vo(
+                adapter=engine_registry.adapters[voice.engine_id],
+                voice=voice,
             )
             if voice.engine_id in engine_registry.adapters
             else None,

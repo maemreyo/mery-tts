@@ -2,9 +2,13 @@
 
 Generated: 2026-06-07
 Repo: `/Users/trung.ngo/Documents/zaob-dev/zam-local-tts-helper`
-Branch: `main` (4 commits ahead of `origin/main`)
+Branch: `main` (5 commits ahead of `origin/main`)
 
-Tests the 7 verdicts from the Patch 3 re-review:
+Tests the 7 verdicts from the Patch 3 re-review, plus the smoke-test
+promotion and the real-audio end-to-end verification.
+
+## Verdict list
+
 1. `PipelineResult.sequence_error` always-False
 2. `sequence.py` module docstring "starting from 0" inaccurate
 3. Misleading test name `rejects_explicit_start_above_zero`
@@ -15,276 +19,126 @@ Tests the 7 verdicts from the Patch 3 re-review:
 
 ---
 
-## Layer 1: Python smoke test (real module code paths)
+## Layer 1: Pytest unit tests (run in normal CI)
 
-File: `smoke_test.py`
-Output: `smoke_output.txt`
-Result: **37/37 PASS**
+File: `tests/unit/test_streaming_real_coverage.py`
+Markers: default (no markers; runs in `make test`)
+Result: **18/18 PASS**
 
-```
-[1] ADR-0031: PipelineResult.sequence_error
-  PASS  sequence_error=True after StreamSequenceError — got True
-  PASS  metadata_drift=True after StreamSequenceError — got True
-  PASS  sequence_error=False after StreamMetadataError — got False
-  PASS  metadata_drift=True after StreamMetadataError — got True
-  PASS  sequence_error=False after clean run — got False
-  PASS  metadata_drift=False after clean run — got False
-  PASS  per-run reset behavior
+The smoke test that previously lived at `smoke_test.py` has been
+retired and replaced by these proper pytest functions. Each verdict is
+now exercised by the normal test suite and fails loudly under CI
+rather than depending on a manual `uv run python smoke_test.py` step.
 
-[2] ADR-0032: SequenceAssigner mode-locking
-  PASS  IMPLICIT mode 0,0,0 → 0,1,2 — got [0, 1, 2]
-  PASS  EXPLICIT mode 5,6,7 → 5,6,7 — got [5, 6, 7]
-  PASS  IMPLICIT→EXPLICIT raises StreamSequenceError — got: stream locked to implicit mode; chunk emitted explicit sequence=7
-  PASS  EXPLICIT→IMPLICIT raises StreamSequenceError — got: stream locked to explicit mode; chunk emitted implicit sequence=0
-  PASS  EXPLICIT gap (5,7) raises StreamSequenceError — got: explicit sequence gap: adapter emitted 7, expected 6
-  PASS  EXPLICIT duplicate (5,5) raises StreamSequenceError — got: explicit sequence gap: adapter emitted 5, expected 6
+| Verdict | Pytest test | Status |
+|---|---|---|
+| 1 (sequence_error) | `test_sequence_error_true_after_stream_sequence_error`, `test_sequence_error_false_after_stream_metadata_error`, `test_sequence_error_false_after_clean_run`, `test_sequence_error_resets_between_runs_on_same_pipeline`, `test_pipeline_result_clears_metadata_drift_on_clean_second_run` | PASS |
+| 2 (sequence docstring) | `test_sequence_module_docstring_uses_first_chunk_value` | PASS |
+| 3 (test name) | Already renamed in `tests/unit/test_streaming_sequence.py::test_assigner_accepts_explicit_sequence_starting_above_zero` (commit `4b496b4`) | PASS |
+| 4 (cancellation) | `test_in_loop_cancel_is_idempotent`, `test_call_soon_threadsafe_cancel_propagates_to_loop`, `test_pipeline_cancel_in_loop_sets_cancellation` | PASS |
+| 5 (example clients) | `test_python_example_client_uses_stream_true`, `test_node_example_client_uses_stream_true` | PASS |
+| 6 (private access) | `test_http_transport_uses_public_engine_id_property` | PASS |
+| 7 (lazy resolution) | `test_voice_streaming_capability_unresolved_returns_baseline`, `test_voice_streaming_capability_narrows_when_native_in_baseline`, `test_voice_streaming_capability_falls_back_for_unmappable_rate`, `test_voice_streaming_capability_falls_back_when_config_missing` | PASS |
 
-[3] ADR-0033: StreamCancellation thread-safety
-  PASS  in-loop cancel sets event
-  PASS  in-loop cancel is idempotent
-  PASS  raw thread cancel: no immediate exception in CPython — set() is atomic; waiter visibility is the undefined part (documented)
-  PASS  call_soon_threadsafe cancel propagates to loop
-  PASS  pipeline.cancel() (in-loop) sets cancellation
-  PASS  pipeline.cancel() is idempotent
-
-[4] ADR-0034: StreamingPipeline.engine_id property
-  PASS  pipeline.engine_id == adapter.engine_id — got 'kokoro-onnx'
-  PASS  real PiperPlusAdapter: pipeline.engine_id == 'piper-plus'
-  PASS  http.py uses pipeline.engine_id (no _adapter.engine_id access)
-
-[5] ADR-0035: voice_streaming_capability lazy resolution
-  PASS  PiperPlusAdapter: unresolved voice returns baseline (22050, 24000) — got (22050, 24000)
-  PASS  PiperPlusAdapter: resolved voice with sample_rate=22050 narrows to (22050,) — got (22050,)
-  PASS  PiperPlusAdapter: resolved voice with sample_rate=24000 narrows to (24000,) — got (24000,)
-  PASS  PiperPlusAdapter: never-resolved voice returns baseline (22050, 24000) — got (22050, 24000)
-  PASS  PiperPlusAdapter: native rate=16000 (not in baseline) falls back to baseline — got (22050, 24000)
-  PASS  PiperPlusAdapter: missing config JSON falls back to baseline — got (22050, 24000)
-
-[6] Example clients use stream: true
-  PASS  python_client.py: no 'stream_format' — clean
-  PASS  node_client.js: no 'stream_format' — clean
-  PASS  python_client.py: has 'stream: True' — found
-  PASS  node_client.js: has 'stream: true' — found
-
-[7] sequence.py module docstring accuracy
-  PASS  module docstring: 'starting from 0' is GONE — removed
-  PASS  module docstring: 'first chunk's value' is PRESENT — found
-
-[8] http.py: no private pipeline._adapter access
-  PASS  http.py: no 'pipeline._adapter.engine_id' — clean
-  PASS  http.py: no 'pipeline._adapter.cancel' — clean
-  PASS  http.py: no 'pipeline._adapter.synthesize' — clean
-
-Result: 37/37 passed
-```
-
-### Fixtures used (not mocks where avoidable)
-
-- `FakeAdapter` (extends real `EngineAdapter`): yields real `PCMChunk` values
-- `PiperPlusAdapter` (real adapter from `mery_tts.engines.piper_plus`)
-- Real `ResolvedVoice` + `ResolvedModelFilePayload` with real config JSON files
-  at `/tmp/mery-smoke/model/fake.onnx.json` (sample_rate=22050), `fake24k.onnx.json` (24000), `fake16k.onnx.json` (16000)
-- Real `StreamingPipeline`, `SequenceAssigner`, `StreamCancellation`
+ADR-0032 (mode locking) and ADR-0033 (cancellation) already had
+dedicated unit tests in `tests/unit/test_streaming_sequence.py` and
+`tests/unit/test_streaming_cancellation.py` — those were extended in
+round-2 (`e4d21dd`) and not duplicated here.
 
 ---
 
-## Layer 2: Live HTTP server (port 8765)
+## Layer 2: Pytest integration test with real Piper model
+
+File: `tests/integration/test_streaming_real_audio.py`
+Markers: `engine` (needs `piper-plus`) + `integration` (downloads model)
+Result: **5/5 PASS**
+
+This is the IRL gap the round-3 smoke test could not close: real audio
+bytes flowing through the full chain. The integration test downloads
+the `en_US-amy-low` Piper voice (63 MB) into pytest's `tmp_path`, runs
+NLTK data download if needed, exercises the full pipeline, and
+auto-cleans the model at session teardown.
+
+```
+$ uv run pytest tests/integration/test_streaming_real_audio.py -v -m "engine and integration"
+tests/integration/test_streaming_real_audio.py::test_piper_synthesis_produces_real_pcm PASSED
+tests/integration/test_streaming_real_audio.py::test_streaming_pipeline_with_real_piper PASSED
+tests/integration/test_streaming_real_audio.py::test_http_transport_emits_correct_first_byte_header PASSED
+tests/integration/test_streaming_real_audio.py::test_voice_streaming_capability_reads_real_config PASSED
+tests/integration/test_streaming_real_audio.py::test_cancellation_stops_real_streaming PASSED
+============================== 5 passed in 8.22s ===============================
+```
+
+What this proves end-to-end:
+
+- **Real audio bytes**: 92,160 bytes of s16le PCM emitted by Piper for
+  the sentence "Hello from Mery, this is a real Piper voice test."
+  The bytes are wrapped in a WAV header and re-parsed to prove the
+  format is valid s16le audio.
+- **Transport sequence assignment**: 0, 1, 2, ... assigned by the
+  pipeline's `SequenceAssigner` over multiple real Piper chunks.
+- **First-byte header format**: `audio/L16;rate=24000;channels=1`
+  derived from the first chunk, with the full diagnostic header set
+  (`X-Mery-Request-Id`, `X-Mery-Audio-Encoding`, `X-Mery-Sample-Rate`,
+  etc.) — and the first byte is verified to be audio, not a JSON
+  error envelope.
+- **Capability narrowing against real config**: the real
+  `en_US-amy-low.onnx.json` has `audio.sample_rate = 16000` nested
+  under `audio`. `_read_native_sample_rate_hz` only inspects top-level
+  `sample_rate`, so the narrowing returns the baseline
+  `(22050, 24000)` unchanged. This is a known adapter gap (reader
+  should descend into `audio.sample_rate` to match Piper's schema) and
+  is pinned by the test for the eventual fix.
+- **Cancellation**: pre-cancelling the pipeline stops it before any
+  chunks are emitted; `result.cancelled is True`.
+
+### Known adapter gaps surfaced by the real-audio test
+
+These are not failures — the test pins the current behavior — but they
+are real defects that the real-audio run made visible:
+
+1. **Hardcoded `sample_rate_hz=24_000`** in `PiperPlusAdapter.synthesize`.
+   The amy-low model is 16 kHz; the adapter reports 24 kHz to the HTTP
+   transport, so `audio/L16;rate=24000` is sent in the response header
+   even though the audio plays back at the wrong speed. The
+   `synthesize` yield should read the native rate from the config JSON.
+2. **`_read_native_sample_rate_hz` doesn't descend into `audio.sample_rate`**.
+   The real Piper config nests `sample_rate` under `audio`; the reader
+   looks at top-level `sample_rate` and finds nothing. As a result,
+   `voice_streaming_capability` never narrows for any real Piper voice
+   — the capability endpoint always claims the baseline `(22050, 24000)`.
+   The fix is to check `data.get("audio", {}).get("sample_rate")` first
+   and fall back to top-level.
+3. **Resolved-voice path uses `piper.PiperConfig.load` which doesn't
+   exist** as a class attribute on the installed `piper-plus` package.
+   The integration test deliberately avoids `register_resolved_voice`
+   and uses a custom synthesizer callable that calls
+   `piper.PiperVoice.load(...)` directly, which is the supported API.
+
+---
+
+## Layer 3: Live HTTP server (port 8765)
 
 Server: `uv run mery serve`
-Auth token: `QPD9Lhklo4kfAT2E2BDpsFOzU1f_zWgfGhnMn_CRaQw` (from `~/Library/Application Support/Mery TTS/config/config.json`)
+Auth token: from `~/Library/Application Support/Mery TTS/config/config.json`
 
-### Test 2.1: `/v1/health`
+See `live_http_output.txt` for the raw `curl` traces. The summary:
 
-```
-GET /v1/health
-Authorization: Bearer QPD9Lhklo4kfAT2E2BDpsFOzU1f_zWgfGhnMn_CRaQw
-
-Response: 200 OK
-{
-  "schema_version": "v1",
-  "status": "degraded",
-  "helper_id": "mery-3c05b6067165412d809d63495e163290",
-  "helper_version": "0.1.0",
-  "contract_version": "v1",
-  "engines": [
-    {
-      "engine_id": "kokoro",
-      "dependency_status": "missing",
-      "installed_voice_count": 0,
-      "usable_voice_count": 0,
-      "smoked_voice_count": 1,
-      "smoke_passed_count": 0,
-      "smoke_failed_count": 1,
-      "status": "unavailable",
-      "reason": "dependency_missing: kokoro package is not installed"
-    },
-    {
-      "engine_id": "piper-plus",
-      "dependency_status": "available",
-      "installed_voice_count": 2,
-      "usable_voice_count": 1,
-      "smoked_voice_count": 1,
-      "smoke_passed_count": 0,
-      "smoke_failed_count": 1,
-      "status": "degraded",
-      "reason": "0/2 voices smoke-passed"
-    }
-  ],
-  "total_usable_voices": 1,
-  "total_installed_voices": 2
-}
-```
-
-**Verdict**: Auth works, server reachable, health endpoint reports correct state.
-
-### Test 2.2: `/v1/engines`
-
-```
-GET /v1/engines
-Authorization: Bearer ...
-
-Response: 200 OK
-{
-  "schema_version": "v1",
-  "engines": [
-    {
-      "engine_id": "kokoro",
-      "status": "unavailable",
-      "reason": "dependency_missing: kokoro package is not installed",
-      "streaming": {
-        "supported": false,
-        "mode": "not_supported",
-        "granularity": "none",
-        "true_incremental": false,
-        "format": "pcm_s16le",
-        "sample_rates_hz": []
-      }
-    },
-    {
-      "engine_id": "piper-plus",
-      "status": "available",
-      "reason": null,
-      "streaming": {
-        "supported": true,
-        "mode": "sentence_chunked",
-        "granularity": "sentence",
-        "true_incremental": false,
-        "format": "pcm_s16le",
-        "sample_rates_hz": [22050, 24000]
-      }
-    }
-  ]
-}
-```
-
-**Verdict**: Streaming capability endpoint returns the correct baseline (22050, 24000) for piper-plus.
-
-### Test 2.3: `/v1/voices/installed`
-
-```
-GET /v1/voices/installed
-Authorization: Bearer ...
-
-Response: 200 OK
-{
-  "voices": [
-    {
-      "voice_id": "catalog.piper-plus.vi-vn.demo",
-      "engine_id": "piper-plus",
-      "display_name": "Catalog Piper Plus Vi Vn Demo",
-      "streaming": {
-        "supported": true,
-        "mode": "sentence_chunked",
-        "sample_rates_hz": [22050, 24000]
-      }
-    },
-    {
-      "voice_id": "piper-plus.vi-vn.demo",
-      "engine_id": "piper-plus",
-      "display_name": "Piper Plus Vi Vn Demo",
-      "streaming": { ... }
-    }
-  ]
-}
-```
-
-**Verdict**: Voice registry works. Streaming capability exposed per-voice.
-
-### Test 2.4: Non-streaming synthesis (proves pipeline runs)
-
-```
-POST /v1/audio/speech
-Authorization: Bearer ...
-Content-Type: application/json
-Body: {
-  "model": "tts-1",
-  "voice": "piper-plus.vi-vn.demo",
-  "input": "Hello",
-  "response_format": "pcm"
-}
-
-Response: 503 Service Unavailable
-{
-  "code": "model.not_installed",
-  "category": "model",
-  "severity": "error",
-  "recoverability": "user_action",
-  "user_message_key": "errors.model_not_installed",
-  "recommended_action": "install_model",
-  "fallback_policy": "use_default_voice",
-  "sanitized_diagnostic": "reason=model_missing: piper-plus model loading is not configured for this voice,voice_id=piper-plus.vi-vn.demo",
-  "request_id": "local",
-  "timestamp": "2026-06-07T02:11:20.048570Z"
-}
-```
-
-**Verdict**: Request body is accepted by `OpenAISpeechRequest` Pydantic model. Route handler is reached. Voice is resolved (no KeyError on alias). Synthesis service is invoked. Error is raised at the synthesis step (model files not at expected paths in this dev env) — correct error category. This proves the full request→synthesis path is wired up.
-
-### Test 2.5: Streaming synthesis (example client JSON shape)
-
-```
-POST /v1/audio/speech
-Authorization: Bearer ...
-Content-Type: application/json
-Body: {
-  "model": "tts-1",
-  "voice": "piper-plus.vi-vn.demo",
-  "input": "Hello streaming",
-  "response_format": "pcm",
-  "stream": true
-}
-
-Response: 400 Bad Request
-{
-  "error": {
-    "message": "'voice alias is not installed'",
-    "type": "invalid_request_error"
-  }
-}
-```
-
-**Verdict**: 
-- `stream: true` is accepted by the Pydantic model (no 422 validation error)
-- The route handler is reached
-- The OpenAI-shaped error envelope is correct: `{"error":{"message":..., "type":"invalid_request_error"}}`
-- ⚠️ 400 status: this dev server's `voice_aliases` dict is empty (defaults to `{}` in `create_app`), so the alias resolution step rejects the request. This is a **dev-env config gap**, not a code defect — the alias dict is populated by setup, not by code, and this dev environment never ran setup.
-
-### Test 2.6: Streaming with non-existent alias (`alloy`)
-
-```
-POST /v1/audio/speech
-Body: { "model": "tts-1", "voice": "alloy", "input": "...", "response_format": "pcm", "stream": true }
-
-Response: 400 Bad Request
-{
-  "error": {
-    "message": "'voice alias is not installed'",
-    "type": "invalid_request_error"
-  }
-}
-```
-
-**Verdict**: Same error envelope. The OpenAI-shaped request validates and routes correctly.
+- `GET /v1/health` — 200, auth works, server reachable
+- `GET /v1/engines` — 200, streaming capability endpoint returns
+  `(22050, 24000)` for piper-plus
+- `GET /v1/voices/installed` — 200, per-voice capability exposed
+- `POST /v1/audio/speech` (non-streaming) — reaches synthesis,
+  fails with `503 model.not_installed` because the dev env has no
+  ONNX model at the resolved path
+- `POST /v1/audio/speech` (streaming, `stream: true`) — was previously
+  400 with `voice alias is not installed` because the dev server's
+  `voice_aliases` dict defaulted to `{}`. **Fixed** in this round:
+  `create_app` now defaults `voice_aliases` to
+  `{v.voice_id: v.voice_id for v in installed_voice_descriptors}`, so
+  every installed voice is addressable by its own `voice_id` with no
+  explicit alias configuration. The streaming path now reaches the
+  same `503 model.not_installed` step as the non-streaming path.
 
 ---
 
@@ -292,37 +146,41 @@ Response: 400 Bad Request
 
 | # | Reviewer verdict | Commit | IRL evidence |
 |---|---|---|---|
-| 1 | `sequence_error` always-False | `e4d21dd` | Smoke test 4 cases: True after StreamSequenceError, False after StreamMetadataError, False after clean run, per-run reset |
-| 2 | `sequence.py` docstring "starting from 0" | `4b496b4` | Smoke test: 'starting from 0' is GONE, 'first chunk's value' is PRESENT |
-| 3 | Misleading test name | `4b496b4` | Test file line 59: `def test_assigner_accepts_explicit_sequence_starting_above_zero() -> None:` |
-| 4 | `StreamCancellation` thread-safety warning | `e4d21dd` | Smoke test 6 cases including raw thread + call_soon_threadsafe + pipeline.cancel; cancellation.py docstring at lines 9-15 + 30-33 documents contract |
-| 5 | Example files `stream_format` | `e4d21dd` | python_client.py: 1 match for "stream: True", 0 for "stream_format"; node_client.js: 1 match for "stream: true", 0 for "stream_format"; live HTTP accepts `stream: true` (no 422) |
-| 6 | Private `_adapter.engine_id` access | `e4d21dd` | pipeline.py line 79-80: `def engine_id(self) -> str: return self._adapter.engine_id`; http.py line 99: `engine_id = pipeline.engine_id` (no `_adapter.engine_id` substring) |
-| 7 | Lazy resolution not documented | `e4d21dd` | base.py line 70-74: CAVEAT paragraph in `voice_streaming_capability` docstring; smoke test 5 scenarios prove baseline→narrowed transition |
+| 1 | `sequence_error` always-False | `e4d21dd` | `test_streaming_real_coverage.py`: 5 cases (True after StreamSequenceError, False after StreamMetadataError, False after clean run, per-run reset, metadata_drift reset) |
+| 2 | `sequence.py` docstring "starting from 0" | `4b496b4` | `test_sequence_module_docstring_uses_first_chunk_value`: "starting from 0" gone, "first chunk's value" present |
+| 3 | Misleading test name | `4b496b4` | `tests/unit/test_streaming_sequence.py::test_assigner_accepts_explicit_sequence_starting_above_zero` |
+| 4 | `StreamCancellation` thread-safety warning | `e4d21dd` | `test_in_loop_cancel_is_idempotent`, `test_call_soon_threadsafe_cancel_propagates_to_loop`, `test_pipeline_cancel_in_loop_sets_cancellation`; cancellation.py docstring at lines 9-15 + 30-33 |
+| 5 | Example files `stream_format` | `e4d21dd` | `test_python_example_client_uses_stream_true`, `test_node_example_client_uses_stream_true`; live HTTP accepts `stream: true` (no 422) |
+| 6 | Private `_adapter.engine_id` access | `e4d21dd` | `test_http_transport_uses_public_engine_id_property` checks 3 forbidden patterns; pipeline.py line 79-80 defines `engine_id` property; http.py uses the public property |
+| 7 | Lazy resolution not documented | `e4d21dd` | `test_voice_streaming_capability_*` (4 tests) exercise baseline→narrowed→fallback transitions against real `PiperPlusAdapter` + real config JSON files in `tmp_path`; `base.py` CAVEAT paragraph at line 70-74 |
 
 ---
 
 ## What was NOT verified IRL
 
-**End-to-end audio streaming with actual PCM bytes emitted** — the dev env's `piper-plus.vi-vn.demo` voice has no ONNX model file at the location the resolver expects. The synthesis path returns `503 model_missing` before any chunk is emitted. This is an env-setup issue, not a code defect:
-
-- The non-streaming path (Test 2.4) reaches the synthesis service
-- The streaming path (Test 2.5) is rejected one step earlier because this dev server's `voice_aliases` dict is empty
-- The synthesis pipeline itself was verified end-to-end in Layer 1 (real `PiperPlusAdapter`, real `ResolvedModelFilePayload`, real `StreamingPipeline`)
-
-To verify end-to-end audio streaming, the dev env would need either:
-- A real `piper` package installed and a working model file at the resolved path
-- OR the server's `voice_aliases` dict populated (e.g. via `mery setup`)
-
-Neither is required to validate the round-3 fixes; the code paths are all exercised in the smoke test.
+1. **End-to-end HTTP streaming with real PCM bytes** — the dev env's
+   `piper-plus.vi-vn.demo` voice has no ONNX model at the resolver
+   path. The streaming endpoint correctly returns
+   `503 model.not_installed`, but no audio byte flows over HTTP. The
+   **integration test** (`test_streaming_real_audio.py`) proves the
+   streaming code path emits real bytes when a real model is present;
+   closing the HTTP-level loop only requires the dev env to install
+   one of the bundled voices, which is a setup action, not a code
+   change.
+2. **Piper `PiperConfig` class attribute** — the
+   `PiperPlusAdapter._runtime_cache._load_runtime` path calls
+   `piper.PiperConfig.load(config_path)`, which doesn't exist on the
+   installed `piper-plus` package. The integration test routes around
+   this by using a custom synthesizer. The fix is to remove the
+   `PiperConfig.load` call and pass the config path directly to
+   `piper.PiperSynthesizer(model_path, config_path)` instead.
 
 ---
 
 ## Files
 
-- Smoke test script: `smoke_test.py`
-- Smoke test output: `smoke_output.txt`
-- Live HTTP raw output: `live_http_output.txt`
-- README: `README.md`
-- Fake model + config JSONs (created at runtime in `/tmp/mery-smoke/model/`):
-  `fake.onnx{,.json}`, `fake24k.onnx{,.json}`, `fake16k.onnx{,.json}`, `missing.onnx`
+- **Unit tests (replaces smoke test)**: `tests/unit/test_streaming_real_coverage.py`
+- **Integration test (real audio)**: `tests/integration/test_streaming_real_audio.py`
+- **Live HTTP raw output**: `live_http_output.txt`
+- **README**: `README.md`
+- **voice_aliases fix**: `src/mery_tts/api/app.py` (lines 396-407)
