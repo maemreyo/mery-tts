@@ -30,9 +30,10 @@ Start here if you are integrating a client with Mery. The integration docs are o
 
 ### Getting started
 
-1. [`integration/api-reference.md`](integration/api-reference.md) — **complete API reference**. Every HTTP and WebSocket endpoint with accurate request/response shapes. Read this first.
-2. [`integration/client-quickstart.md`](integration/client-quickstart.md) — **copy-paste integration patterns** for browser extensions, Electron, Tauri, CLI scripts, LLM assistants, Node.js, and Python. Use this to bootstrap a new client.
-3. [`integration/setup-integration-guide.md`](integration/setup-integration-guide.md) — **setup flow deep-dive**. How clients detect readiness, guide users through voice pack install, and poll for completion.
+1. [`integration/integration-testing-guide.md`](integration/integration-testing-guide.md) — **verified end-to-end guide**. Maps every contract to a passing automated test, plus a manual verification script. Use this to confirm an integration is correct.
+2. [`integration/api-reference.md`](integration/api-reference.md) — **complete API reference**. Every HTTP and WebSocket endpoint with accurate request/response shapes. Read this first.
+3. [`integration/client-quickstart.md`](integration/client-quickstart.md) — **copy-paste integration patterns** for browser extensions, Electron, Tauri, CLI scripts, LLM assistants, Node.js, and Python. Use this to bootstrap a new client.
+4. [`integration/setup-integration-guide.md`](integration/setup-integration-guide.md) — **setup flow deep-dive**. How clients detect readiness, guide users through voice pack install, and poll for completion.
 
 ### Streaming
 

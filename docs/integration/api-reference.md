@@ -9,10 +9,10 @@ This is the complete, accurate reference for every HTTP and WebSocket endpoint M
 
 ## Conventions
 
-- **All `/v1/*` endpoints** require `Authorization: Bearer <token>` except `/v1/pair/claim` and `/v1/events` (WebSocket).
-- **All responses** are JSON with `schema_version: "v1"` and `request_id: "local"`.
+- **All `/v1/*` endpoints** require `Authorization: Bearer <token>` except `/v1/pair/claim` and `/v1/events` (WebSocket). The Bearer scheme is **case-sensitive** and the server does an **exact string match** on the full header value — `bearer <token>` (lowercase) and `Bearer <token> ` (trailing whitespace) both return 401.
+- **JSON responses** include `schema_version: "v1"` and `request_id: "local"`. Binary endpoints (`/v1/audio/speech`, `/console/assets/*`) return the appropriate media type, not JSON.
 - **All error responses** use the diagnostic error schema (see [Errors](#errors)).
-- **Streaming audio** uses `Transfer-Encoding: chunked` with `audio/pcm` (s16le, 24kHz, mono) for OpenAI-compatible PCM, or `audio/mpeg` for MP3.
+- **Streaming audio** uses `Transfer-Encoding: chunked` with `Content-Type: audio/L16;rate=<hz>;channels=1` where `<hz>` is the model's native sample rate (e.g. `16000` for `amy-low`, `22050` for the bundled demo). MP3 is not supported.
 - **Timestamps** are ISO-8601 UTC.
 - **IDs** are stable, opaque strings (e.g., `pack.en-us`, `catalog.piper-plus.vi-vn.demo`, `job-abc123`).
 
@@ -446,7 +446,7 @@ The first recommendation is always the best fit for the provided context. Locale
 
 ### `POST /v1/audio/speech`
 
-**Purpose:** OpenAI-compatible TTS endpoint. Accepts the same request shape as OpenAI's `/v1/audio/speech`, with Mery-specific extensions via `extra_body`.
+**Purpose:** OpenAI-compatible TTS endpoint. Accepts the same request shape as OpenAI's `/v1/audio/speech`, with Mery-specific extensions in a top-level `mery` object.
 
 **Request:**
 ```json
@@ -454,7 +454,7 @@ The first recommendation is always the best fit for the provided context. Locale
   "model": "tts-1",
   "input": "Hello from Mery",
   "voice": "alloy",
-  "response_format": "mp3",
+  "response_format": "pcm",
   "stream": false
 }
 ```
@@ -463,36 +463,36 @@ The first recommendation is always the best fit for the provided context. Locale
 
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
-| `model` | string | yes | — | Must be a supported model (e.g., `tts-1`, `tts-1-hd`) |
-| `input` | string | yes | — | Max 4096 characters (413 on overflow) |
-| `voice` | string | yes | — | OpenAI voice name (`alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`) or Mery voice ID |
-| `response_format` | string | no | `mp3` | `mp3`, `wav`, `pcm` |
-| `stream` | boolean | no | `false` | If `true`, streams PCM chunks; `response_format` must be `pcm` |
-| `extra_body.mery_options` | object | no | `null` | Mery-specific options (see below) |
+| `model` | string | yes | — | **Must be `tts-1`.** This is the only supported model value — `tts-1-hd`, `piper-plus`, `kokoro` all return 400. |
+| `input` | string | yes | — | 1–10 000 characters. Empty/missing → 422. > 10 000 → 413. |
+| `voice` | string | yes | — | Voice alias. The native `voice_id` of every installed voice is auto-registered as its own alias, so installed voice IDs (e.g. `piper-plus.vi-vn.demo`, `en_US-amy-low`) work directly. OpenAI-style names like `alloy` only work if the integrator registers them in `voice_aliases`. Unknown alias → 400 (`engine.voice_unsupported`). |
+| `response_format` | string | no | `pcm` | `pcm` or `wav` only. MP3 is **not** supported. |
+| `stream` | boolean | no | `false` | If `true`, streams PCM chunks; `response_format` must be `pcm` (other formats with `stream: true` → 400). |
+| `mery` | object | no | `null` | Mery-specific options (see below). Allowed at top level via Pydantic `extra="allow"`. |
 
-**Mery-specific options (`extra_body.mery_options`):**
+**Mery-specific options (top-level `mery` object):**
 
 ```json
 {
-  "mery_options": {
-    "voice_id": "piper-plus.vi-vn.demo",
-    "engine_id": "piper-plus",
-    "speed": 1.0
+  "mery": {
+    "fallbackVoiceIds": ["kokoro.en-us.af-heart.demo"],
+    "fallbackPolicy": "auto",
+    "diagnostics": "headers"
   }
 }
 ```
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
-| `voice_id` | string | null | Direct voice ID, bypasses OpenAI alias resolution |
-| `engine_id` | string | null | Force a specific engine (else auto-selected) |
-| `speed` | float | `1.0` | Playback speed multiplier (0.5–2.0) |
+| `fallbackVoiceIds` | list[string] | `[]` | Voice IDs to try if the primary fails |
+| `fallbackPolicy` | `"auto" \| "disabled"` | `"auto"` | `"disabled"` → no fallback |
+| `diagnostics` | string | `"headers"` | Where to surface diagnostic info (`"headers"` returns the X-Mery-* family) |
 
-**Non-streaming response:** Binary audio body with `Content-Type: audio/mpeg` (or `audio/wav`/`audio/pcm`).
+**Non-streaming response:** Binary audio body. `Content-Type: audio/wav` when `response_format: "wav"`, `audio/pcm` when `response_format: "pcm"`. For `pcm`, the bytes are raw s16le at the model's native sample rate (e.g. 16 kHz mono for `amy-low`). Diagnostic headers (X-Mery-Request-Id, X-Mery-Voice-Used, X-Mery-Fallback-Used, X-Mery-Primary-Voice, X-Mery-Audio-Encoding, X-Mery-Sample-Rate, X-Mery-Channels) are always returned on success.
 
-**Streaming response:** `Transfer-Encoding: chunked`, `Content-Type: audio/pcm`. Each chunk is raw s16le PCM at 24kHz mono. Stop reading when the connection closes.
+**Streaming response (`stream: true`):** `Transfer-Encoding: chunked`, `Content-Type: audio/L16;rate=<hz>;channels=1` where `<hz>` is the model's native rate. Each chunk is raw s16le PCM at that rate. Stop reading when the connection closes. Pre-first-byte errors (voice not installed, engine not available) return 400 JSON; once the first chunk is sent, errors are propagated as truncated stream and a final `X-Mery-Stream-Error` header (ADR-0034). See [`openai-streaming.md`](./openai-streaming.md) for full streaming semantics.
 
-**Error responses:** 400 (unsupported model/voice), 413 (input too long), 422 (missing field), 500 (synthesis failure), 503 (no voices available).
+**Error responses:** 400 (unsupported model, unknown alias, bad params), 401 (missing/invalid auth), 403 (origin not allowed — browser only), 413 (input > 10 000 chars or body > 1 MB), 422 (empty or missing `input` field), 504 (first chunk fetch timeout on streaming). See [Errors](#errors) for the structured envelope shape.
 
 ---
 
@@ -505,7 +505,7 @@ The first recommendation is always the best fit for the provided context. Locale
 **Request:**
 ```json
 {
-  "pairing_code": "ABCD-1234",
+  "pairing_code": "WNUAZB",
   "client_name": "my-app",
   "public_key": "optional-public-key"
 }
@@ -516,24 +516,22 @@ The first recommendation is always the best fit for the provided context. Locale
 {
   "schema_version": "v1",
   "request_id": "local",
-  "pairing_code": null,
-  "setup_url": null,
   "helper_id": "mery-04570851f22b48fa8e0784f87f9a4f27",
   "port": 8765,
   "auth_token": "cJDij9adTOtvHiZBuesJohPodiDqvnj386w4nu62lq0",
   "contract_version": "v1",
-  "capabilities": ["tts", "voice-packs", "pairing"]
+  "capabilities": ["rest", "websocket", "openai-compatible-speech"]
 }
 ```
 
-**Error responses:** 401 (invalid/expired code), 429 (rate limited).
+**Error responses:** 401 (invalid/expired code or wrong shape), 429 (rate limited after repeated failed claims).
 
 **Pairing flow:**
-1. User runs `mery pair` in a terminal — prints a 6-character code and a `setup_url`.
+1. User runs `mery pair` in a terminal — prints a 6-character uppercase alphanumeric code (e.g. `WNUAZB`, `7K9P2X`) and a `setup_url` of the form `http://127.0.0.1:<port>/pair`.
 2. Client calls `POST /v1/pair/claim` with the code, receives `auth_token` and `port`.
 3. Client stores `auth_token` securely and uses it as a Bearer token for all subsequent calls.
 
-Pairing codes expire (typically after 60 seconds) and are single-use.
+Pairing codes are single-use. They expire (typically after 60 seconds) and the claim endpoint rate-limits after > 2 failed claims within the rate window.
 
 ---
 
@@ -654,16 +652,17 @@ All error responses follow the diagnostic error schema:
 
 | Code | Meaning | Client action |
 |---|---|---|
-| 200 | Success | Use response body |
-| 400 | Invalid request (bad model, bad params) | Validate input, show error |
-| 401 | Missing/invalid auth token | Re-pair client |
-| 403 | Origin not allowed (browser only) | Use localhost origin |
-| 404 | Resource not found | Check IDs |
-| 413 | Input too long | Truncate input |
-| 422 | Validation error | Check field types |
-| 429 | Rate limited | Back off, retry later |
-| 500 | Server error | Retry with backoff |
-| 503 | No voices available | Trigger setup |
+| 200 | Success (JSON or binary audio) | Use response body |
+| 204 | Successful CORS preflight | (browser only) |
+| 400 | Invalid request (unsupported model, unknown alias, bad params) | Validate input, show error |
+| 401 | Missing/malformed auth (case-mismatched `bearer`, trailing whitespace) | Re-pair client |
+| 403 | Origin not in allowlist (browser only) | Use `http://127.0.0.1:<port>` or `http://localhost:<port>` |
+| 413 | `input` > 10 000 chars OR body > 1 MB | Truncate input, retry |
+| 422 | Pydantic validation error (empty `input`, missing `input` field) | Check field types |
+| 429 | Pair claim rate-limited | Back off, retry later |
+| 500 | Synthesis failure (engine error) | Retry with backoff |
+| 503 | Engine missing or not yet ready | Trigger setup, open `/console/setup` |
+| 504 | Streaming first-chunk fetch timeout | Reduce text size, retry |
 
 ---
 
@@ -677,6 +676,7 @@ All error responses follow the diagnostic error schema:
 
 ## Related documentation
 
+- [`integration-testing-guide.md`](./integration-testing-guide.md) — **verified end-to-end guide**. Maps every contract above to a passing automated test, plus a manual verification script.
 - [`client-quickstart.md`](./client-quickstart.md) — copy-paste integration patterns
 - [`setup-integration-guide.md`](./setup-integration-guide.md) — detailed setup flow and polling strategy
 - [`client-boundary-and-readiness-policy.md`](./client-boundary-and-readiness-policy.md) — client responsibilities and fallback policy
