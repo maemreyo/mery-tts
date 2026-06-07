@@ -2,30 +2,47 @@
 
 ADR-0024: Piper adapter lazy-loads runtime objects and caches them per installed
 voice/artifact. It accepts resolved model-file voices and emits normalized PCMChunk values.
+
+ADR-0024 follow-up: the native sample rate is read from the Piper config JSON
+once during voice resolution and carried on the ``ResolvedModelFilePayload``,
+so synthesis and capability reporting never need to re-read or re-parse the
+config. The engine baseline (24_000 Hz) is used only as a last-resort fallback
+when the config is absent or unparseable.
 """
 
 from __future__ import annotations
 
 import asyncio
 import importlib.util
-import json
 from collections.abc import AsyncIterator, Callable, Iterable
 from dataclasses import replace
-from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Protocol
 
 from mery_tts.engines.base import EngineAdapter, PCMChunk
+from mery_tts.engines.piper_plus.config import PiperConfigReader
 from mery_tts.streaming.capabilities import StreamingCapability, StreamingCapabilityInfo
 from mery_tts.voice import ModelFileVoicePayload, VoiceDescriptor
 from mery_tts.voice.resolver import ResolvedModelFilePayload, ResolvedVoice
 
 PiperSynthesizer = Callable[[str, VoiceDescriptor], Iterable[bytes]]
 
+_DEFAULT_SYNTHESIS_SAMPLE_RATE_HZ = 24_000
 
-class _PiperRuntime(Protocol):
-    """Structural type for the optional piper-plus runtime objects."""
 
-    def synthesize(self, text: str, /, *args: object, **kwargs: object) -> object: ...
+class _PiperVoice(Protocol):
+    """Structural type mirroring ``piper.PiperVoice.synthesize_stream_raw``."""
+
+    def synthesize_stream_raw(
+        self,
+        text: str,
+        speaker_id: int | None = ...,
+        length_scale: float | None = ...,
+        noise_scale: float | None = ...,
+        noise_w: float | None = ...,
+        sentence_silence: float = ...,
+        volume: float = ...,
+        language_id: int | None = ...,
+    ) -> Iterable[bytes]: ...
 
 
 class PiperRuntimeError(Exception):
@@ -47,32 +64,22 @@ def _default_piper_synthesizer(text: str, voice: VoiceDescriptor) -> Iterable[by
     )
 
 
-def _read_native_sample_rate_hz(config_path: Path) -> int | None:
-    """Read the ``sample_rate`` field from a Piper ONNX config JSON.
-
-    Returns ``None`` on any I/O or parse failure so the caller can fall
-    back to the engine baseline without surfacing the error to the
-    capability endpoint.
-    """
-    try:
-        data = json.loads(config_path.read_text())
-    except (OSError, json.JSONDecodeError):
-        return None
-    rate = data.get("sample_rate")
-    if isinstance(rate, int) and rate > 0:
-        return rate
-    return None
-
-
 class PiperRuntimeCache:
-    """Lazy-loading runtime cache for Piper synthesizer instances."""
+    """Lazy-loading runtime cache for Piper voice instances.
+
+    The cache stores a ``piper.PiperVoice`` per voice_id. The voice
+    is loaded via ``piper.PiperVoice.load(model_path, config_path)``
+    which is the only supported constructor in the installed
+    piper-plus package — there is no ``PiperConfig.load`` or
+    ``PiperSynthesizer`` class attribute to call separately.
+    """
 
     def __init__(self) -> None:
-        self._cache: dict[str, Any] = {}
+        self._cache: dict[str, _PiperVoice] = {}
 
-    def get_or_load(self, voice_id: str, resolved: ResolvedVoice) -> _PiperRuntime:
+    def get_or_load(self, voice_id: str, resolved: ResolvedVoice) -> _PiperVoice:
         if voice_id in self._cache:
-            return self._cache[voice_id]  # type: ignore[no-any-return]
+            return self._cache[voice_id]
         runtime = self._load_runtime(resolved)
         self._cache[voice_id] = runtime
         return runtime
@@ -83,7 +90,7 @@ class PiperRuntimeCache:
     def clear(self) -> None:
         self._cache.clear()
 
-    def _load_runtime(self, resolved: ResolvedVoice) -> _PiperRuntime:
+    def _load_runtime(self, resolved: ResolvedVoice) -> _PiperVoice:
         if not isinstance(resolved.payload, ResolvedModelFilePayload):
             raise PiperRuntimeError(
                 "model_missing", "piper-plus requires a resolved model-file payload"
@@ -97,9 +104,9 @@ class PiperRuntimeCache:
             config_path = (
                 str(resolved.payload.config_path) if resolved.payload.config_path else None
             )
-            voice_config = piper.PiperConfig.load(config_path) if config_path else None  # pyright: ignore[reportAttributeAccessIssue]
-            synthesizer = piper.PiperSynthesizer(model_path, voice_config)  # pyright: ignore[reportAttributeAccessIssue]
-            return synthesizer  # type: ignore[no-any-return]
+            if config_path is not None:
+                return piper.PiperVoice.load(model_path, config_path)  # type: ignore[no-any-return]  # pyright: ignore[reportAttributeAccessIssue]
+            return piper.PiperVoice.load(model_path)  # type: ignore[no-any-return]  # pyright: ignore[reportAttributeAccessIssue]
         except ImportError as exc:
             raise PiperRuntimeError(
                 "dependency_missing", "piper-plus package is not installed"
@@ -121,10 +128,12 @@ class PiperPlusAdapter(EngineAdapter):
         synthesizer: PiperSynthesizer | None = None,
         *,
         runtime_cache: PiperRuntimeCache | None = None,
+        config_reader: PiperConfigReader | None = None,
     ) -> None:
         self._cancelled_requests: set[str] = set()
         self._synthesizer = synthesizer or _default_piper_synthesizer
         self._runtime_cache = runtime_cache or PiperRuntimeCache()
+        self._config_reader = config_reader or PiperConfigReader()
         self._resolved_voices: dict[str, ResolvedVoice] = {}
 
     @property
@@ -171,16 +180,17 @@ class PiperPlusAdapter(EngineAdapter):
             return baseline
         if not isinstance(resolved.payload, ResolvedModelFilePayload):
             return baseline
-        config_path = resolved.payload.config_path
-        if config_path is None:
-            return baseline
-        native_rate = _read_native_sample_rate_hz(config_path)
+        native_rate = self._resolve_native_rate(resolved.payload)
         if native_rate is None:
             return baseline
-        narrowed = tuple(rate for rate in baseline.sample_rates_hz if rate == native_rate)
-        if not narrowed:
-            return baseline
-        return replace(baseline, sample_rates_hz=narrowed)
+        return replace(baseline, sample_rates_hz=(native_rate,))
+
+    def _resolve_native_rate(self, payload: ResolvedModelFilePayload) -> int | None:
+        if payload.native_sample_rate_hz is not None:
+            return payload.native_sample_rate_hz
+        if payload.config_path is None:
+            return None
+        return self._config_reader.read_sample_rate_hz(payload.config_path)
 
     def cancel(self, request_id: str) -> None:
         self._cancelled_requests.add(request_id)
@@ -195,6 +205,8 @@ class PiperPlusAdapter(EngineAdapter):
         self.ensure_voice_supported(voice)
 
         resolved = self._resolved_voices.get(voice.voice_id)
+        sample_rate_hz = self._synthesis_sample_rate_hz(resolved)
+
         if resolved is not None:
             try:
                 runtime = self._runtime_cache.get_or_load(voice.voice_id, resolved)
@@ -216,14 +228,21 @@ class PiperPlusAdapter(EngineAdapter):
                 break
             yield PCMChunk(
                 pcm=pcm,
-                sample_rate_hz=24_000,
+                sample_rate_hz=sample_rate_hz,
                 channels=1,
                 sample_width_bytes=2,
                 encoding="pcm_s16le",
             )
 
-    def _synthesize_with_runtime(self, text: str, runtime: _PiperRuntime) -> Iterable[bytes]:
+    def _synthesis_sample_rate_hz(self, resolved: ResolvedVoice | None) -> int:
+        if resolved is not None and isinstance(resolved.payload, ResolvedModelFilePayload):
+            native = self._resolve_native_rate(resolved.payload)
+            if native is not None:
+                return native
+        return _DEFAULT_SYNTHESIS_SAMPLE_RATE_HZ
+
+    def _synthesize_with_runtime(self, text: str, runtime: _PiperVoice) -> Iterable[bytes]:
         try:
-            return cast("Iterable[bytes]", runtime.synthesize(text))
+            return runtime.synthesize_stream_raw(text)
         except Exception as exc:
             raise PiperRuntimeError("synthesis_failed", str(exc)) from exc

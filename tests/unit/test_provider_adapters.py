@@ -317,3 +317,128 @@ async def test_first_party_adapters_emit_richer_pcm_chunks(
         assert chunk.encoding == "pcm_s16le"
         assert chunk.sample_rate_hz == 24_000
         assert chunk.channels == 1
+
+
+@pytest.mark.asyncio
+async def test_piper_plus_synthesize_uses_native_rate_from_resolved_payload(
+    tmp_path,
+) -> None:
+    class _FakeVoice:
+        def synthesize_stream_raw(self, text: str):
+            return [b"\x00\x00", b"\x00\x00", b"\x00\x00"]
+
+    class _FakeCache:
+        def get_or_load(self, voice_id: str, resolved: ResolvedVoice):
+            return _FakeVoice()
+
+    adapter = PiperPlusAdapter(runtime_cache=_FakeCache())
+    voice = piper_voice()
+    adapter.register_resolved_voice(
+        ResolvedVoice(
+            voice_id=voice.voice_id,
+            engine_id=voice.engine_id,
+            payload=ResolvedModelFilePayload(
+                artifact_id="artifact-piper",
+                model_path=tmp_path / "voice.onnx",
+                config_path=tmp_path / "voice.onnx.json",
+                native_sample_rate_hz=16_000,
+            ),
+        )
+    )
+
+    chunks = [chunk async for chunk in adapter.synthesize("hello", voice)]
+
+    assert len(chunks) == 3
+    for chunk in chunks:
+        assert chunk.sample_rate_hz == 16_000
+        assert chunk.encoding == "pcm_s16le"
+        assert chunk.channels == 1
+
+
+@pytest.mark.asyncio
+async def test_piper_plus_synthesize_falls_back_to_baseline_without_native_rate(
+    tmp_path,
+) -> None:
+    class _FakeVoice:
+        def synthesize_stream_raw(self, text: str):
+            return [b"\x00\x00"]
+
+    class _FakeCache:
+        def get_or_load(self, voice_id: str, resolved: ResolvedVoice):
+            return _FakeVoice()
+
+    adapter = PiperPlusAdapter(runtime_cache=_FakeCache())
+    voice = piper_voice()
+    adapter.register_resolved_voice(
+        ResolvedVoice(
+            voice_id=voice.voice_id,
+            engine_id=voice.engine_id,
+            payload=ResolvedModelFilePayload(
+                artifact_id="artifact-piper",
+                model_path=tmp_path / "voice.onnx",
+                config_path=None,
+                native_sample_rate_hz=None,
+            ),
+        )
+    )
+
+    chunks = [chunk async for chunk in adapter.synthesize("hello", voice)]
+
+    assert len(chunks) == 1
+    assert chunks[0].sample_rate_hz == 24_000
+
+
+@pytest.mark.asyncio
+async def test_piper_plus_voice_streaming_capability_uses_nested_schema(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda name: object() if name == "piper" else None
+    )
+    config_path = tmp_path / "voice.onnx.json"
+    config_path.write_text(json.dumps({"audio": {"sample_rate": 16_000}}))
+    adapter = PiperPlusAdapter()
+    voice = piper_voice()
+    adapter.register_resolved_voice(
+        ResolvedVoice(
+            voice_id=voice.voice_id,
+            engine_id=voice.engine_id,
+            payload=ResolvedModelFilePayload(
+                artifact_id="artifact-piper",
+                model_path=tmp_path / "voice.onnx",
+                config_path=config_path,
+            ),
+        )
+    )
+
+    info = adapter.voice_streaming_capability(voice)
+
+    assert info.sample_rates_hz == (16_000,)
+
+
+def test_piper_plus_voice_streaming_capability_uses_pre_resolved_native_rate(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda name: object() if name == "piper" else None
+    )
+    adapter = PiperPlusAdapter()
+    voice = piper_voice()
+    adapter.register_resolved_voice(
+        ResolvedVoice(
+            voice_id=voice.voice_id,
+            engine_id=voice.engine_id,
+            payload=ResolvedModelFilePayload(
+                artifact_id="artifact-piper",
+                model_path=tmp_path / "voice.onnx",
+                config_path=None,
+                native_sample_rate_hz=16_000,
+            ),
+        )
+    )
+
+    info = adapter.voice_streaming_capability(voice)
+
+    assert info.sample_rates_hz == (16_000,)

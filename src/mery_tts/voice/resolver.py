@@ -22,11 +22,20 @@ class VoiceResolutionError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class ResolvedModelFilePayload:
-    """Resolved model-file payload with validated absolute paths."""
+    """Resolved model-file payload with validated absolute paths.
+
+    ``native_sample_rate_hz`` is read from the config JSON during
+    resolution and cached on the payload so downstream consumers
+    (engine adapters, capability endpoints, HTTP transport) do not
+    need to re-read or re-parse the config. ``None`` means the rate
+    could not be determined; callers should fall back to the engine
+    baseline.
+    """
 
     artifact_id: str
     model_path: Path
     config_path: Path | None = None
+    native_sample_rate_hz: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,11 +124,28 @@ def _resolve_model_file(
         if candidate.is_file():
             config_path = candidate
 
+    native_sample_rate_hz = _read_native_sample_rate_hz(config_path) if config_path else None
+
     return ResolvedModelFilePayload(
         artifact_id=voice.payload.artifact_id,
         model_path=model_path,
         config_path=config_path,
+        native_sample_rate_hz=native_sample_rate_hz,
     )
+
+
+def _read_native_sample_rate_hz(config_path: Path) -> int | None:
+    """Read ``sample_rate`` from a Piper config JSON, descending into ``audio`` first.
+
+    The reader is a thin wrapper around the engine-specific config
+    reader; it is imported lazily so the voice resolver module stays
+    engine-agnostic and import-cheap.
+    """
+    try:
+        from mery_tts.engines.piper_plus.config import PiperConfigReader
+    except ImportError:
+        return None
+    return PiperConfigReader().read_sample_rate_hz(config_path)
 
 
 def _infer_config_path(model_relative_path: str) -> str | None:

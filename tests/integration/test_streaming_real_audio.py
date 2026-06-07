@@ -209,12 +209,7 @@ async def test_piper_synthesis_produces_real_pcm(
     total_bytes = sum(len(c.pcm) for c in chunks)
     assert total_bytes > 0, "Piper should produce non-empty PCM bytes"
     first = chunks[0]
-    # The adapter currently hardcodes sample_rate_hz=24_000 in its PCMChunk
-    # wrapper (see PiperPlusAdapter.synthesize yield). The actual piper
-    # model is 16 kHz, so the reported rate is wrong on the adapter side —
-    # a known issue tracked separately. The test asserts the current
-    # contract so a future fix will need to update this expectation.
-    assert first.sample_rate_hz == 24_000, f"unexpected sample rate: {first.sample_rate_hz}"
+    assert first.sample_rate_hz == 16_000, f"unexpected sample rate: {first.sample_rate_hz}"
     assert first.channels == 1
     assert first.sample_width_bytes == 2
     assert first.encoding == "pcm_s16le"
@@ -282,13 +277,12 @@ async def test_http_transport_emits_correct_first_byte_header(
     )
 
     content_type = headers.content_type
-    # The adapter reports 24_000 Hz (hardcoded), so the content-type follows.
-    assert content_type.startswith("audio/L16;rate=24000;channels=1")
+    assert content_type.startswith("audio/L16;rate=16000;channels=1")
 
     extra = headers.extra
     assert extra["X-Mery-Request-Id"] == "real-http-1"
     assert extra["X-Mery-Audio-Encoding"] == "pcm_s16le"
-    assert extra["X-Mery-Sample-Rate"] == "24000"
+    assert extra["X-Mery-Sample-Rate"] == "16000"
     assert extra["X-Mery-Channels"] == "1"
     assert extra["X-Mery-Sample-Width-Bytes"] == "2"
     assert extra["X-Mery-Stream-Format"] == "raw-pcm"
@@ -313,25 +307,12 @@ def test_voice_streaming_capability_reads_real_config(
     amy_voice: VoiceDescriptor,
     piper_model: Path,
 ) -> None:
-    """voice_streaming_capability must read the real config JSON.
-
-    The amy-low config has ``audio.sample_rate = 16000`` nested under
-    ``audio``. ``_read_native_sample_rate_hz`` only looks at top-level
-    ``sample_rate``, so the native rate is not detected and the capability
-    falls back to the baseline ``(22050, 24000)`` unchanged. This is a
-    known adapter gap: the reader should descend into ``audio.sample_rate``
-    to match the real Piper config schema. The test pins the current
-    behavior so the fix is observable.
-    """
+    """voice_streaming_capability must read the real config JSON's nested audio.sample_rate."""
     info = piper_adapter_with_resolved.voice_streaming_capability(amy_voice)
     assert info.supported is True
     assert info.format == "pcm_s16le"
-    # Config has audio.sample_rate=16000 (nested), not top-level sample_rate.
-    # Reader returns None → narrowing returns baseline unchanged.
-    assert info.sample_rates_hz == (22_050, 24_000)
+    assert info.sample_rates_hz == (16_000,)
 
-    # Sanity: confirm the config really does have the nested key, so the
-    # test is not silently passing due to a missing file.
     config = json.loads((piper_model / "en_US-amy-low.onnx.json").read_text())
     assert config["audio"]["sample_rate"] == 16_000
 

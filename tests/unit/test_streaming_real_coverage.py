@@ -276,8 +276,10 @@ def test_voice_streaming_capability_narrows_when_native_in_baseline(tmp_path: Pa
     assert info.sample_rates_hz == (22_050,)
 
 
-def test_voice_streaming_capability_falls_back_for_unmappable_rate(tmp_path: Path) -> None:
-    """Native rate outside the baseline (e.g. 16000) → baseline unchanged."""
+def test_voice_streaming_capability_reports_native_rate_even_outside_baseline(
+    tmp_path: Path,
+) -> None:
+    """Native rate outside the baseline (e.g. 16000) → reported as the voice's own rate."""
     adapter = PiperPlusAdapter()
     voice = _make_preset_voice()
     config_path = tmp_path / "v16k.onnx.json"
@@ -296,7 +298,7 @@ def test_voice_streaming_capability_falls_back_for_unmappable_rate(tmp_path: Pat
         )
     )
     info = adapter.voice_streaming_capability(voice)
-    assert info.sample_rates_hz == (22_050, 24_000)
+    assert info.sample_rates_hz == (16_000,)
 
 
 def test_voice_streaming_capability_falls_back_when_config_missing(tmp_path: Path) -> None:
