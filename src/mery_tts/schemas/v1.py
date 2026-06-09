@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Literal
 
@@ -67,6 +69,26 @@ class EnginesResponse(VersionedModel):
     engines: list[EngineSummary]
 
 
+class VoiceCapabilitiesVo(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    word_marks: bool = False
+
+
+class SpeechMarkVo(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    word: str
+    start_ms: int
+    end_ms: int
+
+
+class AnnotatedSpeechResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    audio_b64: str
+    sample_rate: int
+    marks: list[SpeechMarkVo] = Field(default_factory=list)
+    marks_available: bool = False
+
+
 class VoiceSummary(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -74,6 +96,7 @@ class VoiceSummary(BaseModel):
     engine_id: str
     display_name: str
     streaming: StreamingCapabilityInfoVo | None = None
+    capabilities: VoiceCapabilitiesVo | None = None
 
 
 class InstalledVoicesResponse(VersionedModel):

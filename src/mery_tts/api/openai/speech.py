@@ -130,6 +130,37 @@ async def build_openai_streaming_response(
     )
 
 
+async def synthesize_annotated_openai_speech(
+    request: OpenAISpeechRequest,
+    *,
+    voice_registry: VoiceRegistry,
+    voice_aliases: dict[str, str],
+) -> tuple[bytes, list]:
+    """Synthesize speech with word timing marks.
+
+    Returns (wav_bytes, marks_list). marks_list is empty if engine doesn't support annotations.
+    """
+    from mery_tts.engines.annotated import AnnotatedSynthesisCapable
+
+    validate_openai_model(request.model)
+    if request.response_format not in {"pcm", "wav"}:
+        raise ValueError("unsupported response_format")
+    native_voice_id = voice_aliases.get(request.voice)
+    if native_voice_id is None:
+        raise KeyError("voice alias is not installed")
+    adapter, voice = voice_registry.resolve_route(native_voice_id)
+
+    if isinstance(adapter, AnnotatedSynthesisCapable):
+        result = await adapter.synthesize_annotated(request.input, voice)
+        wav_bytes = encode_wav(result.chunks)
+        return wav_bytes, result.marks
+    else:
+        # Fallback: no marks
+        chunks = [chunk async for chunk in adapter.synthesize(request.input, voice)]
+        wav_bytes = encode_wav(chunks)
+        return wav_bytes, []
+
+
 # Kept for callers that need the legacy byte iterator. The route
 # delegates to ``build_openai_streaming_response`` instead.
 async def iter_openai_pcm(

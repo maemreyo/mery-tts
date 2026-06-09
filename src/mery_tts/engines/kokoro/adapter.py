@@ -11,7 +11,9 @@ import importlib.util
 from collections.abc import AsyncIterator, Callable, Iterable
 from typing import Any, Protocol, cast
 
+from mery_tts.engines.annotated import AnnotatedSynthesisCapable, AnnotatedSynthesisResult
 from mery_tts.engines.base import EngineAdapter, PCMChunk
+from mery_tts.engines.kokoro.timed_session import TimedKokoroSession
 from mery_tts.streaming.capabilities import StreamingCapability, StreamingCapabilityInfo
 from mery_tts.voice import PresetVoicePayload, VoiceDescriptor
 from mery_tts.voice.resolver import ResolvedPresetPayload, ResolvedVoice
@@ -95,7 +97,7 @@ class KokoroRuntimeCache:
             raise KokoroRuntimeError("model_invalid", str(exc)) from exc
 
 
-class KokoroAdapter(EngineAdapter):
+class KokoroAdapter(EngineAdapter, AnnotatedSynthesisCapable):
     """Kokoro engine adapter with runtime caching."""
 
     engine_id = "kokoro"
@@ -111,6 +113,7 @@ class KokoroAdapter(EngineAdapter):
         self._synthesizer = synthesizer or _default_kokoro_synthesizer
         self._runtime_cache = runtime_cache or KokoroRuntimeCache()
         self._resolved_voices: dict[str, ResolvedVoice] = {}
+        self._timed_sessions: dict[str, Any] = {}
 
     @property
     def cancelled_requests(self) -> frozenset[str]:
@@ -206,3 +209,52 @@ class KokoroAdapter(EngineAdapter):
             raise
         except Exception as exc:
             raise KokoroRuntimeError("synthesis_failed", str(exc)) from exc
+
+    async def synthesize_annotated(
+        self,
+        text: str,
+        voice: VoiceDescriptor,
+    ) -> AnnotatedSynthesisResult:
+        """Synthesize speech with word-level timing marks.
+
+        Implements AnnotatedSynthesisCapable. Returns AnnotatedSynthesisResult
+        with PCM chunks and SpeechMark list. Marks list is empty if the ONNX
+        model does not expose a duration tensor (outputs[1]).
+        """
+        self.ensure_voice_supported(voice)
+        resolved = self._resolved_voices.get(voice.voice_id)
+        if resolved is None:
+            return AnnotatedSynthesisResult(chunks=[], marks=[])
+        try:
+            runtime = self._runtime_cache.get_or_load(voice.voice_id, resolved)
+            preset_id = (
+                voice.payload.preset_id
+                if isinstance(voice.payload, PresetVoicePayload)
+                else "default"
+            )
+            timed = self._get_or_create_timed_session(voice.voice_id, runtime)
+            result = await asyncio.to_thread(
+                lambda: timed.synthesize_annotated(text, preset_id)
+            )
+            return result
+        except KokoroRuntimeError as exc:
+            raise RuntimeError(f"{exc.kind}: {exc.message}") from exc
+
+    def _get_or_create_timed_session(
+        self, voice_id: str, runtime: object
+    ) -> TimedKokoroSession:
+        """Return a cached TimedKokoroSession for the given voice, creating one if needed."""
+        if voice_id not in self._timed_sessions:
+            self._timed_sessions[voice_id] = TimedKokoroSession(runtime)
+        return self._timed_sessions[voice_id]  # type: ignore[no-any-return]
+
+    def supports_word_marks(self, voice_id: str) -> bool:
+        """Return True if the loaded ONNX model exposes a duration tensor (outputs[1])."""
+        if voice_id not in self._runtime_cache._cache:
+            return False
+        runtime = self._runtime_cache._cache[voice_id]
+        try:
+            output_count = len(runtime.sess.get_outputs())
+            return output_count > 1
+        except Exception:
+            return False

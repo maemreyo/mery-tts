@@ -86,6 +86,7 @@ def test_installed_voices_returns_persisted_voice_manifests(tmp_path: Path) -> N
             "engine_id": "kokoro",
             "display_name": "Voice Kokoro Af",
             "streaming": None,
+            "capabilities": {"word_marks": True},
         }
     ]
 

@@ -14,6 +14,7 @@ from mery_tts.api.openai.speech import (
     OpenAISpeechRequest,
     build_openai_streaming_response,
     resolve_openai_streaming_request,
+    synthesize_annotated_openai_speech,
     validate_openai_model,
 )
 from mery_tts.audio.encoder import encode_wav
@@ -36,6 +37,7 @@ from mery_tts.readiness import (
 )
 from mery_tts.readiness.health import EngineReadinessSummary
 from mery_tts.schemas.v1 import (
+    AnnotatedSpeechResponse,
     CatalogVoicesResponse,
     DiagnosticsResponse,
     EngineReadinessSummaryVo,
@@ -54,8 +56,10 @@ from mery_tts.schemas.v1 import (
     ProviderRuntimeSummaryVo,
     SetupRecommendationsResponse,
     SetupRecommendationVo,
+    SpeechMarkVo,
     StorageResponse,
     StreamingCapabilityInfoVo,
+    VoiceCapabilitiesVo,
     VoicePackInstallResponse,
     VoicePacksResponse,
     VoicePackSummary,
@@ -415,6 +419,8 @@ def create_app(
         # pass voice_aliases explicitly to override or extend.
         voice_aliases = {v.voice_id: v.voice_id for v in installed_voice_descriptors}
 
+    from mery_tts.engines.annotated import AnnotatedSynthesisCapable
+
     installed_voice_summaries = [
         VoiceSummary(
             voice_id=voice.voice_id,
@@ -423,6 +429,13 @@ def create_app(
             streaming=_voice_streaming_capability_vo(
                 adapter=engine_registry.adapters[voice.engine_id],
                 voice=voice,
+            )
+            if voice.engine_id in engine_registry.adapters
+            else None,
+            capabilities=VoiceCapabilitiesVo(
+                word_marks=isinstance(
+                    engine_registry.adapters.get(voice.engine_id), AnnotatedSynthesisCapable
+                )
             )
             if voice.engine_id in engine_registry.adapters
             else None,
@@ -1001,6 +1014,57 @@ def create_app(
             response.headers["X-Mery-Sample-Rate"] = str(result.audio_metadata.sample_rate_hz)
             response.headers["X-Mery-Channels"] = str(result.audio_metadata.channels)
             return response
+        except SynthesisError as exc:
+            status_code = _synthesis_error_status(exc.kind)
+            error = diagnostic_error(
+                code=_synthesis_error_code(exc.kind),
+                category=_synthesis_error_category(exc.kind),
+                request_id="local",
+                diagnostic={"reason": str(exc), "voice_id": exc.voice_id or ""},
+            )
+            return JSONResponse(error.model_dump(mode="json"), status_code=status_code)
+        except (KeyError, ValueError) as exc:
+            return JSONResponse(
+                {"error": {"message": str(exc), "type": "invalid_request_error"}},
+                status_code=400,
+            )
+
+    @app.post("/v1/audio/speech/annotated", response_model=None)
+    async def openai_speech_annotated(
+        request: OpenAISpeechRequest,
+    ) -> JSONResponse:
+        """Synthesize speech with word-level timing marks.
+
+        Returns JSON with base64 audio and marks array.
+        """
+        import base64
+
+        try:
+            if len(request.input) > max_text_chars:
+                error = diagnostic_error(
+                    code=ErrorCode.SECURITY_REQUEST_TOO_LARGE,
+                    category=ErrorCategory.SECURITY,
+                    request_id="local",
+                    diagnostic={"limit": max_text_chars},
+                )
+                return JSONResponse(error.model_dump(mode="json"), status_code=413)
+
+            wav_bytes, marks = await synthesize_annotated_openai_speech(
+                request,
+                voice_registry=voice_registry,
+                voice_aliases=voice_aliases,
+            )
+            return JSONResponse(
+                AnnotatedSpeechResponse(
+                    audio_b64=base64.b64encode(wav_bytes).decode(),
+                    sample_rate=24000,
+                    marks=[
+                        SpeechMarkVo(word=m.word, start_ms=m.start_ms, end_ms=m.end_ms)
+                        for m in marks
+                    ],
+                    marks_available=len(marks) > 0,
+                ).model_dump()
+            )
         except SynthesisError as exc:
             status_code = _synthesis_error_status(exc.kind)
             error = diagnostic_error(

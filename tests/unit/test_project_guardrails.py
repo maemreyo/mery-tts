@@ -101,7 +101,7 @@ def test_engine_dependencies_are_optional_extras_not_default_dependencies() -> N
     default_dependencies = pyproject.split("[project.optional-dependencies]", maxsplit=1)[0]
 
     assert 'piper-plus = ["piper-plus[inference]>=1.0"]' in pyproject
-    assert 'kokoro     = ["kokoro-onnx>=0.4"]' in pyproject
+    assert 'kokoro     = ["kokoro-onnx>=0.4", "onnxruntime>=1.16"]' in pyproject
     assert 'all        = ["mery-tts-server[piper-plus,kokoro]"]' in pyproject
     assert "piper-plus" not in default_dependencies
     assert "kokoro-onnx" not in default_dependencies
