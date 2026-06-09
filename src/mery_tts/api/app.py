@@ -92,6 +92,7 @@ from mery_tts.synthesis import (
     SynthesisErrorKind,
 )
 from mery_tts.voice import VoiceDescriptor, VoiceRegistry
+from mery_tts.api.ws.synthesis import ws_synthesize
 
 CONTRACT_VERSION = "v1"
 
@@ -976,6 +977,12 @@ def create_app(
             error=job.error,
         )
 
+    def _ws_auth_ok(websocket: WebSocket) -> bool:
+        expected = current_auth_token()
+        auth_header = websocket.headers.get("authorization", "")
+        token_query = websocket.query_params.get("token", "")
+        return auth_header == f"Bearer {expected}" or token_query == expected
+
     @app.websocket("/v1/events")
     async def events(websocket: WebSocket) -> None:
         origin = websocket.headers.get("origin")
@@ -983,8 +990,7 @@ def create_app(
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 
-        expected = f"Bearer {current_auth_token()}"
-        if websocket.headers.get("authorization") != expected:
+        if not _ws_auth_ok(websocket):
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 
@@ -997,7 +1003,31 @@ def create_app(
                 "status": "ok",
             }
         )
-        await websocket.close()
+        # Stay connected — push future status events as they occur.
+        # Client closes when done; WebSocketDisconnect ends the loop.
+        try:
+            while True:
+                await websocket.receive_text()
+        except Exception:
+            pass
+
+    @app.websocket("/v1/synthesize/stream")
+    async def synthesize_stream(websocket: WebSocket) -> None:
+        origin = websocket.headers.get("origin")
+        if origin is not None and not is_allowed_origin(origin):
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        if not _ws_auth_ok(websocket):
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        await websocket.accept()
+        await ws_synthesize(
+            websocket,
+            voice_registry=voice_registry,
+            voice_aliases=voice_aliases,
+        )
 
     @app.post("/v1/audio/speech", response_model=None)
     async def openai_speech(
