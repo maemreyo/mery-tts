@@ -898,9 +898,31 @@ def create_app(
                 {"detail": f"install plan failed: {exc}"},
                 status_code=400,
             )
+
+        from mery_tts.setup.plan import InstallPlanStepKind
+
+        first_job_id: str | None = None
+        for step in plan.steps:
+            if step.kind != InstallPlanStepKind.WRITE_VOICE_MANIFEST:
+                continue
+            artifact_id = step.artifact_id or step.target_id
+            engine_id = step.engine_id or "piper-plus"
+            job = install_job_service.start_install(
+                catalog_entry_id=artifact_id,
+                voice_id=step.target_id,
+                engine_id=engine_id,
+                artifact_id=artifact_id,
+            )
+            if first_job_id is None:
+                first_job_id = job.job_id
+            task = asyncio.create_task(install_worker.execute(job.job_id))
+            background_tasks.add(task)
+            task.add_done_callback(background_tasks.discard)
+
         return VoicePackInstallResponse(
             request_id="local",
             voice_pack_id=voice_pack_id,
+            job_id=first_job_id,
             status="queued",
             plan_steps=len(plan.steps),
         )
