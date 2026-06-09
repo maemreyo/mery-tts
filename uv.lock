@@ -642,6 +642,7 @@ dependencies = [
 [package.optional-dependencies]
 all = [
     { name = "kokoro-onnx" },
+    { name = "onnxruntime" },
     { name = "piper-plus" },
 ]
 dev = [
@@ -655,6 +656,7 @@ dev = [
 ]
 kokoro = [
     { name = "kokoro-onnx" },
+    { name = "onnxruntime" },
 ]
 piper-plus = [
     { name = "piper-plus" },
@@ -675,6 +677,7 @@ requires-dist = [
     { name = "mery-tts-server", extras = ["piper-plus", "kokoro"], marker = "extra == 'all'" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },
     { name = "numpy", specifier = ">=1.26" },
+    { name = "onnxruntime", marker = "extra == 'kokoro'", specifier = ">=1.16" },
     { name = "piper-plus", extras = ["inference"], marker = "extra == 'piper-plus'", specifier = ">=1.0" },
     { name = "platformdirs", specifier = ">=4.3" },
     { name = "pydantic", specifier = ">=2.9" },

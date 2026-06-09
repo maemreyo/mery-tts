@@ -18,7 +18,7 @@ A hybrid CLI + daemon that:
 
 | Client type | How it connects | Example |
 |---|---|---|
-| Browser extension | `LocalhostTransport` → `/v1` | Read-aloud, accessibility |
+| Browser extension | `LocalhostTransport` → `/v1` | [Zam Reader](https://github.com/maemreyo/zreader) read-aloud, accessibility |
 | Desktop app | HTTP client → `/v1` | Electron / Tauri / VS Code plugin / e-reader |
 | CLI / script | `mery speak` or REST | Batch audio generation, terminal notifications |
 | AI / LLM assistant | HTTP client → `/v1` | Ollama + Mery = fully local voice assistant |
@@ -28,28 +28,49 @@ A hybrid CLI + daemon that:
 
 ## Quick start
 
+**Prerequisites:** Python 3.11+ and `uv` (or `pipx`).
+
 ```bash
-# Install
+# Install uv if you don't have it yet (macOS / Linux):
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Windows: winget install astral-sh.uv
+# Alternative: brew install pipx && pipx ensurepath
+```
+
+```bash
+# 1. Install Mery
 uv tool install mery-tts-server
 # or: pipx install mery-tts-server
 
-# Verify
+# 2. Verify
 mery doctor
 
-# Start the server (binds 127.0.0.1:8765 by default)
+# 3. Start the server (binds 127.0.0.1:8765 by default)
 mery serve
 
-# Pair a client — prints a 6-char code; paste the bearer token to your client
+# 4. Pair your client — prints a 6-char code for the client to claim
 mery pair
 
-# Install a voice
-mery models install piper-plus.en-us.lessac.medium
+# 5. Install English voices (ships with none by default)
+mery voice-packs install pack.en-us
 
-# Synthesize
+# 6. Synthesize
 mery speak --text "Hello from Mery"
 ```
 
 For the full AI-agent install contract (one link, hand it to an agent, it self-installs), see [`INSTALL_FOR_AGENTS.md`](INSTALL_FOR_AGENTS.md).
+
+---
+
+## Using with Zam Reader
+
+Zam Reader is a browser extension that uses Mery for premium, offline read-aloud.
+
+1. Install and start the server (steps 1–3 above)
+2. Open any article → click the **audio button** in Zam Reader → select **Mery** as your voice source
+3. The extension guides you through pairing and voice installation from there
+
+If Mery is already running, the extension detects it automatically. Voice installation can also be done through the Mery Console at `http://127.0.0.1:8765/console/setup`.
 
 ---
 

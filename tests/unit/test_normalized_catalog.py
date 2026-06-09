@@ -17,13 +17,15 @@ def test_bundled_catalog_loads_from_package_resources() -> None:
 
     assert catalog.catalog_id == "bundled-v1"
     assert {model.model_id for model in catalog.models} == {
+        "piper-plus.en-us.lessac-low",
         "piper-plus.vi-vn.demo",
         "kokoro.en-us.af-heart.demo",
     }
-    assert [voice.voice_id for voice in voices] == [
+    assert {voice.voice_id for voice in voices} == {
+        "catalog.piper-plus.en-us.lessac-low",
         "catalog.piper-plus.vi-vn.demo",
         "catalog.kokoro.en-us.af-heart.demo",
-    ]
+    }
 
 
 def test_normalized_catalog_projects_flat_voice_cards_without_raw_urls() -> None:

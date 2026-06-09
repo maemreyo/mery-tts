@@ -11,11 +11,14 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from mery_tts.artifacts.source import ArtifactSource, BundledArtifactSource, FetchedArtifact
 from mery_tts.catalog.normalized import ArtifactEntry, CatalogGraph
 from mery_tts.jobs.install import InstallJob, InstallJobService
+
+if TYPE_CHECKING:
+    from mery_tts.catalog.schema import Catalog
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,14 +69,25 @@ class BundledInstallWorker:
         job_service: InstallJobService,
         artifact_source: ArtifactSource | None = None,
         catalog_graph: CatalogGraph | None = None,
+        catalog: "Catalog | None" = None,
         artifacts_dir: Path | None = None,
         on_complete: Callable[[str], None] | None = None,
     ) -> None:
         self._job_service = job_service
-        self._source = artifact_source or BundledArtifactSource()
         self._catalog = catalog_graph
         self._artifacts_dir = artifacts_dir
         self._on_complete = on_complete
+
+        if artifact_source is not None:
+            self._source: ArtifactSource = artifact_source
+        elif catalog is not None:
+            from mery_tts.artifacts.source import DispatchArtifactSource, HttpArtifactSource
+            self._source = DispatchArtifactSource(
+                bundled=BundledArtifactSource(),
+                http=HttpArtifactSource(catalog=catalog),
+            )
+        else:
+            self._source = BundledArtifactSource()
 
     async def execute(self, job_id: str) -> InstallJob:
         """Execute an install job to completion or failure."""
@@ -149,13 +163,19 @@ class BundledInstallWorker:
             target_dir = self._artifacts_dir / artifact_plan.engine_id / artifact_plan.artifact_id
             target_dir.mkdir(parents=True, exist_ok=True)
             try:
+                download_url = f"bundled://{artifact_plan.artifact_id}"
+                if self._catalog is not None:
+                    for ae in self._catalog.artifacts:
+                        if ae.artifact_id == artifact_plan.artifact_id:
+                            download_url = ae.download_url
+                            break
                 entry = ArtifactEntry(
                     artifact_id=artifact_plan.artifact_id,
                     catalog_entry_id=artifact_plan.catalog_entry_id,
                     engine_id=artifact_plan.engine_id,
                     size_bytes=max(artifact_plan.expected_size_bytes, 1),
                     sha256=artifact_plan.expected_sha256 or "0" * 64,
-                    download_url=f"bundled://{artifact_plan.artifact_id}",
+                    download_url=download_url,
                 )
                 result = await self._source.fetch(entry, target_dir)
                 fetched[artifact_plan.artifact_id] = result

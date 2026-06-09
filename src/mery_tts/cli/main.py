@@ -438,14 +438,16 @@ def setup_url(
 
 @voice_packs_app.command("list")
 def voice_packs_list() -> None:
-    from mery_tts.catalog.voice_pack import VoicePackGraph, voice_packs_for_catalog_graph
+    from mery_tts.catalog.bundled import load_bundled_catalog
+    from mery_tts.catalog.bundled_voice_pack import bundled_catalog_to_voice_pack_graph
+    from mery_tts.catalog.voice_pack import voice_packs_for_catalog_graph
 
     paths = _runtime_paths()
     store = StorageIdentityStore(paths.base_dir)
     descriptors = store.hydrate_installed_voice_descriptors()
     installed_ids = {d.voice_id for d in descriptors}
 
-    graph = VoicePackGraph()
+    graph = bundled_catalog_to_voice_pack_graph(load_bundled_catalog())
     packs = voice_packs_for_catalog_graph(
         voice_pack_graph=graph,
         installed_voice_ids=installed_ids,
@@ -458,39 +460,64 @@ def voice_packs_list() -> None:
 def voice_packs_install(
     pack_id: str = typer.Argument(..., help="Voice pack ID to install."),
 ) -> None:
-    from mery_tts.catalog.voice_pack import VoicePackGraph
-    from mery_tts.setup.services import (
-        SimpleInstalledRuntimeStore,
-        SimpleInstalledVoiceStore,
-        SimpleVoicePackCatalog,
-        VoicePackService,
-    )
+    asyncio.run(_do_voice_pack_install(pack_id))
+
+
+async def _do_voice_pack_install(pack_id: str) -> None:
+    from mery_tts.catalog.bundled import load_bundled_catalog
+    from mery_tts.catalog.bundled_voice_pack import bundled_catalog_to_voice_pack_graph
+    from mery_tts.catalog.graph_adapter import legacy_catalog_to_graph
+    from mery_tts.jobs.install import JobStatus
+    from mery_tts.setup.plan import InstallPlanError, InstallPlanStepKind, resolve_install_plan
 
     paths = _runtime_paths()
+    catalog = load_bundled_catalog()
+    catalog_graph = legacy_catalog_to_graph(catalog)
+    voice_pack_graph = bundled_catalog_to_voice_pack_graph(catalog)
+
     store = StorageIdentityStore(paths.base_dir)
     descriptors = store.hydrate_installed_voice_descriptors()
     installed_ids = {d.voice_id for d in descriptors}
 
-    catalog = SimpleVoicePackCatalog(VoicePackGraph())
-    service = VoicePackService(
-        catalog=catalog,
-        installed_voices=SimpleInstalledVoiceStore(installed_ids),
-        installed_runtimes=SimpleInstalledRuntimeStore(),
-    )
-    pack = service.get_pack(pack_id)
-    if pack is None:
-        typer.echo(f"voice pack {pack_id!r} not found", err=True)
+    try:
+        plan = resolve_install_plan(
+            voice_pack_id=pack_id,
+            voice_pack_graph=voice_pack_graph,
+            catalog_graph=catalog_graph,
+            installed_voice_ids=installed_ids,
+        )
+    except InstallPlanError as exc:
+        typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1)
 
-    plan = service.plan_install(pack_id)
-    typer.echo(
-        json.dumps(
-            {
-                "voice_pack_id": pack_id,
-                "plan_steps": len(plan.steps),
-                "provider_runtimes": list(plan.provider_runtime_ids),
-                "artifact_ids": list(plan.artifact_ids),
-                "voice_ids": list(plan.voice_ids),
-            }
-        )
+    if plan.is_empty:
+        typer.echo("Already installed.")
+        return
+
+    artifacts_dir = paths.base_dir / "models" / "artifacts"
+    job_service = InstallJobService(store=store, refresh=lambda: None)
+    worker = BundledInstallWorker(
+        job_service=job_service,
+        catalog=catalog,
+        catalog_graph=catalog_graph,
+        artifacts_dir=artifacts_dir,
     )
+
+    voice_steps = [s for s in plan.steps if s.kind == InstallPlanStepKind.WRITE_VOICE_MANIFEST]
+    for step in voice_steps:
+        artifact_id = step.artifact_id or step.target_id
+        engine_id = step.engine_id or "piper-plus"
+        typer.echo(f"Downloading {artifact_id}…", nl=False)
+        job = job_service.start_install(
+            catalog_entry_id=artifact_id,
+            voice_id=step.target_id,
+            engine_id=engine_id,
+            artifact_id=artifact_id,
+        )
+        result = await worker.execute(job.job_id)
+        if result.status == JobStatus.FAILED:
+            typer.echo(f" failed\nerror: {result.error}", err=True)
+            raise typer.Exit(1)
+        typer.echo(" done")
+
+    typer.echo(f"Voice pack {pack_id!r} installed.")

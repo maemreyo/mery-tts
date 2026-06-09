@@ -1,18 +1,24 @@
 """Artifact source abstraction for model install.
 
 ADR-0023: ArtifactSource hides whether bytes come from package resources, HTTP, or
-a future local import. Only BundledArtifactSource is required for the first milestone.
+a future local import. BundledArtifactSource covers package resources; HttpArtifactSource
+covers remote downloads; DispatchArtifactSource routes between them by URL scheme.
 """
 
 from __future__ import annotations
 
 import hashlib
+import urllib.parse
+from collections.abc import Callable
 from dataclasses import dataclass
 from importlib.resources import files
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from mery_tts.catalog.normalized import ArtifactEntry
+
+if TYPE_CHECKING:
+    from mery_tts.catalog.schema import Catalog, CatalogFile
 
 
 class ArtifactFetchError(Exception):
@@ -100,6 +106,126 @@ class BundledArtifactSource:
         )
 
 
+_PLACEHOLDER_SHA256 = "0" * 64
+_HUGGINGFACE_HOSTS = frozenset({
+    "huggingface.co",
+    "cdn-lfs.huggingface.co",
+    "cdn-lfs-us-1.huggingface.co",
+})
+
+
+class HttpArtifactSource:
+    """Downloads model files from HTTPS URLs.
+
+    Fetches all files listed in the Catalog for the artifact (not just the primary
+    entry), verifying sha256 for each file unless the catalog uses the placeholder
+    ``"0" * 64`` to signal that the model's checksum is not yet known.
+    """
+
+    source_kind = "http"
+
+    def __init__(
+        self,
+        catalog: "Catalog",
+        *,
+        allowed_hosts: frozenset[str] | None = None,
+        on_progress: Callable[[int, int], None] | None = None,
+    ) -> None:
+        self._catalog = catalog
+        self._allowed_hosts = allowed_hosts if allowed_hosts is not None else _HUGGINGFACE_HOSTS
+        self._on_progress = on_progress
+
+    def _catalog_files(self, artifact_id: str) -> list["CatalogFile"]:
+        for model in self._catalog.models:
+            if model.model_id == artifact_id:
+                return list(model.files)
+        return []
+
+    def _validate_url(self, url: str) -> None:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            raise ArtifactFetchError(f"unsupported scheme in URL: {url!r}")
+        if parsed.netloc not in self._allowed_hosts:
+            raise ArtifactFetchError(
+                f"host {parsed.netloc!r} not in allowed hosts: {sorted(self._allowed_hosts)}"
+            )
+
+    async def fetch(self, artifact: ArtifactEntry, target_dir: Path) -> FetchedArtifact:
+        import httpx
+
+        catalog_files = self._catalog_files(artifact.artifact_id)
+        if not catalog_files:
+            raise ArtifactFetchError(
+                f"no catalog files for artifact '{artifact.artifact_id}'"
+            )
+        downloadable = [f for f in catalog_files if f.download_url]
+        if not downloadable:
+            raise ArtifactFetchError(
+                f"no download_url on any file for artifact '{artifact.artifact_id}'"
+            )
+        for file in downloadable:
+            self._validate_url(file.download_url)  # type: ignore[arg-type]
+
+        target_dir.mkdir(parents=True, exist_ok=True)
+        total_expected = sum(f.size_bytes for f in downloadable)
+        bytes_done = 0
+        copied_files: list[Path] = []
+        total_size = 0
+        hasher = hashlib.sha256()
+
+        async with httpx.AsyncClient(
+            follow_redirects=True,
+            timeout=httpx.Timeout(connect=30.0, read=300.0, write=30.0, pool=30.0),
+        ) as client:
+            for file in downloadable:
+                chunks: list[bytes] = []
+                async with client.stream("GET", file.download_url) as response:  # type: ignore[arg-type]
+                    response.raise_for_status()
+                    async for chunk in response.aiter_bytes(chunk_size=65536):
+                        chunks.append(chunk)
+                        bytes_done += len(chunk)
+                        if self._on_progress:
+                            self._on_progress(bytes_done, total_expected)
+                data = b"".join(chunks)
+
+                if file.sha256 != _PLACEHOLDER_SHA256:
+                    actual = hashlib.sha256(data).hexdigest()
+                    if actual != file.sha256:
+                        raise ArtifactFetchError(
+                            f"sha256 mismatch for '{file.filename}': "
+                            f"expected {file.sha256}, got {actual}"
+                        )
+
+                dest = target_dir / file.filename
+                dest.write_bytes(data)
+                copied_files.append(dest)
+                total_size += len(data)
+                hasher.update(data)
+
+        return FetchedArtifact(
+            artifact_id=artifact.artifact_id,
+            target_dir=target_dir,
+            files=tuple(sorted(copied_files)),
+            total_size_bytes=total_size,
+            sha256=hasher.hexdigest(),
+        )
+
+
+class DispatchArtifactSource:
+    """Routes fetch calls to bundled or HTTP source based on download_url scheme."""
+
+    source_kind = "dispatch"
+
+    def __init__(self, bundled: ArtifactSource, http: ArtifactSource) -> None:
+        self._bundled = bundled
+        self._http = http
+
+    async def fetch(self, artifact: ArtifactEntry, target_dir: Path) -> FetchedArtifact:
+        if artifact.download_url.startswith(("https://", "http://")):
+            return await self._http.fetch(artifact, target_dir)
+        return await self._bundled.fetch(artifact, target_dir)
+
+
 class FakeArtifactSource:
     """Test artifact source that injects fake artifacts without touching package resources."""
 
@@ -148,6 +274,8 @@ __all__ = [
     "ArtifactFetchError",
     "ArtifactSource",
     "BundledArtifactSource",
+    "DispatchArtifactSource",
     "FakeArtifactSource",
     "FetchedArtifact",
+    "HttpArtifactSource",
 ]

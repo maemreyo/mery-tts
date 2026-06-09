@@ -51,6 +51,7 @@ def test_catalog_voices_returns_bundled_runtime_catalog(tmp_path: Path) -> None:
     assert response.status_code == 200
     voices = response.json()["voices"]
     assert {voice["voice_id"] for voice in voices} == {
+        "catalog.piper-plus.en-us.lessac-low",
         "catalog.piper-plus.vi-vn.demo",
         "catalog.kokoro.en-us.af-heart.demo",
     }

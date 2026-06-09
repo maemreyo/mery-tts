@@ -725,8 +725,11 @@ def create_app(
     def _on_install_complete(_job_id: str) -> None:
         smoke_record_store.load_all()
 
+    _bundled_catalog = load_bundled_catalog()
     install_worker = BundledInstallWorker(
         job_service=install_job_service,
+        catalog=_bundled_catalog,
+        catalog_graph=legacy_catalog_to_graph(_bundled_catalog),
         artifacts_dir=paths.base_dir / "models" / "artifacts",
         on_complete=_on_install_complete,
     )
