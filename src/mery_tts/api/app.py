@@ -131,6 +131,10 @@ def is_allowed_origin(origin: str) -> bool:
     if origin == "null":
         return True
     parsed = urlparse(origin)
+    # Browser extension origins (moz-extension://, chrome-extension://) are
+    # always local to the user's browser — allow unconditionally.
+    if parsed.scheme in ("moz-extension", "chrome-extension"):
+        return True
     return parsed.scheme == "http" and parsed.hostname in ALLOWED_ORIGIN_HOSTS
 
 
@@ -531,8 +535,27 @@ def create_app(
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        response = await call_next(request)
         origin = request.headers.get("origin")
+
+        # Handle preflight early — never call call_next for OPTIONS.
+        # Calling call_next first and then copying its Content-Length into a
+        # 204 body-less response causes "Response content shorter than
+        # Content-Length" crashes in uvicorn.
+        if request.method == "OPTIONS":
+            if origin is not None and is_allowed_origin(origin):
+                return Response(
+                    status_code=204,
+                    headers={
+                        "Access-Control-Allow-Origin": origin,
+                        "Access-Control-Allow-Credentials": "true",
+                        "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Requested-With",
+                        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                        "Access-Control-Max-Age": "86400",
+                    },
+                )
+            return Response(status_code=204)
+
+        response = await call_next(request)
         if origin is not None and is_allowed_origin(origin):
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Credentials"] = "true"
@@ -541,8 +564,6 @@ def create_app(
             )
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
             response.headers["Access-Control-Expose-Headers"] = ", ".join(MERY_DIAGNOSTIC_HEADERS)
-        if request.method == "OPTIONS":
-            return Response(status_code=204, headers=response.headers)
         return response
 
     @app.get("/console", response_model=None)
