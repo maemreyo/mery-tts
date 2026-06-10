@@ -140,7 +140,7 @@ class SmokeService:
     def _infer_voices_for_providers(self, providers: list[str]) -> list[tuple[str, str]]:
         """Infer default voice IDs for given provider engine IDs."""
         default_voices: dict[str, str] = {
-            "piper-plus": "piper-plus.vi-vn.demo",
+            "piper-plus": "piper-plus.en-us.lessac-low",
             "kokoro": "kokoro.en-us.af-heart.demo",
         }
         return [(default_voices[p], p) for p in providers if p in default_voices]

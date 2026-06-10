@@ -12,6 +12,7 @@ import uvicorn
 from mery_tts import __version__
 from mery_tts.audio.exporter import AudioExporter
 from mery_tts.catalog import bundled_catalog_voice_summaries
+from mery_tts.catalog.bundled import load_bundled_catalog
 from mery_tts.diagnostics.doctor import (
     CatalogAvailableCheck,
     DiskSpaceCheck,
@@ -88,7 +89,7 @@ def doctor(
     engine_registry = discover_engine_registry()
     valid_engine_ids = set(engine_registry.adapters.keys())
 
-    model_store = ModelStore(paths.models_dir)
+    model_store = ModelStore(paths.models_dir / "artifacts")
     installed_models = [
         m.model_id for m in model_store.list_installed() if m.engine_id in valid_engine_ids
     ]
@@ -133,7 +134,7 @@ def _run_deep_smoke(paths: "RuntimePaths", providers: list[str]) -> None:
 
     registry = discover_engine_registry()
     voice_registry = VoiceRegistry(registry.adapters)
-    store = StorageIdentityStore(paths.base_dir)
+    store = StorageIdentityStore(paths.models_dir)
     descriptors = store.hydrate_installed_voice_descriptors()
     for desc in descriptors:
         with contextlib.suppress(ValueError, KeyError):
@@ -216,7 +217,7 @@ def engines() -> None:
 @app.command()
 def voices() -> None:
     paths = _runtime_paths()
-    store = StorageIdentityStore(paths.base_dir)
+    store = StorageIdentityStore(paths.models_dir)
     descriptors = store.hydrate_installed_voice_descriptors()
     voice_list = [
         {"voice_id": d.voice_id, "engine_id": d.engine_id, "kind": d.payload.kind}
@@ -256,8 +257,8 @@ def models_install(
     model_id: str = typer.Argument(..., help="Model ID to install (e.g. piper-plus.vi-vn.demo)"),
 ) -> None:
     paths = _runtime_paths()
-    storage_store = StorageIdentityStore(paths.base_dir)
     model_store = ModelStore(paths.models_dir)
+    storage_store = StorageIdentityStore(paths.models_dir)
 
     def refresh() -> None:
         pass
@@ -271,6 +272,7 @@ def models_install(
     worker = BundledInstallWorker(
         job_service=job_service,
         artifacts_dir=paths.models_dir / "artifacts",
+        catalog=load_bundled_catalog(),
     )
 
     engine_id = "piper-plus" if "piper" in model_id.lower() else "kokoro"
@@ -393,7 +395,7 @@ def setup_recommend(
     )
 
     paths = _runtime_paths()
-    store = StorageIdentityStore(paths.base_dir)
+    store = StorageIdentityStore(paths.models_dir)
     descriptors = store.hydrate_installed_voice_descriptors()
     installed_ids = {d.voice_id for d in descriptors}
 
@@ -443,7 +445,7 @@ def voice_packs_list() -> None:
     from mery_tts.catalog.voice_pack import voice_packs_for_catalog_graph
 
     paths = _runtime_paths()
-    store = StorageIdentityStore(paths.base_dir)
+    store = StorageIdentityStore(paths.models_dir)
     descriptors = store.hydrate_installed_voice_descriptors()
     installed_ids = {d.voice_id for d in descriptors}
 
@@ -475,7 +477,7 @@ async def _do_voice_pack_install(pack_id: str) -> None:
     catalog_graph = legacy_catalog_to_graph(catalog)
     voice_pack_graph = bundled_catalog_to_voice_pack_graph(catalog)
 
-    store = StorageIdentityStore(paths.base_dir)
+    store = StorageIdentityStore(paths.models_dir)
     descriptors = store.hydrate_installed_voice_descriptors()
     installed_ids = {d.voice_id for d in descriptors}
 

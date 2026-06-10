@@ -91,7 +91,7 @@ from mery_tts.synthesis import (
     SynthesisError,
     SynthesisErrorKind,
 )
-from mery_tts.voice import VoiceDescriptor, VoiceRegistry
+from mery_tts.voice import InstalledVoiceResolver, VoiceDescriptor, VoiceRegistry
 from mery_tts.api.ws.synthesis import ws_synthesize
 
 CONTRACT_VERSION = "v1"
@@ -417,6 +417,7 @@ def create_app(
     if catalog_voices is None:
         catalog_voices = bundled_catalog_voice_summaries()
     installed_voice_descriptors = storage_identity_store.hydrate_installed_voice_descriptors()
+    voice_resolver = InstalledVoiceResolver(artifacts_dir=storage_identity_store.artifacts_dir)
     if voice_aliases is None:
         # Default: every installed voice is addressable by its own
         # voice_id. This makes the OpenAI-compatible endpoint usable
@@ -451,6 +452,13 @@ def create_app(
     def _refresh_voice_registry() -> None:
         descriptors = storage_identity_store.hydrate_installed_voice_descriptors()
         voice_registry.refresh(descriptors)
+        for voice in descriptors:
+            if voice.engine_id in engine_registry.adapters:
+                adapter = engine_registry.adapters[voice.engine_id]
+                if hasattr(adapter, "register_resolved_voice"):
+                    resolved = voice_resolver.try_resolve(voice)
+                    if resolved is not None:
+                        adapter.register_resolved_voice(resolved)
 
     if install_job_service is None:
         install_job_service = InstallJobService(
@@ -493,6 +501,12 @@ def create_app(
 
     for voice in installed_voice_descriptors:
         voice_registry.register(voice)
+        if voice.engine_id in engine_registry.adapters:
+            adapter = engine_registry.adapters[voice.engine_id]
+            if hasattr(adapter, "register_resolved_voice"):
+                resolved = voice_resolver.try_resolve(voice)
+                if resolved is not None:
+                    adapter.register_resolved_voice(resolved)
 
     app = FastAPI(title="Mery TTS Server", version=__version__)
 

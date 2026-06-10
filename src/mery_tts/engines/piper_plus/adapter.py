@@ -18,8 +18,10 @@ from collections.abc import AsyncIterator, Callable, Iterable
 from dataclasses import replace
 from typing import Protocol
 
+from mery_tts.engines.annotated import AnnotatedSynthesisCapable, AnnotatedSynthesisResult
 from mery_tts.engines.base import EngineAdapter, PCMChunk
 from mery_tts.engines.piper_plus.config import PiperConfigReader
+from mery_tts.engines.piper_plus.timed_session import PiperTimedSession
 from mery_tts.streaming.capabilities import StreamingCapability, StreamingCapabilityInfo
 from mery_tts.voice import ModelFileVoicePayload, VoiceDescriptor
 from mery_tts.voice.resolver import ResolvedModelFilePayload, ResolvedVoice
@@ -30,19 +32,9 @@ _DEFAULT_SYNTHESIS_SAMPLE_RATE_HZ = 24_000
 
 
 class _PiperVoice(Protocol):
-    """Structural type mirroring ``piper.PiperVoice.synthesize_stream_raw``."""
+    """Structural type mirroring ``piper.PiperVoice``."""
 
-    def synthesize_stream_raw(
-        self,
-        text: str,
-        speaker_id: int | None = ...,
-        length_scale: float | None = ...,
-        noise_scale: float | None = ...,
-        noise_w: float | None = ...,
-        sentence_silence: float = ...,
-        volume: float = ...,
-        language_id: int | None = ...,
-    ) -> Iterable[bytes]: ...
+    def synthesize(self, text: str, *, syn_config: object = ...) -> Iterable[object]: ...
 
 
 class PiperRuntimeError(Exception):
@@ -117,7 +109,7 @@ class PiperRuntimeCache:
             raise PiperRuntimeError("model_invalid", str(exc)) from exc
 
 
-class PiperPlusAdapter(EngineAdapter):
+class PiperPlusAdapter(EngineAdapter, AnnotatedSynthesisCapable):
     """Piper Plus engine adapter with runtime caching."""
 
     engine_id = "piper-plus"
@@ -241,8 +233,26 @@ class PiperPlusAdapter(EngineAdapter):
                 return native
         return _DEFAULT_SYNTHESIS_SAMPLE_RATE_HZ
 
+    async def synthesize_annotated(
+        self,
+        text: str,
+        voice: VoiceDescriptor,
+    ) -> AnnotatedSynthesisResult:
+        self.ensure_voice_supported(voice)
+        resolved = self._resolved_voices.get(voice.voice_id)
+        if resolved is None:
+            raise RuntimeError("model_missing: voice not resolved")
+        sample_rate = self._synthesis_sample_rate_hz(resolved)
+        try:
+            runtime = self._runtime_cache.get_or_load(voice.voice_id, resolved)
+            session = PiperTimedSession(runtime, sample_rate=sample_rate)
+            result = await asyncio.to_thread(session.synthesize_annotated, text)
+        except PiperRuntimeError as exc:
+            raise RuntimeError(f"{exc.kind}: {exc.message}") from exc
+        return result
+
     def _synthesize_with_runtime(self, text: str, runtime: _PiperVoice) -> Iterable[bytes]:
         try:
-            return runtime.synthesize_stream_raw(text)
+            return [chunk.audio_int16_bytes for chunk in runtime.synthesize(text)]
         except Exception as exc:
             raise PiperRuntimeError("synthesis_failed", str(exc)) from exc

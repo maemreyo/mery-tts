@@ -74,9 +74,16 @@ class BundledInstallWorker:
         on_complete: Callable[[str], None] | None = None,
     ) -> None:
         self._job_service = job_service
-        self._catalog = catalog_graph
         self._artifacts_dir = artifacts_dir
         self._on_complete = on_complete
+
+        if catalog_graph is not None:
+            self._catalog: CatalogGraph | None = catalog_graph
+        elif catalog is not None:
+            from mery_tts.catalog.graph_adapter import legacy_catalog_to_graph
+            self._catalog = legacy_catalog_to_graph(catalog)
+        else:
+            self._catalog = None
 
         if artifact_source is not None:
             self._source: ArtifactSource = artifact_source

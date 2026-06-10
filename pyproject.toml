@@ -43,7 +43,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # Engine adapters — install per need
-piper-plus = ["piper-plus[inference]>=1.0"]
+piper-plus = ["piper-tts>=1.4"]
 kokoro     = ["kokoro-onnx>=0.4", "onnxruntime>=1.16"]
 all        = ["mery-tts-server[piper-plus,kokoro]"]
 
