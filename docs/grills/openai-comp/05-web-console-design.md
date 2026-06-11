@@ -441,7 +441,7 @@ Minimum tests for this decision:
 ```text
 backend/static_console_route_test.py
   - GET /console serves index.html
-  - GET /console/assets/app.js serves static asset
+  - GET /console/assets/<vite-hash>.js serves the referenced static asset
   - SPA fallback under /console/... returns index.html
   - /v1 routes are unaffected
 

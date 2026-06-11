@@ -1,4 +1,5 @@
 {
-  "project": ["src/**/*.{ts,tsx}"],
+  "entry": ["index.html", "src/styles.css"],
+  "project": ["src/**/*.{ts,tsx,css}", "*.{ts,js}"],
   "ignoreExportsUsedInFile": true
 }

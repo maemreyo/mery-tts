@@ -48,6 +48,8 @@ describe("loadVoiceViewModels", () => {
         installed: false,
         installedLabel: "not installed",
         governanceLabel: "allowed (stock)",
+        governanceStatus: "allowed",
+        installable: true,
       },
     ]);
   });

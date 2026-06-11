@@ -208,13 +208,15 @@ def test_react_console_voices_tracer_bullet_covers_auth_locale_and_governance() 
 
 def test_react_console_quality_and_developer_mode_contracts() -> None:
     app_shell = read("web/console/src/features/app-shell/AppShell.tsx")
+    section_tabs = read("web/console/src/features/app-shell/SectionTabs.tsx")
     health = read("web/console/src/features/health/HealthPanel.tsx")
     playground = read("web/console/src/features/playground/PlaygroundPanel.tsx")
     developer = read("web/console/src/features/developer/DeveloperPanel.tsx")
     playwright = read("web/console/e2e/console-smoke.spec.ts")
     package_json = read("web/console/package.json")
 
-    assert "User Mode navigation" in app_shell
+    assert "User Mode navigation" in section_tabs
+    assert "Tabs.List" in section_tabs
     assert "<HealthPanel" in app_shell
     assert "<PlaygroundPanel" in app_shell
     assert "<DeveloperPanel" in app_shell

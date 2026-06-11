@@ -25,12 +25,17 @@ describe("VoicesPanel", () => {
       expect(screen.getByText("English Demo")).toBeInTheDocument(),
     );
     expect(screen.getByText("Vietnamese Demo")).toBeInTheDocument();
+    expect(screen.getByText("French Demo")).toBeInTheDocument();
     expect(screen.getByText("gated (reference)")).toBeInTheDocument();
 
     await userEvent.type(screen.getByLabelText("Locale filter"), "vi-VN");
 
     expect(screen.queryByText("English Demo")).not.toBeInTheDocument();
     expect(screen.getByText("Vietnamese Demo")).toBeInTheDocument();
+    expect(screen.getByText("gated")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Install voice" }),
+    ).not.toBeInTheDocument();
   });
 
   it("supports search, sort, and install polling states", async () => {
@@ -39,16 +44,19 @@ describe("VoicesPanel", () => {
     await waitFor(() =>
       expect(screen.getByText("Vietnamese Demo")).toBeInTheDocument(),
     );
-    await userEvent.selectOptions(
-      screen.getByLabelText("Sort voices"),
-      "engine",
+    await userEvent.click(
+      screen.getByRole("combobox", { name: "Sort voices" }),
     );
-    await userEvent.type(screen.getByLabelText("Search voices"), "Vietnamese");
+    await userEvent.click(screen.getByRole("option", { name: "Engine" }));
+    await userEvent.type(screen.getByLabelText("Search voices"), "French");
     expect(screen.queryByText("English Demo")).not.toBeInTheDocument();
+    expect(screen.queryByText("Vietnamese Demo")).not.toBeInTheDocument();
 
     await userEvent.click(
       screen.getByRole("button", { name: "Install voice" }),
     );
+    expect(screen.getByText("Confirm voice install")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Confirm" }));
 
     await waitFor(() =>
       expect(screen.getByText("Install succeeded.")).toBeInTheDocument(),

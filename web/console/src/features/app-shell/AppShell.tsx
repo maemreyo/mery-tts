@@ -2,82 +2,109 @@ import { DeveloperPanel } from "@features/developer/DeveloperPanel";
 import { HealthPanel } from "@features/health/HealthPanel";
 import { PlaygroundPanel } from "@features/playground/PlaygroundPanel";
 import { VoicesPanel } from "@features/voices/VoicesPanel";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   clearSession,
   persistSession,
   readInitialSession,
 } from "@shared/auth/session";
-import { t } from "@shared/i18n/messages";
+import { Button } from "@shared/ui/Button";
+import { FieldGroup, FormField } from "@shared/ui/FormField";
 import { Panel } from "@shared/ui/Panel";
+import { SwitchField } from "@shared/ui/SwitchField";
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { SectionTabs } from "./SectionTabs";
+
+const sessionSchema = z.object({
+  token: z.string().trim().max(4096, "Bearer token is too long."),
+  remember: z.boolean(),
+});
+
+type SessionFormValues = z.infer<typeof sessionSchema>;
 
 export function AppShell() {
   const [session, setSession] = useState(readInitialSession);
+  const form = useForm<SessionFormValues>({
+    resolver: zodResolver(sessionSchema),
+    values: session,
+  });
 
   useEffect(() => {
     persistSession(session);
   }, [session]);
 
+  const applySession = form.handleSubmit((values) => setSession(values));
+  const logout = () => {
+    const cleared = clearSession();
+    setSession(cleared);
+    form.reset(cleared);
+  };
+
   return (
     <main className="console-shell">
       <Panel>
-        <h1>{t("appTitle")}</h1>
-        <p>{t("appDescription")}</p>
-        <nav aria-label="User Mode navigation">
-          <a href="#voices">Voices</a> <a href="#playground">Playground</a>{" "}
-          <a href="#health">Health</a>
-        </nav>
-        <div className="field-row">
-          <label>
-            {t("bearerToken")}
-            <input
-              aria-label={t("bearerToken")}
+        <h1>Mery Console</h1>
+        <p>
+          Local-first TTS control plane. User Mode is recovery-focused;
+          Developer Mode remains opt-in.
+        </p>
+        <form className="session-form" onSubmit={applySession}>
+          <FieldGroup>
+            <FormField
+              label="Bearer token"
               type="password"
-              value={session.token}
-              onChange={(event) =>
-                setSession((current) => ({
-                  ...current,
-                  token: event.currentTarget.value,
-                }))
-              }
+              autoComplete="off"
+              error={form.formState.errors.token?.message}
+              {...form.register("token")}
             />
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={session.remember}
-              onChange={(event) =>
-                setSession((current) => ({
-                  ...current,
-                  remember: event.currentTarget.checked,
-                }))
-              }
+            <SwitchField
+              checked={form.watch("remember")}
+              label="Remember on this device"
+              onCheckedChange={(checked) => form.setValue("remember", checked)}
             />
-            {t("rememberDevice")}
-          </label>
-          <button type="button" onClick={() => setSession(clearSession())}>
-            {t("logout")}
-          </button>
-        </div>
+            <Button type="submit" variant="primary">
+              Use token
+            </Button>
+            <Button type="button" onClick={logout}>
+              Log out
+            </Button>
+          </FieldGroup>
+        </form>
       </Panel>
-      <Panel>
-        <div id="voices">
-          <VoicesPanel token={session.token} />
-        </div>
-      </Panel>
-      <Panel>
-        <div id="playground">
-          <PlaygroundPanel token={session.token} />
-        </div>
-      </Panel>
-      <Panel>
-        <div id="health">
-          <HealthPanel token={session.token} />
-        </div>
-      </Panel>
-      <Panel>
-        <DeveloperPanel />
-      </Panel>
+      <SectionTabs
+        panels={{
+          voices: (
+            <Panel>
+              <div id="voices">
+                <VoicesPanel token={session.token} />
+              </div>
+            </Panel>
+          ),
+          playground: (
+            <Panel>
+              <div id="playground">
+                <PlaygroundPanel token={session.token} />
+              </div>
+            </Panel>
+          ),
+          health: (
+            <Panel>
+              <div id="health">
+                <HealthPanel token={session.token} />
+              </div>
+            </Panel>
+          ),
+          developer: (
+            <Panel>
+              <div id="developer">
+                <DeveloperPanel />
+              </div>
+            </Panel>
+          ),
+        }}
+      />
     </main>
   );
 }

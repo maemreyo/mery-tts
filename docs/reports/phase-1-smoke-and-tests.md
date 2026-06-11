@@ -19,7 +19,7 @@ Runner: macOS (darwin), `uv` workflow
 | Live `mery serve` smoke (13 endpoint probes) | 12× `200`, 3× `404` (asset + traversal guard), 3× `401` (auth boundary) |
 | `uv run pytest` (no marker filter) | **272 passed, 3 skipped** in 1.33s |
 | `make check` (canonical gate) | ruff format ✓, ruff check ✓, mypy ✓ (60 files), pytest 272 passed, CLI smoke ✓ |
-| Build artifact `uv build --wheel` | `mery_tts/console/{index.html,assets/app.css,assets/app.js}` present in wheel |
+| Build artifact `uv build --wheel` | `mery_tts/console/index.html` plus referenced Vite hashed JS/CSS assets present in wheel |
 
 **Net result:** every claim in the public README — `/v1` API, packaged
 `/console` web UI, bundled catalog, auth boundary, asset traversal guard,
@@ -63,14 +63,14 @@ environment. Everything else is green.
 |---|---|---|---|---|---|
 | 1 | `GET /v1/health` | – | 401 (auth required) | **401** | – |
 | 2 | `GET /v1/health` | bearer | 200 JSON | **200** | `{"schema_version":"v1","request_id":"local","status":"ok"}` |
-| 3 | `GET /console` | – | 200 `text/html` | **200** | 3001 bytes, references `app.css` + `app.js` |
+| 3 | `GET /console` | – | 200 `text/html` | **200** | SPA shell referencing Vite hashed JS/CSS assets |
 | 4 | `GET /console/` | – | 200 SPA shell | **200** | 3001 bytes (trailing-slash form) |
 | 5 | `GET /console/catalog/deep-link` | – | 200 SPA fallback | **200** | 3001 bytes (deep link serves index) |
-| 6 | `GET /console/assets/app.js` | – | 200 `text/javascript` | **200** | 8225 bytes |
-| 7 | `GET /console/assets/app.css` | – | 200 `text/css` | **200** | 3107 bytes |
+| 6 | `GET /console/assets/<vite-hash>.js` | – | 200 `text/javascript` | **200** | Vite hashed JavaScript bundle |
+| 7 | `GET /console/assets/<vite-hash>.css` | – | 200 `text/css` | **200** | Vite hashed stylesheet |
 | 8 | `GET /console/assets/missing.js` | – | 404 | **404** | – |
 | 9 | `GET /console/assets/%2e%2e/index.html` | – | 404 (encoded traversal) | **404** | – |
-| 10 | `GET /console/assets/app.js` (no auth) | – | 200 (public) | **200** | – |
+| 10 | `GET /console/assets/<vite-hash>.js` (no auth) | – | 200 (public) | **200** | – |
 | 11 | `GET /v1/catalog/voices` | – | 401 | **401** | – |
 | 12 | `GET /v1/catalog/voices` | bearer | 200 + voice summaries | **200** | 2 voices: `catalog.piper-plus.vi-vn.demo`, `catalog.kokoro.en-us.af-heart.demo` |
 | 13 | `GET /v1/engines` | bearer | 200 + engine statuses | **200** | 2 engines, both `dependency_missing` (correct — extras not installed) |
@@ -289,8 +289,8 @@ Expected output for step 4:
 ```
 mery_tts/console/__init__.py
 mery_tts/console/index.html
-mery_tts/console/assets/app.css
-mery_tts/console/assets/app.js
+mery_tts/console/assets/<vite-hash>.css
+mery_tts/console/assets/<vite-hash>.js
 ```
 
 ---

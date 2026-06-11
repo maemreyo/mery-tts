@@ -13,6 +13,8 @@ export interface VoiceViewModel {
   installed: boolean;
   installedLabel: string;
   governanceLabel: string;
+  governanceStatus: string;
+  installable: boolean;
 }
 
 export async function loadVoiceViewModels(
@@ -49,5 +51,7 @@ function toVoiceViewModel(voice: VoiceSummary): VoiceViewModel {
     installed: voice.installed,
     installedLabel: voice.installed ? "installed" : "not installed",
     governanceLabel: `${voice.governance_status} (${voice.risk_class})`,
+    governanceStatus: voice.governance_status,
+    installable: !voice.installed && voice.governance_status === "allowed",
   };
 }

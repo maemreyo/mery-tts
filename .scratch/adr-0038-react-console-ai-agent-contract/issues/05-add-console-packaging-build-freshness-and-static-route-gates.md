@@ -31,5 +31,7 @@ Connect the React build output to the Python package boundary and add checks pro
 
 ## Evidence
 
-- `pnpm build` — emitted packaged React assets into `src/mery_tts/console`.
+- `pnpm build` — emitted packaged React assets into `src/mery_tts/console/index.html` plus hashed `/console/assets/index-Dt6ysx-f.js` and `/console/assets/index-AkCkVfli.css`.
 - `pnpm console-check` — passed generated API freshness, build freshness, and real-browser packaged `/console` smoke through Python server.
+- `uv run pytest tests/unit/test_package_boundary.py tests/unit/test_console_runtime_contract_docs.py tests/contract/test_api_core.py` — `39 passed`, including `/console`, `/console/setup`, `/console/assets/*`, SPA fallback, and package-resource route contracts.
+- `uv run ruff check tests/unit/test_package_boundary.py tests/unit/test_console_runtime_contract_docs.py tests/contract/test_api_core.py` — passed.

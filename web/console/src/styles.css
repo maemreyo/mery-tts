@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :root {
   color: #eef4ff;
   background: #101827;
@@ -41,26 +43,187 @@ a:visited {
   margin-top: 0;
 }
 
-.field-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.field-row input,
-.field-row select {
-  min-width: 220px;
-}
-
+.session-form,
+.playground-form,
 .voice-grid {
   display: grid;
   gap: 12px;
 }
 
+.field-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+
+.form-field {
+  display: grid;
+  gap: 6px;
+}
+
+.form-field input,
+.select-trigger {
+  min-width: 220px;
+  color: #101827;
+  background: #eef4ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.field-error {
+  color: #fecaca;
+  margin: 0;
+}
+
+.button {
+  border: 1px solid rgba(186, 230, 253, 0.7);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 8px 12px;
+}
+
+.button-primary {
+  color: #101827;
+  background: #bae6fd;
+  font-weight: 800;
+}
+
+.button-secondary {
+  color: #eef4ff;
+  background: transparent;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.switch-field {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 40px;
+}
+
+.switch-root {
+  width: 42px;
+  height: 24px;
+  border: 1px solid #bae6fd;
+  border-radius: 999px;
+  background: #334155;
+  padding: 2px;
+}
+
+.switch-root[data-state="checked"] {
+  background: #bae6fd;
+}
+
+.switch-thumb {
+  display: block;
+  width: 18px;
+  height: 18px;
+  background: #eef4ff;
+  border-radius: 999px;
+  transition: transform 140ms ease;
+}
+
+.switch-root[data-state="checked"] .switch-thumb {
+  background: #101827;
+  transform: translateX(17px);
+}
+
+.tabs-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab-trigger {
+  border: 1px solid rgba(186, 230, 253, 0.65);
+  border-radius: 8px;
+  padding: 8px 12px;
+  text-decoration: none;
+}
+
+.tab-trigger[data-status="active"] {
+  color: #101827;
+  background: #bae6fd;
+  font-weight: 800;
+}
+
+.select-content,
+.dialog-content {
+  color: #eef4ff;
+  background: #101827;
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  padding: 12px;
+  z-index: 20;
+}
+
+.select-item {
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 8px 10px;
+}
+
+.select-item[data-highlighted] {
+  color: #101827;
+  background: #bae6fd;
+  outline: none;
+}
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.dialog-content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: min(520px, calc(100vw - 32px));
+  transform: translate(-50%, -50%);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.developer-panel,
 .voice-card {
   background: rgba(255, 255, 255, 0.06);
   border-radius: 12px;
   padding: 12px;
+}
+
+.developer-panel {
+  border: 1px dashed #bae6fd;
+  margin-top: 12px;
 }
 
 .badge {
@@ -71,4 +234,32 @@ a:visited {
   border-radius: 8px;
   padding: 2px 8px;
   font-weight: 800;
+}
+
+@media (max-width: 720px) {
+  .console-shell {
+    padding: 12px;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tr,
+  td {
+    display: block;
+  }
+
+  tr {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    padding: 8px;
+  }
+
+  td::before {
+    content: attr(data-label) ": ";
+    color: #bae6fd;
+    font-weight: 800;
+  }
 }

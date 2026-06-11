@@ -1,3 +1,4 @@
+import re
 from importlib import resources
 from pathlib import Path
 
@@ -31,18 +32,29 @@ def test_audio_encoder_is_not_imported_by_cli_modules() -> None:
 
 def test_console_assets_are_packaged_python_resources() -> None:
     console_package = resources.files("mery_tts.console")
+    index = console_package.joinpath("index.html")
 
-    assert console_package.joinpath("index.html").is_file()
-    assert console_package.joinpath("assets", "app.js").is_file()
-    assert console_package.joinpath("assets", "app.css").is_file()
-    assert "/v1${path}" in console_package.joinpath("assets", "app.js").read_text()
+    assert index.is_file()
+    html = index.read_text()
+    asset_paths = re.findall(r'"/console/assets/([^"]+\.(?:js|css))"', html)
+    assert sorted(asset_paths) == sorted(set(asset_paths))
+    assert any(path.endswith(".js") for path in asset_paths)
+    assert any(path.endswith(".css") for path in asset_paths)
+    for asset_path in asset_paths:
+        assert console_package.joinpath("assets", asset_path).is_file()
+
+    packaged_asset_names = {
+        child.name for child in console_package.joinpath("assets").iterdir()
+    }
+    assert "app.js" not in packaged_asset_names
+    assert "app.css" not in packaged_asset_names
 
 
 def test_readme_status_describes_current_runtime_without_stale_claims() -> None:
     readme = Path("README.md").read_text()
 
-    assert "Early runtime implementation" in readme
-    assert "packaged `/console` web UI" in readme
+    assert "Phase 1 early access runtime" in readme
+    assert "local web console at `/console`" in readme
     assert "serves `/v1` plus the local web console at `/console`" in readme
     assert "No runtime implementation yet" not in readme
     assert "OpenAI-compatible speech stubs" not in readme
