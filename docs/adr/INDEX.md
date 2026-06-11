@@ -45,6 +45,7 @@ These ADRs distill the 27 design decisions from
 | Remaining branch grill | ADR-0044 | Release, update, and storage lifecycle |
 | Remaining branch grill | ADR-0045 | Runtime resource policy |
 | Remaining branch grill | ADR-0046 | Docs, help, and ADR acceptance process |
+| Interactive CLI launcher grill | ADR-0047 | Guided launcher architecture and automation surfaces |
 | Grill 04, Q41–Q46 | ADR-0018 | Provider rollout strategy |
 | Grill 06 | ADR-0019 | Provider adapter taxonomy |
 | Grill 05, Q47–Q55 | ADR-0020 | Web console architecture |
@@ -111,6 +112,7 @@ These ADRs distill the 27 design decisions from
 | [ADR-0044](ADR-0044-release-update-and-storage-lifecycle.md) | Release, Update, and Storage Lifecycle | ⏳ Proposed |
 | [ADR-0045](ADR-0045-runtime-resource-policy.md) | Runtime Resource Policy | ⏳ Proposed |
 | [ADR-0046](ADR-0046-docs-help-and-adr-acceptance-process.md) | Docs, Help, and ADR Acceptance Process | ⏳ Proposed |
+| [ADR-0047](ADR-0047-interactive-cli-launcher-architecture.md) | Interactive CLI Launcher Architecture | ⏳ Proposed |
 
 ---
 

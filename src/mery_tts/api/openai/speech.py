@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from mery_tts.audio.encoder import encode_wav
+from mery_tts.engines.annotated import SpeechMark
 from mery_tts.locale import Bcp47Locale, normalize_bcp47_locale
 from mery_tts.streaming.config import StreamingConfig
 from mery_tts.streaming.metadata import StreamMetadataError
@@ -144,7 +145,7 @@ async def synthesize_annotated_openai_speech(
     *,
     voice_registry: VoiceRegistry,
     voice_aliases: dict[str, str],
-) -> tuple[bytes, list]:
+) -> tuple[bytes, list[SpeechMark]]:
     """Synthesize speech with word timing marks.
 
     Returns (wav_bytes, marks_list). marks_list is empty if engine doesn't support annotations.

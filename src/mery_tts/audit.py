@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from mery_tts.errors import sanitize_diagnostic
 
@@ -99,7 +99,7 @@ def _metadata(value: object) -> dict[str, Any]:
 
 def _outcome(value: str) -> AuditOutcome:
     if value in {"success", "denied", "failed"}:
-        return value
+        return cast("AuditOutcome", value)
     return "failed"
 
 

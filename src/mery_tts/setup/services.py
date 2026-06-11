@@ -160,7 +160,12 @@ class SetupService:
                     display_name=str(proj["display_name"]),
                     description=str(proj.get("description", "")),
                     locale=str(proj.get("locale", "")),
-                    supported_locales=[str(tag) for tag in proj.get("supported_locales", [])],
+                    supported_locales=[
+                        str(tag)
+                        for tag in cast(
+                            "list[str] | tuple[str, ...]", proj.get("supported_locales", [])
+                        )
+                    ],
                     use_case=str(proj.get("use_case", "")),
                     estimated_size_bytes=_safe_int(
                         cast("int | str | float | None", proj.get("estimated_size_bytes"))

@@ -194,11 +194,11 @@ def test_react_console_voices_tracer_bullet_covers_auth_locale_and_governance() 
     assert "getInstallJob" in wrapper
     assert "getHealth" in wrapper
     assert "runSpeechSmoke" in wrapper
-    assert "http.get(\"/v1/catalog/voices\"" in handlers
-    assert "http.post(\"/v1/models/install\"" in handlers
-    assert "http.get(\"/v1/health\"" in handlers
+    assert 'http.get("/v1/catalog/voices"' in handlers
+    assert 'http.post("/v1/models/install"' in handlers
+    assert 'http.get("/v1/health"' in handlers
     assert "http.post" in handlers
-    assert "\"/v1/audio/speech\"" in handlers
+    assert '"/v1/audio/speech"' in handlers
     assert "allowed (stock)" in voices_api_test
     assert "gated (reference)" in panel_test
     assert "Install succeeded." in panel_test

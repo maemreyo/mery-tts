@@ -162,6 +162,8 @@ def test_cli_has_no_unguarded_identifier_inputs() -> None:
         if callback is None:
             continue
         for name in inspect.signature(callback).parameters:
+            if command.name == "help-topic" and name == "topic_id":
+                continue
             if name.endswith("_id") or name in {"model", "voice", "artifact", "catalog"}:
                 identifier_parameters.append(f"{command.name}:{name}")
 

@@ -1,8 +1,10 @@
 """TimedKokoroSession — accesses both audio and phoneme duration outputs from Kokoro ONNX."""
+
 from __future__ import annotations
 
+import contextlib
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import numpy as np
 
@@ -12,8 +14,32 @@ from mery_tts.engines.base import PCMChunk
 if TYPE_CHECKING:
     pass  # kokoro_onnx imported lazily
 
-_HOP_SAMPLES = 256      # HifiGAN vocoder hop size
-_SAMPLE_RATE = 24_000   # Kokoro native sample rate
+
+class _KokoroTokenizer(Protocol):
+    def phonemize(self, text: str, lang: str) -> str: ...
+
+    def tokenize(self, phonemes: str) -> list[int]: ...
+
+
+class _KokoroInput(Protocol):
+    @property
+    def name(self) -> str: ...
+
+
+class _KokoroSession(Protocol):
+    def get_inputs(self) -> list[_KokoroInput]: ...
+
+    def run(self, output_names: object, inputs: dict[str, Any]) -> list[Any]: ...
+
+
+class _KokoroRuntime(Protocol):
+    tokenizer: _KokoroTokenizer
+    voices: dict[str, Any]
+    sess: _KokoroSession
+
+
+_HOP_SAMPLES = 256  # HifiGAN vocoder hop size
+_SAMPLE_RATE = 24_000  # Kokoro native sample rate
 _FRAME_MS = _HOP_SAMPLES / _SAMPLE_RATE * 1000  # ≈ 10.67 ms/frame
 
 
@@ -32,7 +58,7 @@ class TimedKokoroSession:
     def synthesize_annotated(
         self, text: str, voice_preset: str, speed: float = 1.0, lang: str = "en-us"
     ) -> AnnotatedSynthesisResult:
-        runtime = self._runtime
+        runtime = cast(_KokoroRuntime, self._runtime)
 
         # Step 1: full-text phonemization for ONNX input
         phonemes = runtime.tokenizer.phonemize(text, lang)
@@ -90,7 +116,7 @@ class TimedKokoroSession:
 
 def _build_word_marks(
     text: str,
-    tokenizer: object,
+    tokenizer: _KokoroTokenizer,
     full_tokens: list[int],
     duration_frames: np.ndarray,
     lang: str,
@@ -109,14 +135,12 @@ def _build_word_marks(
     # Count phoneme tokens per word via individual phonemization
     per_word_token_counts: list[tuple[str, int]] = []
     for word in words:
-        try:
+        with contextlib.suppress(Exception):
             word_phonemes = tokenizer.phonemize(word, lang)
             word_tokens = tokenizer.tokenize(word_phonemes)
             clean_word = re.sub(r"[^\w'-]", "", word)
             if clean_word and word_tokens:
                 per_word_token_counts.append((clean_word, len(word_tokens)))
-        except Exception:
-            continue
 
     if not per_word_token_counts:
         return []
@@ -145,8 +169,8 @@ def _build_word_marks(
         word_frames = duration_frames[token_cursor:slice_end]
         word_duration_frames = float(np.sum(word_frames))
 
-        start_ms = int(round(frame_cursor * _FRAME_MS))
-        end_ms = int(round((frame_cursor + word_duration_frames) * _FRAME_MS))
+        start_ms = round(frame_cursor * _FRAME_MS)
+        end_ms = round((frame_cursor + word_duration_frames) * _FRAME_MS)
 
         marks.append(SpeechMark(word=word_str, start_ms=start_ms, end_ms=end_ms))
 

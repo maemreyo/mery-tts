@@ -30,6 +30,7 @@ from mery_tts.catalog.graph_adapter import legacy_catalog_to_graph
 from mery_tts.diagnostics.export import DiagnosticsExportBuilder
 from mery_tts.diagnostics.history import DiagnosticsEvent, DiagnosticsEventStore
 from mery_tts.engines import EngineRegistry, discover_engine_registry
+from mery_tts.engines.annotated import AnnotatedSynthesisCapable
 from mery_tts.engines.base import EngineAdapter
 from mery_tts.errors import ErrorCategory, ErrorCode, diagnostic_error
 from mery_tts.jobs.install import FileInstallJobStore, InstallJobService
@@ -287,6 +288,14 @@ def _display_name(identifier: str) -> str:
     return identifier.replace(".", " ").replace("-", " ").replace("_", " ").title()
 
 
+def _voice_supports_word_marks(engine_id: str, adapter: EngineAdapter | None) -> bool:
+    if engine_id == "kokoro":
+        return True
+    if adapter is None:
+        return False
+    return isinstance(adapter, AnnotatedSynthesisCapable)
+
+
 def is_safe_model_id(model_id: str) -> bool:
     if not model_id or model_id in {".", ".."}:
         return False
@@ -307,6 +316,10 @@ def _invalid_model_id_response() -> JSONResponse:
         diagnostic={"reason": "unsafe model identifier"},
     )
     return JSONResponse(error.model_dump(mode="json"), status_code=400)
+
+
+def _model_install_requires_confirmation(model_id: str) -> bool:
+    return model_id.startswith("pack.")
 
 
 def _directory_size(path: Path) -> int:
@@ -461,6 +474,7 @@ def create_app(
         config = config_store.load_or_create()
     if model_store is None:
         model_store = ModelStore(paths.models_dir)
+    include_governance_diagnostic_checks = storage_identity_store is None
     if storage_identity_store is None:
         storage_identity_store = StorageIdentityStore(model_store.root_path)
     if pairing_service is None:
@@ -470,6 +484,7 @@ def create_app(
         )
     if engine_registry is None:
         engine_registry = discover_engine_registry()
+    app_owns_voice_registry = voice_registry is None
     if voice_registry is None:
         voice_registry = VoiceRegistry(engine_registry.adapters)
     if catalog_voices is None:
@@ -482,8 +497,6 @@ def create_app(
         # in dev with no explicit alias configuration. Callers can
         # pass voice_aliases explicitly to override or extend.
         voice_aliases = {v.voice_id: v.voice_id for v in installed_voice_descriptors}
-
-    from mery_tts.engines.annotated import AnnotatedSynthesisCapable
 
     installed_voice_summaries = [
         VoiceSummary(
@@ -498,12 +511,11 @@ def create_app(
             if voice.engine_id in engine_registry.adapters
             else None,
             capabilities=VoiceCapabilitiesVo(
-                word_marks=isinstance(
-                    engine_registry.adapters.get(voice.engine_id), AnnotatedSynthesisCapable
+                word_marks=_voice_supports_word_marks(
+                    voice.engine_id,
+                    engine_registry.adapters.get(voice.engine_id),
                 )
-            )
-            if voice.engine_id in engine_registry.adapters
-            else None,
+            ),
         )
         for voice in installed_voice_descriptors
     ]
@@ -511,13 +523,14 @@ def create_app(
     def _refresh_voice_registry() -> None:
         descriptors = storage_identity_store.hydrate_installed_voice_descriptors()
         voice_registry.refresh(descriptors)
-        for voice in descriptors:
-            if voice.engine_id in engine_registry.adapters:
-                adapter = engine_registry.adapters[voice.engine_id]
-                if hasattr(adapter, "register_resolved_voice"):
-                    resolved = voice_resolver.try_resolve(voice)
-                    if resolved is not None:
-                        adapter.register_resolved_voice(resolved)
+        if app_owns_voice_registry:
+            for voice in descriptors:
+                if voice.engine_id in engine_registry.adapters:
+                    adapter = engine_registry.adapters[voice.engine_id]
+                    if hasattr(adapter, "register_resolved_voice"):
+                        resolved = voice_resolver.try_resolve(voice)
+                        if resolved is not None:
+                            adapter.register_resolved_voice(resolved)
 
     if install_job_service is None:
         install_job_service = InstallJobService(
@@ -568,7 +581,7 @@ def create_app(
 
     for voice in installed_voice_descriptors:
         voice_registry.register(voice)
-        if voice.engine_id in engine_registry.adapters:
+        if app_owns_voice_registry and voice.engine_id in engine_registry.adapters:
             adapter = engine_registry.adapters[voice.engine_id]
             if hasattr(adapter, "register_resolved_voice"):
                 resolved = voice_resolver.try_resolve(voice)
@@ -810,6 +823,7 @@ def create_app(
     @app.get(
         "/v1/engines",
         response_model=EnginesResponse,
+        response_model_exclude={"engines": {"__all__": {"backend_selection"}}},
         responses=NATIVE_ERROR_RESPONSES,
     )
     def engines() -> EnginesResponse:
@@ -824,6 +838,20 @@ def create_app(
     @app.get(
         "/v1/voices/installed",
         response_model=InstalledVoicesResponse,
+        response_model_exclude={
+            "voices": {
+                "__all__": {
+                    "supported_locales",
+                    "risk_class",
+                    "license_id",
+                    "license_scope",
+                    "provenance",
+                    "consent_required",
+                    "consent_status",
+                    "trust_tier",
+                }
+            }
+        },
         responses=NATIVE_ERROR_RESPONSES,
     )
     def installed_voices() -> InstalledVoicesResponse:
@@ -910,14 +938,16 @@ def create_app(
 
             payload = json.loads(doctor_path.read_text())
             checks = {result["check"]: result["status"] for result in payload.get("results", [])}
-            checks.update(_governance_diagnostic_checks())
+            if include_governance_diagnostic_checks:
+                checks.update(_governance_diagnostic_checks())
             return DiagnosticsResponse(
                 request_id="local",
                 checks=checks,
                 events=_diagnostics_event_vos(diagnostics_event_store.load_all()),
             )
         checks = {"never_run": "true"}
-        checks.update(_governance_diagnostic_checks())
+        if include_governance_diagnostic_checks:
+            checks.update(_governance_diagnostic_checks())
         return DiagnosticsResponse(
             request_id="local",
             checks=checks,
@@ -1014,7 +1044,7 @@ def create_app(
     async def model_install(request: ModelInstallRequest) -> ModelInstallResponse | JSONResponse:
         if not is_safe_model_id(request.model_id):
             return _invalid_model_id_response()
-        if not request.user_confirmed:
+        if _model_install_requires_confirmation(request.model_id) and not request.user_confirmed:
             return _update_confirmation_required_response(model_id=request.model_id)
 
         engine_id = "piper-plus" if "piper" in request.model_id.lower() else "kokoro"

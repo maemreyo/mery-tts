@@ -105,11 +105,13 @@ class BundledArtifactSource:
 
 
 _PLACEHOLDER_SHA256 = "0" * 64
-_HUGGINGFACE_HOSTS = frozenset({
-    "huggingface.co",
-    "cdn-lfs.huggingface.co",
-    "cdn-lfs-us-1.huggingface.co",
-})
+_HUGGINGFACE_HOSTS = frozenset(
+    {
+        "huggingface.co",
+        "cdn-lfs.huggingface.co",
+        "cdn-lfs-us-1.huggingface.co",
+    }
+)
 
 
 class HttpArtifactSource:
@@ -161,9 +163,7 @@ class HttpArtifactSource:
 
         catalog_files = self._catalog_files(artifact.artifact_id)
         if not catalog_files:
-            raise ArtifactFetchError(
-                f"no catalog files for artifact '{artifact.artifact_id}'"
-            )
+            raise ArtifactFetchError(f"no catalog files for artifact '{artifact.artifact_id}'")
         downloadable = [f for f in catalog_files if f.download_url]
         if not downloadable:
             raise ArtifactFetchError(

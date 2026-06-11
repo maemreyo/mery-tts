@@ -45,27 +45,41 @@ def test_direct_install_grants_are_scoped_expiring_and_revocable() -> None:
         reason="direct_install.allowed",
         grant_id="grant-1",
     )
-    assert policy.evaluate(
-        client_id="other-client",
-        install_class="voice-pack",
-        now=now,
-    ).reason == "direct_install.client_mismatch"
-    assert policy.evaluate(
-        client_id="zam-reader",
-        install_class="provider-runtime",
-        now=now,
-    ).reason == "direct_install.install_class_denied"
-    assert policy.evaluate(
-        client_id="zam-reader",
-        install_class="voice-pack",
-        now=now + timedelta(minutes=6),
-    ).reason == "direct_install.expired"
+    assert (
+        policy.evaluate(
+            client_id="other-client",
+            install_class="voice-pack",
+            now=now,
+        ).reason
+        == "direct_install.client_mismatch"
+    )
+    assert (
+        policy.evaluate(
+            client_id="zam-reader",
+            install_class="provider-runtime",
+            now=now,
+        ).reason
+        == "direct_install.install_class_denied"
+    )
+    assert (
+        policy.evaluate(
+            client_id="zam-reader",
+            install_class="voice-pack",
+            now=now + timedelta(minutes=6),
+        ).reason
+        == "direct_install.expired"
+    )
     revoked = grant.model_copy(update={"revoked": True})
-    assert DirectInstallGrantPolicy(enabled=True, grants=(revoked,)).evaluate(
-        client_id="zam-reader",
-        install_class="voice-pack",
-        now=now,
-    ).reason == "direct_install.revoked"
+    assert (
+        DirectInstallGrantPolicy(enabled=True, grants=(revoked,))
+        .evaluate(
+            client_id="zam-reader",
+            install_class="voice-pack",
+            now=now,
+        )
+        .reason
+        == "direct_install.revoked"
+    )
 
 
 def test_direct_install_requires_user_confirmation_and_local_policy() -> None:
@@ -78,29 +92,44 @@ def test_direct_install_requires_user_confirmation_and_local_policy() -> None:
         user_confirmed=False,
     )
 
-    assert DirectInstallGrantPolicy(enabled=True, grants=(unconfirmed,)).evaluate(
-        client_id="zam-reader",
-        install_class="voice-pack",
-        now=now,
-    ).reason == "direct_install.user_confirmation_required"
-    assert DirectInstallGrantPolicy(
-        enabled=True,
-        grants=(unconfirmed.model_copy(update={"user_confirmed": True}),),
-        local_only=True,
-    ).evaluate(
-        client_id="zam-reader",
-        install_class="voice-pack",
-        now=now,
-    ).reason == "network_disabled:local_only:direct_install"
-    assert DirectInstallGrantPolicy(
-        enabled=True,
-        grants=(unconfirmed.model_copy(update={"user_confirmed": True}),),
-        air_gapped=True,
-    ).evaluate(
-        client_id="zam-reader",
-        install_class="voice-pack",
-        now=now,
-    ).reason == "network_disabled:air_gapped:direct_install"
+    assert (
+        DirectInstallGrantPolicy(enabled=True, grants=(unconfirmed,))
+        .evaluate(
+            client_id="zam-reader",
+            install_class="voice-pack",
+            now=now,
+        )
+        .reason
+        == "direct_install.user_confirmation_required"
+    )
+    assert (
+        DirectInstallGrantPolicy(
+            enabled=True,
+            grants=(unconfirmed.model_copy(update={"user_confirmed": True}),),
+            local_only=True,
+        )
+        .evaluate(
+            client_id="zam-reader",
+            install_class="voice-pack",
+            now=now,
+        )
+        .reason
+        == "network_disabled:local_only:direct_install"
+    )
+    assert (
+        DirectInstallGrantPolicy(
+            enabled=True,
+            grants=(unconfirmed.model_copy(update={"user_confirmed": True}),),
+            air_gapped=True,
+        )
+        .evaluate(
+            client_id="zam-reader",
+            install_class="voice-pack",
+            now=now,
+        )
+        .reason
+        == "network_disabled:air_gapped:direct_install"
+    )
 
 
 def test_direct_install_grant_audit_metadata_is_sanitized() -> None:

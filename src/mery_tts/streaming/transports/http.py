@@ -116,9 +116,7 @@ async def build_openai_pcm_stream_response(
                         )
                         break
                     if not metadata.is_compatible(chunk):
-                        pipeline.mark_post_first_byte_failure(
-                            reason="incompatible_chunk_metadata"
-                        )
+                        pipeline.mark_post_first_byte_failure(reason="incompatible_chunk_metadata")
                         _LOGGER.info(
                             "stream.lifecycle_metadata_drift",
                             extra={

@@ -227,6 +227,25 @@ def diagnostics_export(
 
 
 @app.command()
+def launch(
+    list_actions: bool = typer.Option(False, "--list-actions", help="List launcher actions."),
+    action: str | None = typer.Option(None, "--action", help="Run a launcher action by ID."),
+    json_output: bool = typer.Option(False, "--json", help="Emit JSON output."),
+    yes: bool = typer.Option(False, "--yes", help="Approve confirmation-gated actions."),
+) -> None:
+    """Open the interactive Mery launcher."""
+    from mery_tts.cli.launcher import run_launcher
+
+    exit_code = run_launcher(
+        list_actions=list_actions,
+        action=action,
+        json_output=json_output,
+        yes=yes,
+    )
+    raise typer.Exit(exit_code)
+
+
+@app.command()
 def smoke(
     providers: str = typer.Option(
         "piper-plus,kokoro",

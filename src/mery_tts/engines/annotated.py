@@ -1,4 +1,5 @@
 """AnnotatedSynthesisCapable Protocol and result types for word-timed synthesis."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

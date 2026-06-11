@@ -117,7 +117,7 @@ say -v '?' | grep vi
 |-----------|-------|
 | GitHub | [ayutaz/piper-plus](https://github.com/ayutaz/piper-plus) |
 | License | **MIT** (no GPL dependency on espeak-ng) |
-| Installation | Binary download OR `pip install "piper-plus[inference]"` |
+| Installation | Binary download OR `pip install "piper-plus"` |
 | Model size | **38 MB** (medium quality) |
 | RAM usage | **~208 MB** |
 | Latency (P50) | **27 ms** |
@@ -151,7 +151,7 @@ piper --help
 
 **Installation (Python):**
 ```bash
-pip install "piper-plus[inference]"
+pip install "piper-plus"
 ```
 
 **Download Voice Models:**

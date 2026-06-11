@@ -43,9 +43,7 @@ def test_console_assets_are_packaged_python_resources() -> None:
     for asset_path in asset_paths:
         assert console_package.joinpath("assets", asset_path).is_file()
 
-    packaged_asset_names = {
-        child.name for child in console_package.joinpath("assets").iterdir()
-    }
+    packaged_asset_names = {child.name for child in console_package.joinpath("assets").iterdir()}
     assert "app.js" not in packaged_asset_names
     assert "app.css" not in packaged_asset_names
 

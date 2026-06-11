@@ -69,7 +69,7 @@ class BundledInstallWorker:
         job_service: InstallJobService,
         artifact_source: ArtifactSource | None = None,
         catalog_graph: CatalogGraph | None = None,
-        catalog: "Catalog | None" = None,
+        catalog: Catalog | None = None,
         artifacts_dir: Path | None = None,
         on_complete: Callable[[str], None] | None = None,
     ) -> None:
@@ -81,6 +81,7 @@ class BundledInstallWorker:
             self._catalog: CatalogGraph | None = catalog_graph
         elif catalog is not None:
             from mery_tts.catalog.graph_adapter import legacy_catalog_to_graph
+
             self._catalog = legacy_catalog_to_graph(catalog)
         else:
             self._catalog = None
@@ -89,6 +90,7 @@ class BundledInstallWorker:
             self._source: ArtifactSource = artifact_source
         elif catalog is not None:
             from mery_tts.artifacts.source import DispatchArtifactSource, HttpArtifactSource
+
             self._source = DispatchArtifactSource(
                 bundled=BundledArtifactSource(),
                 http=HttpArtifactSource(catalog=catalog),

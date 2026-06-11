@@ -95,7 +95,6 @@ class TestBundledCatalogToVoicePackGraph:
         assert graph.voice_packs[0].supported_locales == ["en-US", "en-GB"]
         assert projection[0]["supported_locales"] == ["en-US", "en-GB"]
 
-
     def test_groups_voices_by_locale(self) -> None:
         catalog = _build_catalog(
             models=[

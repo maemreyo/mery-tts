@@ -2093,7 +2093,7 @@ diagnostics/
 ```text
 mery doctor
   Engine registry:
-    - piper-plus: unavailable (missing optional dependency piper-plus[inference])
+    - piper-plus: unavailable (missing optional dependency piper-plus)
     - kokoro: unavailable (missing optional dependency kokoro-onnx)
   Suggested fix:
     uv tool install "mery-tts-server[all]"

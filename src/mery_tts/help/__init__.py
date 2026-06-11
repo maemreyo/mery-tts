@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from importlib import resources
-from typing import Any
+from typing import Any, cast
 
 REQUIRED_HELP_TOPIC_IDS = frozenset(
     {
@@ -35,7 +35,8 @@ def _help_root() -> resources.abc.Traversable:
 
 def _manifest_entries() -> list[dict[str, Any]]:
     manifest_path = _help_root().joinpath("manifest.json")
-    return json.loads(manifest_path.read_text(encoding="utf-8"))["topics"]
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    return cast("list[dict[str, Any]]", payload["topics"])
 
 
 def list_help_topics() -> tuple[HelpTopic, ...]:

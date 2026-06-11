@@ -30,7 +30,7 @@ for `mery-tts-server`.
 
 ```toml
 [project.optional-dependencies]
-piper-plus = ["piper-plus[inference]>=1.0"]
+piper-plus = ["piper-plus>=1.10.0"]
 kokoro     = ["kokoro-onnx>=0.4"]
 all        = ["mery-tts-server[piper-plus,kokoro]"]
 ```

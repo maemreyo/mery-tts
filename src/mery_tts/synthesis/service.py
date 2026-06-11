@@ -12,7 +12,7 @@ from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 from mery_tts.engines.base import PCMChunk
@@ -321,7 +321,14 @@ class SpeechSynthesisService:
 
         for voice_id in plan.ordered_voice_ids:
             try:
-                _, selected_voice = self._registry.resolve_route(voice_id)
+                try:
+                    _, selected_voice = self._registry.resolve_route(voice_id)
+                except KeyError as exc:
+                    raise SynthesisError(
+                        kind=SynthesisErrorKind.UNKNOWN_VOICE,
+                        message=f"voice '{voice_id}' is not installed",
+                        voice_id=voice_id,
+                    ) from exc
                 selected_voice_locale = self._selected_voice_locale(selected_voice)
                 self._ensure_high_risk_voice_not_gated(selected_voice)
                 self._ensure_provider_network_allowed(selected_voice)
@@ -334,9 +341,14 @@ class SpeechSynthesisService:
                     text,
                     locale=mery_options.requested_locale or selected_voice_locale or "en-US",
                 )
+                synthesis_segments = self._synthesis_segments_for_locale(
+                    normalized.text,
+                    normalized.locale,
+                    normalized.segments,
+                )
                 async with self._resource_limiter.acquire(selected_voice.engine_id):
                     chunks = await self._try_synthesize_segments_with_timeout(
-                        normalized.segments,
+                        synthesis_segments,
                         voice_id,
                         provider_id=selected_voice.engine_id,
                         requested_timeout_seconds=mery_options.timeout_seconds,
@@ -395,10 +407,20 @@ class SpeechSynthesisService:
         )
 
     def _selected_voice_locale(self, voice: VoiceDescriptor) -> str | None:
-        supported_locales = getattr(voice, "supported_locales", [])
+        supported_locales = cast("Sequence[str]", getattr(voice, "supported_locales", []))
         if supported_locales:
             return supported_locales[0]
         return None
+
+    def _synthesis_segments_for_locale(
+        self,
+        text: str,
+        locale: str,
+        normalized_segments: Sequence[str],
+    ) -> tuple[str, ...]:
+        if locale.startswith("vi-"):
+            return (text,)
+        return tuple(normalized_segments)
 
     def _ensure_high_risk_voice_not_gated(self, voice: VoiceDescriptor) -> None:
         if not is_gated_voice_risk_class(voice.risk_class):

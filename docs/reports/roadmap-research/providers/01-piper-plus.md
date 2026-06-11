@@ -32,7 +32,7 @@ piper-plus is a fork of Piper (the original Piper-TTS was GPL-3.0; piper-plus is
 - **Phoneme timing** — built-in JSON/TSV/SRT output, perfect for word timing axis
 - **Multi-language** — 8 languages, reasonable coverage
 - **Small models** — 20-75MB per voice, manageable download
-- **Mature runtime** — Python API via `piper-plus[inference]` package
+- **Mature runtime** — Python API via `piper-plus` package
 
 ## Weaknesses
 
@@ -44,7 +44,7 @@ piper-plus is a fork of Piper (the original Piper-TTS was GPL-3.0; piper-plus is
 ## Mery integration notes
 
 ADR-0004 chose piper-plus as Mery's lightweight engine. Key integration points:
-- Package: `piper-plus[inference]>=1.0` (optional dependency in pyproject.toml)
+- Package: `piper-plus>=1.10.0` (optional dependency in pyproject.toml)
 - Python API: `piper_plus.PiperPlus(onnx_path)` directly (no subprocess per Grill Q1)
 - Entry point: `mery_tts.engines` group → `mery_tts.engines.piper_plus.adapter:PiperPlusAdapter`
 - Phonation: streaming via async iterator bridge (per ARCHITECTURE.md)

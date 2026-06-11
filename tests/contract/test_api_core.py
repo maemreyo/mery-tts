@@ -94,7 +94,7 @@ def test_console_static_routes_are_public_spa_without_affecting_v1_auth() -> Non
     assert console.status_code == 200
     assert fallback.status_code == 200
     assert '<div id="root"></div>' in console.text
-    assert '/console/assets/' in console.text
+    assert "/console/assets/" in console.text
     assert fallback.text == console.text
     assert script.status_code == 200
     assert "Mery API request failed" in script.text
@@ -145,7 +145,7 @@ def test_console_assets_require_confirmation_before_install_request() -> None:
     assert "model_id" in script
     assert "user_confirmed" in script
     api_wrapper = Path("web/console/src/shared/api/meryApi.ts").read_text()
-    assert 'request_id: `console-${modelId}`' in api_wrapper
+    assert "request_id: `console-${modelId}`" in api_wrapper
 
 
 def test_storage_endpoint_exposes_breakdown_and_advisory_threshold(

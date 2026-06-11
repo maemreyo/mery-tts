@@ -106,11 +106,14 @@ def test_backend_selection_schema_is_additive_on_engine_and_provider_summaries()
         "fallback_reason": "requested backend coreml missing optional extra coreml",
         "missing_extras": ["coreml"],
     }
-    assert "backend_selection" not in VoiceSummary(
-        voice_id="voice.legacy",
-        engine_id="piper-plus",
-        display_name="Legacy",
-    ).model_dump()
+    assert (
+        "backend_selection"
+        not in VoiceSummary(
+            voice_id="voice.legacy",
+            engine_id="piper-plus",
+            display_name="Legacy",
+        ).model_dump()
+    )
 
 
 def test_voice_summary_exposes_additive_supported_locales() -> None:

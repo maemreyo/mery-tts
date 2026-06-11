@@ -210,7 +210,7 @@ fixture model on disk.
 
 | Test | Why it skips | What unblocks it |
 |---|---|---|
-| `test_piper_plus_real_runtime_smoke_skips_without_dependency` | requires `piper-plus[inference]` extra + fixture `.onnx` model | `uv pip install -e ".[piper-plus]"` + point at a Piper ONNX model |
+| `test_piper_plus_real_runtime_smoke_skips_without_dependency` | requires `piper-plus` optional dependency + fixture `.onnx` model | `uv pip install -e ".[piper-plus]"` + point at a Piper ONNX model |
 | `test_kokoro_real_runtime_smoke_skips_without_dependency` | requires `kokoro-onnx` extra + fixture voice bin | `uv pip install -e ".[kokoro]"` + point at a Kokoro voice + voices JSON |
 | `test_audio_player_real_device_smoke_is_marked_and_skipped_by_default` | requires local speakers + opt-in | run on a workstation with audio out and replace `pytest.skip(...)` with a real `AudioPlayer.play(...)` call |
 

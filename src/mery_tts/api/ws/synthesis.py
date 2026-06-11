@@ -15,9 +15,12 @@ Protocol v1:
     audio.completed     — { event_type, schema_version, request_id }
     error               — { event_type, schema_version, request_id, code, message }
 """
+
 from __future__ import annotations
 
 import asyncio
+import contextlib
+from typing import Any
 from uuid import uuid4
 
 from fastapi import WebSocket
@@ -29,19 +32,21 @@ from mery_tts.streaming.pipeline import StreamingPipeline
 from mery_tts.voice import VoiceRegistry
 
 
-def _char_index_marks(text: str, speech_marks: list) -> list[dict]:
-    result: list[dict] = []
+def _char_index_marks(text: str, speech_marks: list[Any]) -> list[dict[str, int]]:
+    result: list[dict[str, int]] = []
     cursor = 0
     for sm in speech_marks:
         idx = text.find(sm.word, cursor)
         if idx == -1:
             continue
-        result.append({
-            "char_index": idx,
-            "char_length": len(sm.word),
-            "start_ms": sm.start_ms,
-            "end_ms": sm.end_ms,
-        })
+        result.append(
+            {
+                "char_index": idx,
+                "char_length": len(sm.word),
+                "start_ms": sm.start_ms,
+                "end_ms": sm.end_ms,
+            }
+        )
         cursor = idx + len(sm.word)
     return result
 
@@ -65,32 +70,44 @@ async def ws_synthesize(
     request_id = f"req-{uuid4().hex[:12]}"
 
     if not voice_alias or not text:
-        await websocket.send_json({
-            "schema_version": "v1", "request_id": request_id,
-            "event_type": "error", "code": "invalid_request",
-            "message": "voice and text are required",
-        })
+        await websocket.send_json(
+            {
+                "schema_version": "v1",
+                "request_id": request_id,
+                "event_type": "error",
+                "code": "invalid_request",
+                "message": "voice and text are required",
+            }
+        )
         await websocket.close()
         return
 
     native_voice_id = voice_aliases.get(voice_alias)
     if native_voice_id is None:
-        await websocket.send_json({
-            "schema_version": "v1", "request_id": request_id,
-            "event_type": "error", "code": "voice_not_found",
-            "message": f"voice '{voice_alias}' is not installed",
-        })
+        await websocket.send_json(
+            {
+                "schema_version": "v1",
+                "request_id": request_id,
+                "event_type": "error",
+                "code": "voice_not_found",
+                "message": f"voice '{voice_alias}' is not installed",
+            }
+        )
         await websocket.close()
         return
 
     try:
         adapter, voice = voice_registry.resolve_route(native_voice_id)
     except (KeyError, ValueError) as exc:
-        await websocket.send_json({
-            "schema_version": "v1", "request_id": request_id,
-            "event_type": "error", "code": "voice_not_routable",
-            "message": str(exc),
-        })
+        await websocket.send_json(
+            {
+                "schema_version": "v1",
+                "request_id": request_id,
+                "event_type": "error",
+                "code": "voice_not_routable",
+                "message": str(exc),
+            }
+        )
         await websocket.close()
         return
 
@@ -100,27 +117,36 @@ async def ws_synthesize(
             if not result.chunks:
                 raise ValueError("synthesize_annotated returned no audio chunks")
             first = result.chunks[0]
-            await websocket.send_json({
-                "schema_version": "v1", "request_id": request_id,
-                "event_type": "synthesize.started",
-                "sample_rate": first.sample_rate_hz,
-                "channels": first.channels,
-                "encoding": first.encoding,
-            })
+            await websocket.send_json(
+                {
+                    "schema_version": "v1",
+                    "request_id": request_id,
+                    "event_type": "synthesize.started",
+                    "sample_rate": first.sample_rate_hz,
+                    "channels": first.channels,
+                    "encoding": first.encoding,
+                }
+            )
             marks = _char_index_marks(text, result.marks)
             if marks:
-                await websocket.send_json({
-                    "schema_version": "v1", "request_id": request_id,
-                    "event_type": "word_marks",
-                    "marks": marks,
-                })
+                await websocket.send_json(
+                    {
+                        "schema_version": "v1",
+                        "request_id": request_id,
+                        "event_type": "word_marks",
+                        "marks": marks,
+                    }
+                )
             for i, chunk in enumerate(result.chunks):
-                await websocket.send_json({
-                    "schema_version": "v1", "request_id": request_id,
-                    "event_type": "audio.chunk",
-                    "chunk_index": i,
-                    "audio": AudioEncoder.encode_chunk(chunk),
-                })
+                await websocket.send_json(
+                    {
+                        "schema_version": "v1",
+                        "request_id": request_id,
+                        "event_type": "audio.chunk",
+                        "chunk_index": i,
+                        "audio": AudioEncoder.encode_chunk(chunk),
+                    }
+                )
         else:
             pipeline = StreamingPipeline(
                 adapter=adapter,
@@ -132,37 +158,46 @@ async def ws_synthesize(
             idx = 0
             async for chunk in pipeline.run():
                 if not first_sent:
-                    await websocket.send_json({
-                        "schema_version": "v1", "request_id": request_id,
-                        "event_type": "synthesize.started",
-                        "sample_rate": chunk.sample_rate_hz,
-                        "channels": chunk.channels,
-                        "encoding": chunk.encoding,
-                    })
+                    await websocket.send_json(
+                        {
+                            "schema_version": "v1",
+                            "request_id": request_id,
+                            "event_type": "synthesize.started",
+                            "sample_rate": chunk.sample_rate_hz,
+                            "channels": chunk.channels,
+                            "encoding": chunk.encoding,
+                        }
+                    )
                     first_sent = True
-                await websocket.send_json({
-                    "schema_version": "v1", "request_id": request_id,
-                    "event_type": "audio.chunk",
-                    "chunk_index": idx,
-                    "audio": AudioEncoder.encode_chunk(chunk),
-                })
+                await websocket.send_json(
+                    {
+                        "schema_version": "v1",
+                        "request_id": request_id,
+                        "event_type": "audio.chunk",
+                        "chunk_index": idx,
+                        "audio": AudioEncoder.encode_chunk(chunk),
+                    }
+                )
                 idx += 1
 
-        await websocket.send_json({
-            "schema_version": "v1", "request_id": request_id,
-            "event_type": "audio.completed",
-        })
+        await websocket.send_json(
+            {
+                "schema_version": "v1",
+                "request_id": request_id,
+                "event_type": "audio.completed",
+            }
+        )
     except Exception as exc:
-        try:
-            await websocket.send_json({
-                "schema_version": "v1", "request_id": request_id,
-                "event_type": "error", "code": "synthesis_failed",
-                "message": str(exc),
-            })
-        except Exception:
-            pass
+        with contextlib.suppress(Exception):
+            await websocket.send_json(
+                {
+                    "schema_version": "v1",
+                    "request_id": request_id,
+                    "event_type": "error",
+                    "code": "synthesis_failed",
+                    "message": str(exc),
+                }
+            )
     finally:
-        try:
+        with contextlib.suppress(Exception):
             await websocket.close()
-        except Exception:
-            pass

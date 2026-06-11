@@ -38,11 +38,14 @@ def test_voice_descriptor_normalizes_supported_locales_additively() -> None:
     )
 
     assert voice.supported_locales == ["vi-VN", "en-US"]
-    assert VoiceDescriptor(
-        voice_id="voice.legacy.test",
-        engine_id="fake-preset",
-        payload=PresetVoicePayload(preset_id="legacy"),
-    ).supported_locales == []
+    assert (
+        VoiceDescriptor(
+            voice_id="voice.legacy.test",
+            engine_id="fake-preset",
+            payload=PresetVoicePayload(preset_id="legacy"),
+        ).supported_locales
+        == []
+    )
 
 
 @pytest.mark.parametrize("invalid_locale", ["", "english", "en_Us", "en-", "1n-US"])

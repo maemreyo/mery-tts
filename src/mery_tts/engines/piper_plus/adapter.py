@@ -16,7 +16,7 @@ import asyncio
 import importlib.util
 from collections.abc import AsyncIterator, Callable, Iterable
 from dataclasses import replace
-from typing import Protocol
+from typing import Protocol, cast
 
 from mery_tts.engines.annotated import AnnotatedSynthesisCapable, AnnotatedSynthesisResult
 from mery_tts.engines.base import EngineAdapter, PCMChunk
@@ -31,10 +31,22 @@ PiperSynthesizer = Callable[[str, VoiceDescriptor], Iterable[bytes]]
 _DEFAULT_SYNTHESIS_SAMPLE_RATE_HZ = 24_000
 
 
+class _PiperSynthesizedChunk(Protocol):
+    audio_int16_bytes: bytes
+
+
 class _PiperVoice(Protocol):
     """Structural type mirroring ``piper.PiperVoice``."""
 
-    def synthesize(self, text: str, *, syn_config: object = ...) -> Iterable[object]: ...
+    def synthesize(
+        self, text: str, *, syn_config: object = ...
+    ) -> Iterable[_PiperSynthesizedChunk]: ...
+
+
+class _PiperRawStreamVoice(Protocol):
+    """Compatibility shape exposed by older Piper runtimes and test fakes."""
+
+    def synthesize_stream_raw(self, text: str) -> Iterable[bytes]: ...
 
 
 class PiperRuntimeError(Exception):
@@ -154,6 +166,9 @@ class PiperPlusAdapter(EngineAdapter, AnnotatedSynthesisCapable):
                 supported=False,
                 mode=StreamingCapability.NOT_SUPPORTED,
             )
+        return self._baseline_streaming_capability()
+
+    def _baseline_streaming_capability(self) -> StreamingCapabilityInfo:
         return StreamingCapabilityInfo(
             supported=True,
             mode=StreamingCapability.SENTENCE_CHUNKED,
@@ -164,7 +179,7 @@ class PiperPlusAdapter(EngineAdapter, AnnotatedSynthesisCapable):
         )
 
     def voice_streaming_capability(self, voice: VoiceDescriptor) -> StreamingCapabilityInfo:
-        baseline = self.streaming_capability()
+        baseline = self._baseline_streaming_capability()
         if not baseline.supported:
             return baseline
         resolved = self._resolved_voices.get(voice.voice_id)
@@ -251,8 +266,13 @@ class PiperPlusAdapter(EngineAdapter, AnnotatedSynthesisCapable):
             raise RuntimeError(f"{exc.kind}: {exc.message}") from exc
         return result
 
-    def _synthesize_with_runtime(self, text: str, runtime: _PiperVoice) -> Iterable[bytes]:
+    def _synthesize_with_runtime(self, text: str, runtime: object) -> Iterable[bytes]:
         try:
-            return [chunk.audio_int16_bytes for chunk in runtime.synthesize(text)]
+            if hasattr(runtime, "synthesize_stream_raw"):
+                raw_runtime = cast(_PiperRawStreamVoice, runtime)
+                stream = raw_runtime.synthesize_stream_raw(text)
+                return list(stream)
+            typed_runtime = cast(_PiperVoice, runtime)
+            return [chunk.audio_int16_bytes for chunk in typed_runtime.synthesize(text)]
         except Exception as exc:
             raise PiperRuntimeError("synthesis_failed", str(exc)) from exc

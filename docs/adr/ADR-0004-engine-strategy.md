@@ -76,7 +76,7 @@ Rules:
 
 ## Engine selection rules
 
-- `piper-plus` uses `piper-plus[inference]` Python package (MIT license)
+- `piper-plus` uses the `piper-plus` Python package (MIT license)
 - `kokoro` uses `kokoro-onnx` Python package (CPU ONNX backend, no PyTorch/CUDA)
 - Both adapters implement `EngineAdapter` ABC identically
 - Engine dependencies are `optional-dependencies` in `pyproject.toml`; a broken

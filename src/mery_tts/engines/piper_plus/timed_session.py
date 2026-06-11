@@ -11,13 +11,23 @@ phonemes per word without re-running the phonemizer.
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Protocol, cast
 
 from mery_tts.engines.annotated import AnnotatedSynthesisResult, SpeechMark
 from mery_tts.engines.base import PCMChunk
 
 if TYPE_CHECKING:
     pass  # piper imported lazily
+
+
+class _PiperAudioChunk(Protocol):
+    audio_int16_bytes: bytes
+    phonemes: list[str]
+
+
+class _PiperRuntime(Protocol):
+    def synthesize(self, text: str) -> Iterable[_PiperAudioChunk]: ...
 
 
 class PiperTimedSession:
@@ -39,7 +49,8 @@ class PiperTimedSession:
         all_phonemes: list[str] = []
         all_pcm: list[bytes] = []
 
-        for chunk in self._runtime.synthesize(text):  # type: ignore[union-attr]
+        runtime = cast(_PiperRuntime, self._runtime)
+        for chunk in runtime.synthesize(text):
             all_pcm.append(chunk.audio_int16_bytes)
             all_phonemes.extend(chunk.phonemes)
 
@@ -102,11 +113,13 @@ def _build_word_marks(
         word_ms = int(group_len / total_phonemes * total_ms)
         clean = re.sub(r"[^\w'-]", "", raw_words[i])
         if clean:
-            marks.append(SpeechMark(
-                word=clean,
-                start_ms=cursor_ms,
-                end_ms=cursor_ms + word_ms,
-            ))
+            marks.append(
+                SpeechMark(
+                    word=clean,
+                    start_ms=cursor_ms,
+                    end_ms=cursor_ms + word_ms,
+                )
+            )
         cursor_ms += word_ms
 
     return marks

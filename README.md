@@ -45,6 +45,9 @@ uv tool install mery-tts-server
 # 2. Verify
 mery doctor
 
+# Optional: open the guided launcher for common actions
+mery launch
+
 # 3. Start the server (binds 127.0.0.1:8765 by default)
 mery serve
 
@@ -58,6 +61,17 @@ mery voice-packs install pack.en-us
 mery speak --text "Hello from Mery"
 mery speak --file input.txt --output hello.wav
 ```
+
+For a guided terminal experience, install the optional interactive extra and run the launcher:
+
+```bash
+uv tool install "mery-tts-server[interactive]"
+mery launch
+mery launch --list-actions
+mery launch --action status --json
+```
+
+The launcher keeps `mery` scriptable: bare `mery` still shows CLI help, while `mery launch` provides a user-first menu for status, Console, pairing, setup URLs, local help, and developer checks when running from a repo checkout.
 
 For the full AI-agent install contract (one link, hand it to an agent, it self-installs), see [`INSTALL_FOR_AGENTS.md`](INSTALL_FOR_AGENTS.md).
 

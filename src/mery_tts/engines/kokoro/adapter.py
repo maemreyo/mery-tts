@@ -233,16 +233,12 @@ class KokoroAdapter(EngineAdapter, AnnotatedSynthesisCapable):
                 else "default"
             )
             timed = self._get_or_create_timed_session(voice.voice_id, runtime)
-            result = await asyncio.to_thread(
-                lambda: timed.synthesize_annotated(text, preset_id)
-            )
+            result = await asyncio.to_thread(lambda: timed.synthesize_annotated(text, preset_id))
             return result
         except KokoroRuntimeError as exc:
             raise RuntimeError(f"{exc.kind}: {exc.message}") from exc
 
-    def _get_or_create_timed_session(
-        self, voice_id: str, runtime: object
-    ) -> TimedKokoroSession:
+    def _get_or_create_timed_session(self, voice_id: str, runtime: object) -> TimedKokoroSession:
         """Return a cached TimedKokoroSession for the given voice, creating one if needed."""
         if voice_id not in self._timed_sessions:
             self._timed_sessions[voice_id] = TimedKokoroSession(runtime)

@@ -132,9 +132,9 @@ def test_remote_catalog_requires_matching_signature_key_and_trusted_tier() -> No
         generated_at=datetime.now(UTC),
         expires_at=datetime.now(UTC) + timedelta(days=1),
         models=[
-            valid_catalog().models[0].model_copy(
-                update={"source": "remote", "trust_tier": "trusted_remote"}
-            )
+            valid_catalog()
+            .models[0]
+            .model_copy(update={"source": "remote", "trust_tier": "trusted_remote"})
         ],
     )
     verifier = CatalogVerifier()
@@ -175,9 +175,9 @@ def test_remote_catalog_rejects_missing_or_community_trust_tier() -> None:
         generated_at=datetime.now(UTC),
         expires_at=datetime.now(UTC) + timedelta(days=1),
         models=[
-            valid_catalog().models[0].model_copy(
-                update={"source": "remote", "trust_tier": "community"}
-            )
+            valid_catalog()
+            .models[0]
+            .model_copy(update={"source": "remote", "trust_tier": "community"})
         ],
     )
 
