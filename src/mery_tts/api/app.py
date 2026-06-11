@@ -498,27 +498,36 @@ def create_app(
         # pass voice_aliases explicitly to override or extend.
         voice_aliases = {v.voice_id: v.voice_id for v in installed_voice_descriptors}
 
-    installed_voice_summaries = [
-        VoiceSummary(
-            voice_id=voice.voice_id,
-            engine_id=voice.engine_id,
-            display_name=_display_name(voice.voice_id),
-            supported_locales=voice.supported_locales,
-            streaming=_voice_streaming_capability_vo(
-                adapter=engine_registry.adapters[voice.engine_id],
-                voice=voice,
-            )
-            if voice.engine_id in engine_registry.adapters
-            else None,
-            capabilities=VoiceCapabilitiesVo(
-                word_marks=_voice_supports_word_marks(
-                    voice.engine_id,
-                    engine_registry.adapters.get(voice.engine_id),
+    def _installed_voice_summaries() -> list[VoiceSummary]:
+        return [
+            VoiceSummary(
+                voice_id=voice.voice_id,
+                engine_id=voice.engine_id,
+                display_name=_display_name(voice.voice_id),
+                supported_locales=voice.supported_locales,
+                streaming=_voice_streaming_capability_vo(
+                    adapter=engine_registry.adapters[voice.engine_id],
+                    voice=voice,
                 )
-            ),
+                if voice.engine_id in engine_registry.adapters
+                else None,
+                capabilities=VoiceCapabilitiesVo(
+                    word_marks=_voice_supports_word_marks(
+                        voice.engine_id,
+                        engine_registry.adapters.get(voice.engine_id),
+                    )
+                ),
+            )
+            for voice in storage_identity_store.hydrate_installed_voice_descriptors()
+        ]
+
+    def _model_id_is_installed(model_id: str) -> bool:
+        if model_store.find(model_id) is not None:
+            return True
+        return any(
+            voice.voice_id == model_id
+            for voice in storage_identity_store.hydrate_installed_voice_descriptors()
         )
-        for voice in installed_voice_descriptors
-    ]
 
     def _refresh_voice_registry() -> None:
         descriptors = storage_identity_store.hydrate_installed_voice_descriptors()
@@ -855,7 +864,7 @@ def create_app(
         responses=NATIVE_ERROR_RESPONSES,
     )
     def installed_voices() -> InstalledVoicesResponse:
-        return InstalledVoicesResponse(request_id="local", voices=installed_voice_summaries)
+        return InstalledVoicesResponse(request_id="local", voices=_installed_voice_summaries())
 
     @app.get(
         "/v1/catalog/voices",
@@ -1101,7 +1110,7 @@ def create_app(
     def model_status(model_id: str) -> ModelStatusResponse | JSONResponse:
         if not is_safe_model_id(model_id):
             return _invalid_model_id_response()
-        status = "installed" if model_store.find(model_id) else "not_installed"
+        status = "installed" if _model_id_is_installed(model_id) else "not_installed"
         return ModelStatusResponse(request_id="local", model_id=model_id, status=status)
 
     @app.delete(

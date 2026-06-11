@@ -680,7 +680,16 @@ def test_bundled_install_via_api_completes(tmp_path: Path) -> None:
             if status["status"] in ("completed", "failed"):
                 break
             time.sleep(0.5)
+        installed = client.get("/v1/voices/installed", headers=AUTH_HEADERS).json()
+        model_status = client.get(
+            "/v1/models/catalog.piper-plus.vi-vn.demo",
+            headers=AUTH_HEADERS,
+        ).json()
     assert status["status"] == "completed", f"install failed: {status.get('error')}"
+    assert any(
+        voice["voice_id"] == "catalog.piper-plus.vi-vn.demo" for voice in installed["voices"]
+    )
+    assert model_status["status"] == "installed"
 
 
 # ---------------------------------------------------------------------------
