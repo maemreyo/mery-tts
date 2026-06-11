@@ -44,10 +44,10 @@ class PiperPlusInstaller:
                 install_mode=self._current_install_mode(),
                 status=ProviderRuntimeStatusValue.MISSING,
                 reason="piper_plus package not found",
-                recommended_action="install mery-tts-server[piper] extra",
+                recommended_action="install mery-tts-server[piper-plus] extra",
                 explanation=(
                     "Piper-plus requires the piper_plus Python package. "
-                    "Install with: pip install mery-tts-server[piper]"
+                    "Install with: pip install mery-tts-server[piper-plus]"
                 ),
             )
         except Exception:
@@ -81,7 +81,7 @@ class PiperPlusInstaller:
             provider_id=self.provider_id,
             repairable=True,
             steps=(
-                "pip install --force-reinstall mery-tts-server[piper]",
+                "pip install --force-reinstall mery-tts-server[piper-plus]",
                 "restart mery serve",
             ),
             explanation="Reinstall the piper-plus extra to repair the runtime.",
@@ -94,7 +94,7 @@ class PiperPlusInstaller:
             summary="Piper-plus is a fast, high-quality local TTS engine.",
             requirements=(
                 "Python 3.12+",
-                "pip install mery-tts-server[piper]",
+                "pip install mery-tts-server[piper-plus]",
             ),
             limitations=(
                 "Automatic install not yet implemented",

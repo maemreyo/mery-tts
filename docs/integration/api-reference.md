@@ -20,12 +20,16 @@ This is the complete, accurate reference for every HTTP and WebSocket endpoint M
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
+| GET | `/metrics` | yes | Optional Prometheus metrics (disabled unless explicitly enabled) |
 | GET | `/v1/health` | yes | Readiness and engine summary |
 | GET | `/v1/engines` | yes | Raw engine status with reasons |
 | GET | `/v1/voices/installed` | yes | Voices ready to synthesize |
 | GET | `/v1/catalog/voices` | yes | All voices known to the bundled catalog |
 | GET | `/v1/storage` | yes | Disk usage and free space |
-| GET | `/v1/diagnostics` | yes | Cached doctor results |
+| GET | `/v1/diagnostics` | yes | Cached doctor results plus diagnostics event history |
+| GET | `/v1/diagnostics/export` | yes | Download sanitized diagnostics export bundle |
+| GET | `/v1/diagnostics/history` | yes | Read diagnostics history and retention status |
+| DELETE | `/v1/diagnostics/history` | yes | Delete local diagnostics history |
 | POST | `/v1/diagnostics` | yes | Run fresh doctor checks |
 | POST | `/v1/models/install` | yes | Install a model by ID |
 | GET | `/v1/models/install/{job_id}` | yes | Poll install job status |
@@ -46,11 +50,40 @@ This is the complete, accurate reference for every HTTP and WebSocket endpoint M
 
 ---
 
+## Optional local metrics
+
+### `GET /metrics`
+
+**Purpose:** Prometheus-compatible local metrics for on-prem operators. This endpoint is **disabled by default** and only exists when the helper is started with explicit metrics opt-in configuration.
+
+**Response 200 when enabled:**
+```text
+# HELP mery_info Static Mery runtime information
+# TYPE mery_info gauge
+mery_info{contract_version="v1"} 1
+# HELP mery_usable_voices Voices currently usable for synthesis
+# TYPE mery_usable_voices gauge
+mery_usable_voices 1
+# HELP mery_installed_voices Installed voices visible to readiness
+# TYPE mery_installed_voices gauge
+mery_installed_voices 2
+```
+
+**Metrics privacy boundaries:**
+
+- Metrics are local-only and protected by the same local auth middleware as `/v1` routes.
+- Mery does not enable outbound telemetry, push gateways, collectors, or remote exporters by default.
+- The implemented categories are runtime info and readiness counts: contract version, usable voice count, installed voice count.
+- Metrics must not include raw input text, tokens, API keys, audio payloads, model binaries, URLs, private paths, speaker references, or user identifiers.
+- Disabled-by-default behavior is intentional: without explicit opt-in, `/metrics` returns `404`.
+
+---
+
 ## Health and readiness
 
 ### `GET /v1/health`
 
-**Purpose:** Single-call readiness check. Use this to decide whether to call `/v1/audio/speech` or fall back.
+**Purpose:** Single-call operations check. Use this to distinguish process liveness, synthesis readiness, and subsystem health before deciding whether to call `/v1/audio/speech` or fall back.
 
 **Response 200:**
 ```json
@@ -58,6 +91,15 @@ This is the complete, accurate reference for every HTTP and WebSocket endpoint M
   "schema_version": "v1",
   "request_id": "local",
   "status": "ready",
+  "live": "alive",
+  "ready": true,
+  "health_status": "ok",
+  "health_checks": {
+    "process": "alive",
+    "readiness": "ready",
+    "engine:piper-plus": "available",
+    "engine:kokoro": "unavailable"
+  },
   "helper_id": "mery-04570851f22b48fa8e0784f87f9a4f27",
   "helper_version": "0.1.0",
   "contract_version": "v1",
@@ -88,18 +130,17 @@ This is the complete, accurate reference for every HTTP and WebSocket endpoint M
 }
 ```
 
-**Status field values:**
+**Operational semantics:**
 
-| Value | Meaning | Client action |
+| Field | Meaning | Client action |
 |---|---|---|
-| `ready` | At least one engine available AND voices installed | Call `/v1/audio/speech` |
-| `degraded` | Engines available but no voices installed | Offer setup, open `/console/setup` |
-| `unavailable` | No engines available | Offer setup, fall back to system TTS |
-| `unpaired` | No auth token configured (server-side) | Show pairing instructions |
-| `incompatible` | Client/server contract version mismatch | Show upgrade prompt |
-| `ok` | Servers are healthy regardless of install state | Use `total_usable_voices > 0` as the real readiness signal |
+| `live` | Process liveness. `alive` means the helper process responded. | Keep polling / continue pairing or setup. |
+| `ready` | Synthesis readiness. `true` means at least one usable voice can synthesize under current policy. | Call `/v1/audio/speech` only when true. |
+| `health_status` | Subsystem health: `ok`, `degraded`, or `unavailable`. | Show recovery details when degraded/unavailable. |
+| `health_checks` | Per-subsystem check map, including `process`, `readiness`, and `engine:<id>` keys. | Display actionable subsystem diagnostics. |
+| `status` | Backward-compatible summary: `ready`, `degraded`, `unavailable`, `unpaired`, `incompatible`, or legacy `ok`. | Existing clients may keep using it, but new clients should prefer `live` + `ready` + `health_status`. |
 
-**Readiness rule:** `status == "ready"` AND `total_usable_voices > 0`. Clients should treat any other status as "not ready" and trigger setup or fallback.
+**Readiness rule:** `ready == true` AND `total_usable_voices > 0`. `live == "alive"` alone only proves the process is reachable; it does not mean synthesis is ready.
 
 ---
 
@@ -201,11 +242,11 @@ This is the complete, accurate reference for every HTTP and WebSocket endpoint M
 
 ### `GET /v1/diagnostics`
 
-**Purpose:** Cached doctor output (refreshed every 5 minutes by default).
+**Purpose:** Cached doctor output plus bounded sanitized diagnostics event history.
 
 ### `POST /v1/diagnostics`
 
-**Purpose:** Run doctor checks fresh on demand.
+**Purpose:** Run doctor checks fresh on demand, then return checks plus bounded sanitized diagnostics event history.
 
 **Response 200:**
 ```json
@@ -221,9 +262,148 @@ This is the complete, accurate reference for every HTTP and WebSocket endpoint M
     "disk_space": "ok: disk ok: 11740 MB free",
     "platform_paths": "ok: all paths writable",
     "catalog_available": "ok: bundled catalog: 2 model(s)"
+  },
+  "events": [
+    {
+      "schema_version": "v1",
+      "event_id": "evt-api-1",
+      "event_type": "synthesis.metadata",
+      "occurred_at": "2026-06-11T09:30:00Z",
+      "severity": "info",
+      "source": "api",
+      "message": "synthesis metadata captured",
+      "metadata": {
+        "voice_id": "voice.en.demo",
+        "duration_ms": 42,
+        "fallback_used": false
+      }
+    }
+  ]
+}
+```
+
+**Diagnostics event semantics:**
+
+- `events` is additive; older clients can continue reading only `checks`.
+- History is bounded to the newest 1,000 events and events from the last 7 days.
+- Corrupt event storage is ignored and does not block diagnostics or synthesis.
+- Event families cover runtime startup/shutdown, discovery, provider health, install lifecycle, readiness transitions, smoke, synthesis metadata, fallback, cancellation, and sanitized errors.
+- Metadata is sanitized before persistence and response serialization: raw text, tokens, audio payloads, keys, URLs, traceback/private-path details, and private filesystem paths are omitted.
+
+### `GET /v1/diagnostics/history`
+
+**Purpose:** Return sanitized diagnostics history plus retention status for Developer Mode/debugging UI.
+
+**Response 200:**
+```json
+{
+  "schema_version": "v1",
+  "request_id": "local",
+  "retention_status": {
+    "event_count": 1,
+    "retention_days": 7,
+    "max_events": 1000,
+    "oldest_event_at": "2026-06-11T09:30:00Z",
+    "newest_event_at": "2026-06-11T09:30:00Z",
+    "storage_corrupted": false
+  },
+  "events": [
+    {
+      "schema_version": "v1",
+      "event_id": "evt-api-1",
+      "event_type": "readiness.changed",
+      "occurred_at": "2026-06-11T09:30:00Z",
+      "severity": "info",
+      "source": "api",
+      "message": "readiness changed",
+      "metadata": {
+        "ready": true
+      }
+    }
+  ]
+}
+```
+
+### `DELETE /v1/diagnostics/history`
+
+**Purpose:** Delete local diagnostics history without deleting models, voices, logs, or the latest doctor snapshot.
+
+**Response 200:**
+```json
+{
+  "schema_version": "v1",
+  "request_id": "local",
+  "deleted_events": 1
+}
+```
+
+**History UX semantics:**
+
+- Console User Mode shows readiness/recovery guidance from diagnostics checks.
+- Console Developer Mode shows retention status and the newest diagnostics history events.
+- Console exposes a visible `Delete history` action.
+- CLI equivalents are `mery diagnostics-history` and `mery diagnostics-history --delete`.
+- Retention remains 7 days / 1,000 events; corruption is reported in `retention_status.storage_corrupted`.
+
+### `GET /v1/diagnostics/export`
+
+**Purpose:** Return a sanitized support bundle for debugging without exposing private user content.
+
+**Response 200:**
+```json
+{
+  "schema_version": "v1",
+  "bundle_type": "diagnostics_export",
+  "generated_at": "2026-06-11T09:35:00Z",
+  "versions": {
+    "mery_tts": "0.1.0",
+    "contract": "v1"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python": "3.13.0"
+  },
+  "engine_provider_health": {
+    "doctor_checks": {
+      "engine_availability": "ok"
+    }
+  },
+  "installed_voices": {
+    "count": 1,
+    "voices": [
+      {
+        "voice_id": "voice.en.demo",
+        "engine_id": "piper-plus"
+      }
+    ]
+  },
+  "catalog_summary": {
+    "voice_count": 2,
+    "engine_ids": ["kokoro", "piper-plus"]
+  },
+  "install_states": [],
+  "readiness_smoke": {
+    "records": []
+  },
+  "recent_diagnostics": [],
+  "audit_summary": {
+    "event_count": 0,
+    "install_state_count": 0,
+    "smoke_record_count": 0,
+    "corrupt_storage_ignored": false
   }
 }
 ```
+
+**Export bundle semantics:**
+
+- Backend and CLI use the same `DiagnosticsExportBuilder` payload.
+- The CLI command is `mery diagnostics-export` or `mery diagnostics-export --output diagnostics.json`.
+- The Console Diagnostics panel provides a `Download sanitized export` button that downloads this JSON bundle.
+- The bundle includes versions, platform, engine/provider health, installed voice summary, catalog summary, install states, readiness/smoke status, recent diagnostics, and audit summary.
+- The bundle excludes raw input text, tokens, API keys, reference audio/audio payloads, model binaries, URLs, and unsanitized private filesystem paths.
+- Corrupt diagnostics/install storage is skipped and summarized via `audit_summary.corrupt_storage_ignored`.
 
 ---
 

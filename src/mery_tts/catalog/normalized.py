@@ -1,4 +1,7 @@
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from mery_tts.governance import ConsentStatus, VoiceRiskClass
+from mery_tts.locale import Bcp47Locale, normalize_bcp47_locale, normalize_bcp47_locales
 
 
 class EngineEntry(BaseModel):
@@ -29,11 +32,28 @@ class CatalogVoice(BaseModel):
     catalog_entry_id: str
     artifact_id: str
     engine_id: str
-    language: str
+    language: Bcp47Locale
     display_name: str
     license: str
     commercial_use: bool
     capabilities: list[str]
+    supported_locales: list[Bcp47Locale] = Field(default_factory=list)
+    risk_class: VoiceRiskClass = "stock"
+    license_id: str | None = Field(default=None, min_length=1)
+    license_scope: str | None = Field(default=None, min_length=1)
+    provenance: str | None = Field(default=None, min_length=1)
+    consent_required: bool = False
+    consent_status: ConsentStatus = "not_required"
+
+    @field_validator("supported_locales")
+    @classmethod
+    def normalize_supported_locales(cls, value: list[str]) -> list[str]:
+        return normalize_bcp47_locales(value)
+
+    @field_validator("language")
+    @classmethod
+    def normalize_language(cls, value: str) -> str:
+        return normalize_bcp47_locale(value)
 
 
 class VoiceCard(BaseModel):
@@ -42,13 +62,30 @@ class VoiceCard(BaseModel):
     artifact_id: str
     voice_id: str
     engine_id: str
-    language: str
+    language: Bcp47Locale
     display_name: str
     license: str
     commercial_use: bool
     size_bytes: int
     installed: bool
     capabilities: list[str]
+    supported_locales: list[Bcp47Locale] = Field(default_factory=list)
+    risk_class: VoiceRiskClass = "stock"
+    license_id: str | None = Field(default=None, min_length=1)
+    license_scope: str | None = Field(default=None, min_length=1)
+    provenance: str | None = Field(default=None, min_length=1)
+    consent_required: bool = False
+    consent_status: ConsentStatus = "not_required"
+
+    @field_validator("supported_locales")
+    @classmethod
+    def normalize_supported_locales(cls, value: list[str]) -> list[str]:
+        return normalize_bcp47_locales(value)
+
+    @field_validator("language")
+    @classmethod
+    def normalize_language(cls, value: str) -> str:
+        return normalize_bcp47_locale(value)
 
 
 class CatalogGraph(BaseModel):
@@ -105,6 +142,13 @@ def catalog_voice_cards(graph: CatalogGraph, *, installed_voice_ids: set[str]) -
             size_bytes=artifacts[voice.artifact_id].size_bytes,
             installed=voice.voice_id in installed_voice_ids,
             capabilities=voice.capabilities,
+            supported_locales=voice.supported_locales or [voice.language],
+            risk_class=voice.risk_class,
+            license_id=voice.license_id,
+            license_scope=voice.license_scope,
+            provenance=voice.provenance,
+            consent_required=voice.consent_required,
+            consent_status=voice.consent_status,
         )
         for voice in graph.voices
     ]

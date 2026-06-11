@@ -1,0 +1,13 @@
+{
+  "topics": [
+    {"topic_id": "install-setup", "title": "Install and setup recovery", "body_format": "markdown", "package_path": "topics/install-setup.md"},
+    {"topic_id": "pairing-token", "title": "Pairing and token recovery", "body_format": "markdown", "package_path": "topics/pairing-token.md"},
+    {"topic_id": "missing-optional-dependency", "title": "Missing optional dependency", "body_format": "markdown", "package_path": "topics/missing-optional-dependency.md"},
+    {"topic_id": "model-corrupt-reinstall", "title": "Model corrupt or reinstall", "body_format": "markdown", "package_path": "topics/model-corrupt-reinstall.md"},
+    {"topic_id": "catalog-invalid", "title": "Catalog invalid, signature, or checksum", "body_format": "markdown", "package_path": "topics/catalog-invalid.md"},
+    {"topic_id": "local-only-air-gapped", "title": "Local-only and air-gapped mode", "body_format": "markdown", "package_path": "topics/local-only-air-gapped.md"},
+    {"topic_id": "diagnostics-export", "title": "Diagnostics export", "body_format": "markdown", "package_path": "topics/diagnostics-export.md"},
+    {"topic_id": "unsupported-format-locale", "title": "Unsupported format or locale", "body_format": "markdown", "package_path": "topics/unsupported-format-locale.md"},
+    {"topic_id": "provider-unavailable", "title": "Provider unavailable", "body_format": "markdown", "package_path": "topics/provider-unavailable.md"}
+  ]
+}

@@ -48,6 +48,23 @@ def test_kokoro_shared_artifact_gc_retains_artifact_until_last_preset_voice_dele
     assert store.delete_voice_and_collect_garbage("voice.two") == ["artifact.shared"]
 
 
+def test_voice_manifest_persists_and_hydrates_supported_locales(tmp_path: Path) -> None:
+    store = StorageIdentityStore(tmp_path)
+    store.write_artifact_manifest(engine_id="kokoro", artifact_id="artifact.af", metadata={})
+    manifest_path = store.write_voice_manifest(
+        "voice.kokoro.af",
+        ["artifact.af"],
+        {"kind": "preset", "preset_id": "af_heart"},
+        supported_locales=["en-us", "en-gb", "en-US"],
+    )
+
+    manifest = json.loads(manifest_path.read_text())
+    descriptor = store.hydrate_voice_descriptor("voice.kokoro.af", engine_id="kokoro")
+
+    assert manifest["supportedLocales"] == ["en-US", "en-GB"]
+    assert descriptor.supported_locales == ["en-US", "en-GB"]
+
+
 def test_hydrates_installed_voice_descriptors_from_manifests(tmp_path: Path) -> None:
     store = StorageIdentityStore(tmp_path)
     store.write_artifact_manifest(engine_id="kokoro", artifact_id="artifact.af", metadata={})

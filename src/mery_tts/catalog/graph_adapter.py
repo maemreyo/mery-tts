@@ -72,6 +72,13 @@ def _model_to_catalog_voice(model: CatalogModel) -> CatalogVoice:
         license=model.license,
         commercial_use=False,
         capabilities=capabilities,
+        supported_locales=model.supported_locales or [model.locale],
+        risk_class=model.risk_class,
+        license_id=model.license_id,
+        license_scope=model.license_scope,
+        provenance=model.provenance,
+        consent_required=model.consent_required,
+        consent_status=model.consent_status,
     )
 
 

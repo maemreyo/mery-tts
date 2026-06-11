@@ -20,6 +20,7 @@ def test_local_tts_error_shape_is_stable() -> None:
         user_message_key="errors.auth.token_missing",
         recommended_action=RecommendedAction.PAIR_CLIENT,
         fallback_policy=FallbackPolicy.NONE,
+        help_topic="pairing-token",
         sanitized_diagnostic="Authorization bearer token is missing.",
         request_id="req_123",
         timestamp=datetime(2026, 6, 5, 12, 0, tzinfo=UTC),
@@ -33,6 +34,8 @@ def test_local_tts_error_shape_is_stable() -> None:
         "user_message_key": "errors.auth.token_missing",
         "recommended_action": "pair_client",
         "fallback_policy": "none",
+        "help_topic": "pairing-token",
+        "docs_url": None,
         "sanitized_diagnostic": "Authorization bearer token is missing.",
         "request_id": "req_123",
         "timestamp": "2026-06-05T12:00:00Z",
@@ -49,6 +52,7 @@ def test_error_taxonomy_covers_required_categories() -> None:
         "synthesis",
         "playback",
         "storage",
+        "update",
         "security",
     }
 

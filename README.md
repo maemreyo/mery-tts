@@ -56,6 +56,7 @@ mery voice-packs install pack.en-us
 
 # 6. Synthesize
 mery speak --text "Hello from Mery"
+mery speak --file input.txt --output hello.wav
 ```
 
 For the full AI-agent install contract (one link, hand it to an agent, it self-installs), see [`INSTALL_FOR_AGENTS.md`](INSTALL_FOR_AGENTS.md).
@@ -76,7 +77,7 @@ If Mery is already running, the extension detects it automatically. Voice instal
 
 ## Status
 
-Early runtime implementation. Core CLI/API, pairing, security, catalog, durable install lifecycle, OpenAI-compatible speech, packaged `/console` web UI, WAV export, and `make check` are implemented and tested. Real engine audio validation and signed app packaging remain future hardening work.
+Phase 1 early access runtime. Core CLI/API, pairing, security, catalog, durable install lifecycle, OpenAI-compatible speech, WAV export, and `make check` are implemented and tested. The package serves `/v1` plus the local web console at `/console` without optional engine downloads because the bundled catalog and console assets are Python package resources. Explicit model installation and remote catalog refresh remain separate user-triggered network actions; real Piper-plus or Kokoro audio requires installing the matching optional engine extra and remains gated by real-runtime validation. Signed app packaging remains future hardening work.
 
 ---
 

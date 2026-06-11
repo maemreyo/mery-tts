@@ -12,6 +12,7 @@ class ErrorCategory(StrEnum):
     SYNTHESIS = "synthesis"
     PLAYBACK = "playback"
     STORAGE = "storage"
+    UPDATE = "update"
     SECURITY = "security"
 
 
@@ -35,6 +36,7 @@ class RecommendedAction(StrEnum):
     PAIR_CLIENT = "pair_client"
     INSTALL_MODEL = "install_model"
     CHECK_ENGINE = "check_engine"
+    CONFIRM_UPDATE = "confirm_update"
     FREE_SPACE = "free_space"
     CONTACT_SUPPORT = "contact_support"
 
@@ -50,11 +52,13 @@ class FallbackPolicy(StrEnum):
 class ErrorCode(StrEnum):
     CONNECTION_DAEMON_UNREACHABLE = "connection.daemon_unreachable"
     CONNECTION_TIMEOUT = "connection.timeout"
+    CONNECTION_RATE_LIMITED = "connection.rate_limited"
     AUTH_TOKEN_MISSING = "auth.token_missing"
     AUTH_TOKEN_INVALID = "auth.token_invalid"
     AUTH_RATE_LIMITED = "auth.rate_limited"
     CATALOG_SIGNATURE_INVALID = "catalog.signature_invalid"
     CATALOG_SCHEMA_INVALID = "catalog.schema_invalid"
+    CATALOG_COMMUNITY_DISABLED = "catalog.community_disabled"
     MODEL_DELETE_FAILED = "model.delete_failed"
     MODEL_INSTALL_FAILED = "model.install_failed"
     MODEL_NOT_INSTALLED = "model.not_installed"
@@ -62,9 +66,13 @@ class ErrorCode(StrEnum):
     ENGINE_VOICE_UNSUPPORTED = "engine.voice_unsupported"
     SYNTHESIS_FAILED = "synthesis.failed"
     SYNTHESIS_UNSUPPORTED_FORMAT = "synthesis.unsupported_format"
+    SYNTHESIS_LOCALE_MISMATCH = "synthesis.locale_mismatch"
+    SYNTHESIS_GATED_FEATURE = "synthesis.gated_feature"
     PLAYBACK_DEVICE_UNAVAILABLE = "playback.device_unavailable"
     STORAGE_MANIFEST_MISSING = "storage.manifest_missing"
     STORAGE_WRITE_FAILED = "storage.write_failed"
+    STORAGE_MODEL_CLEANUP_REFUSED = "storage.model_cleanup_refused"
+    UPDATE_CONFIRMATION_REQUIRED = "update.confirmation_required"
     SECURITY_UNSAFE_IDENTIFIER = "security.unsafe_identifier"
     SECURITY_REQUEST_TOO_LARGE = "security.request_too_large"
 
@@ -83,6 +91,8 @@ class LocalTTSError(Exception):
         sanitized_diagnostic: str,
         request_id: str,
         timestamp: datetime,
+        help_topic: str | None = None,
+        docs_url: str | None = None,
     ) -> None:
         self.code = code
         self.category = category
@@ -93,6 +103,8 @@ class LocalTTSError(Exception):
         self.fallback_policy = fallback_policy
         self.sanitized_diagnostic = sanitized_diagnostic
         self.request_id = request_id
+        self.help_topic = help_topic
+        self.docs_url = docs_url
         self.timestamp = timestamp
         super().__init__(f"{code.value}: {sanitized_diagnostic}")
 
@@ -108,6 +120,8 @@ class LocalTTSError(Exception):
             "user_message_key": self.user_message_key,
             "recommended_action": self.recommended_action.value,
             "fallback_policy": self.fallback_policy.value,
+            "help_topic": self.help_topic,
+            "docs_url": self.docs_url,
             "sanitized_diagnostic": self.sanitized_diagnostic,
             "request_id": self.request_id,
             "timestamp": timestamp,

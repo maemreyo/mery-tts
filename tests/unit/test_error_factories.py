@@ -5,7 +5,13 @@ from mery_tts.errors import (
     FallbackPolicy,
     RecommendedAction,
 )
-from mery_tts.errors.factories import POLICIES, diagnostic_error, fallback_for, sanitize_diagnostic
+from mery_tts.errors.factories import (
+    HELP_TOPICS,
+    POLICIES,
+    diagnostic_error,
+    fallback_for,
+    sanitize_diagnostic,
+)
 
 
 def test_sanitizer_keeps_shallow_scalar_metadata() -> None:
@@ -200,3 +206,26 @@ def test_diagnostic_error_maps_code_to_correct_policy() -> None:
     assert error.recommended_action == RecommendedAction.INSTALL_MODEL
     assert error.fallback_policy == FallbackPolicy.USE_DEFAULT_VOICE
     assert error.recoverability == ErrorRecoverability.USER_ACTION
+    assert error.help_topic == "model-corrupt-reinstall"
+
+
+def test_user_actionable_errors_have_local_help_topics_or_docs_urls() -> None:
+    for code, policy in POLICIES.items():
+        if policy.recommended_action == RecommendedAction.NONE:
+            continue
+        assert code in HELP_TOPICS, f"{code.value} needs local help or docs mapping"
+
+
+def test_structured_error_serializes_help_topic_for_local_recovery() -> None:
+    error = diagnostic_error(
+        code=ErrorCode.AUTH_TOKEN_MISSING,
+        category=ErrorCategory.AUTH,
+        request_id="req-auth",
+        diagnostic={"reason": "authorization missing"},
+    )
+
+    serialized = error.model_dump(mode="json")
+
+    assert serialized["help_topic"] == "pairing-token"
+    assert serialized["docs_url"] is None
+    assert serialized["recommended_action"] == "pair_client"

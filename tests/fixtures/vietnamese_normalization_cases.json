@@ -1,0 +1,44 @@
+[
+  {
+    "id": "diacritics",
+    "input": "Tôi đang nghe tiếng Việt rõ ràng.",
+    "expected": "Tôi đang nghe tiếng Việt rõ ràng.",
+    "max_segment_chars": 120,
+    "expected_warnings": []
+  },
+  {
+    "id": "numbers",
+    "input": "Tôi có 12 quyển sách và 3 bút.",
+    "expected": "Tôi có 12 quyển sách và 3 bút.",
+    "max_segment_chars": 120,
+    "expected_warnings": []
+  },
+  {
+    "id": "abbreviations",
+    "input": "TP. HCM là một TP lớn.",
+    "expected": "TP. HCM là một TP lớn.",
+    "max_segment_chars": 120,
+    "expected_warnings": []
+  },
+  {
+    "id": "mixed_en_vi",
+    "input": "Mery TTS đọc tiếng Việt và English trong cùng câu.",
+    "expected": "Mery TTS đọc tiếng Việt và English trong cùng câu.",
+    "max_segment_chars": 120,
+    "expected_warnings": []
+  },
+  {
+    "id": "long_sentence",
+    "input": "Đây là một câu tiếng Việt rất dài để kiểm tra cảnh báo phân đoạn an toàn khi vượt quá giới hạn.",
+    "expected": "Đây là một câu tiếng Việt rất dài để kiểm tra cảnh báo phân đoạn an toàn khi vượt quá giới hạn.",
+    "max_segment_chars": 24,
+    "expected_warnings": ["segment_too_long"]
+  },
+  {
+    "id": "malformed_spacing_and_punctuation",
+    "input": "“Xin   chào”…\tBạn—khỏe không?",
+    "expected": "\"Xin chào\"... Bạn-khỏe không?",
+    "max_segment_chars": 120,
+    "expected_warnings": []
+  }
+]

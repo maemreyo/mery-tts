@@ -28,11 +28,13 @@ def _model(
     engine_id: str,
     locale: str,
     recommended_uses: list[str] | None = None,
+    supported_locales: list[str] | None = None,
 ) -> CatalogModel:
     return CatalogModel(
         model_id=model_id,
         engine_id=engine_id,
         locale=locale,
+        supported_locales=supported_locales or [],
         quality_tier="fixture",
         recommended_uses=recommended_uses if recommended_uses is not None else ["offline-test"],
         files=[
@@ -71,6 +73,28 @@ class TestBundledCatalogToVoicePackGraph:
         assert graph.voice_packs[0].locale == "vi-VN"
         assert graph.voice_packs[0].use_case == "vietnamese-reading"
         assert graph.voice_packs[0].voice_ids == ["catalog.piper-plus.vi-vn.demo"]
+
+    def test_voice_pack_projects_supported_locales_from_models(self) -> None:
+        catalog = _build_catalog(
+            models=[
+                _model(
+                    model_id="kokoro.en-us.af-heart.demo",
+                    engine_id="kokoro",
+                    locale="en-US",
+                    supported_locales=["en-us", "en-gb", "en-US"],
+                )
+            ]
+        )
+
+        graph = bundled_catalog_to_voice_pack_graph(catalog)
+        projection = voice_packs_for_catalog_graph(
+            voice_pack_graph=graph,
+            installed_voice_ids=set(),
+        )
+
+        assert graph.voice_packs[0].supported_locales == ["en-US", "en-GB"]
+        assert projection[0]["supported_locales"] == ["en-US", "en-GB"]
+
 
     def test_groups_voices_by_locale(self) -> None:
         catalog = _build_catalog(

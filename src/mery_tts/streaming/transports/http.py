@@ -21,6 +21,7 @@ from mery_tts.streaming.metadata import (
     derive_stream_metadata,
 )
 from mery_tts.streaming.pipeline import StreamingPipeline
+from mery_tts.streaming.sequence import StreamSequenceError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -101,31 +102,47 @@ async def build_openai_pcm_stream_response(
     async def byte_stream() -> AsyncIterator[bytes]:
         try:
             yield first_chunk_box.chunk.pcm
-            async for chunk in first_chunk_box.iterator:
-                if pipeline.cancellation.is_cancelled():
-                    _LOGGER.info(
-                        "stream.lifecycle_cancelled",
-                        extra={
-                            "request_id": request_id,
-                            "engine_id": engine_id,
-                            "phase": "post_first_byte",
-                            "reason": "client_cancelled",
-                        },
-                    )
-                    break
-                if not metadata.is_compatible(chunk):
-                    _LOGGER.info(
-                        "stream.lifecycle_metadata_drift",
-                        extra={
-                            "request_id": request_id,
-                            "engine_id": engine_id,
-                            "phase": "post_first_byte",
-                            "reason": "incompatible_chunk_metadata",
-                        },
-                    )
-                    break
-                yield chunk.pcm
+            try:
+                async for chunk in first_chunk_box.iterator:
+                    if pipeline.cancellation.is_cancelled():
+                        _LOGGER.info(
+                            "stream.lifecycle_cancelled",
+                            extra={
+                                "request_id": request_id,
+                                "engine_id": engine_id,
+                                "phase": "post_first_byte",
+                                "reason": "client_cancelled",
+                            },
+                        )
+                        break
+                    if not metadata.is_compatible(chunk):
+                        pipeline.mark_post_first_byte_failure(
+                            reason="incompatible_chunk_metadata"
+                        )
+                        _LOGGER.info(
+                            "stream.lifecycle_metadata_drift",
+                            extra={
+                                "request_id": request_id,
+                                "engine_id": engine_id,
+                                "phase": "post_first_byte",
+                                "reason": "incompatible_chunk_metadata",
+                            },
+                        )
+                        break
+                    yield chunk.pcm
+            except (StreamMetadataError, StreamSequenceError):
+                pipeline.mark_post_first_byte_failure(reason="incompatible_chunk_metadata")
+                _LOGGER.info(
+                    "stream.lifecycle_metadata_drift",
+                    extra={
+                        "request_id": request_id,
+                        "engine_id": engine_id,
+                        "phase": "post_first_byte",
+                        "reason": "incompatible_chunk_metadata",
+                    },
+                )
         finally:
-            pipeline.cancel()
+            if not pipeline.cancellation.is_cancelled():
+                pipeline.cancel(reason="client_disconnect")
 
     return byte_stream(), HttpStreamHeaders(content_type=content_type, extra=headers_dict)

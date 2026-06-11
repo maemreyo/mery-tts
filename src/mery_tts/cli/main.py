@@ -14,6 +14,7 @@ from mery_tts.audio.exporter import AudioExporter
 from mery_tts.catalog import bundled_catalog_voice_summaries
 from mery_tts.catalog.bundled import load_bundled_catalog
 from mery_tts.diagnostics.doctor import (
+    BackendStateCheck,
     CatalogAvailableCheck,
     DiskSpaceCheck,
     DoctorCheck,
@@ -25,8 +26,12 @@ from mery_tts.diagnostics.doctor import (
     ServerReachabilityCheck,
     TokenConfiguredCheck,
 )
+from mery_tts.diagnostics.export import DiagnosticsExportBuilder
+from mery_tts.diagnostics.history import DiagnosticsEventStore
 from mery_tts.engines.base import PCMChunk
 from mery_tts.engines.discovery import discover_engine_registry
+from mery_tts.hardware import HardwareBackendConfig
+from mery_tts.help import get_help_topic, list_help_topics
 from mery_tts.jobs import BundledInstallWorker, FileInstallJobStore, InstallJobService
 from mery_tts.models.store import ModelStore
 from mery_tts.security.config import HelperConfigStore
@@ -75,6 +80,27 @@ def main(
     _ = version
 
 
+@app.command("help-topic")
+def help_topic(
+    topic_id: str | None = typer.Argument(
+        None,
+        help="Local offline help topic ID. Omit to list available topics.",
+    ),
+) -> None:
+    if topic_id is None:
+        typer.echo("topic_id | title")
+        for topic in list_help_topics():
+            typer.echo(f"{topic.topic_id} | {topic.title}")
+        return
+
+    try:
+        topic = get_help_topic(topic_id)
+    except KeyError as exc:
+        typer.echo(f"unknown help topic: {topic_id}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(topic.body)
+
+
 @app.command()
 def doctor(
     deep: bool = typer.Option(False, "--deep", help="Run real synthesis smoke tests."),
@@ -97,6 +123,7 @@ def doctor(
     checks: list[DoctorCheck] = [
         EngineAvailabilityCheck(engine_registry=engine_registry),
         EngineHealthCheck(unhealthy=[]),
+        BackendStateCheck(config=HardwareBackendConfig(default_backend="auto")),
         ModelAvailabilityCheck(installed_models=installed_models),
         TokenConfiguredCheck(config_path=paths.config_dir / "config.json"),
         ServerReachabilityCheck(port=config.port),
@@ -157,6 +184,46 @@ def _run_deep_smoke(paths: "RuntimePaths", providers: list[str]) -> None:
         if result.failure_detail:
             status_detail = f" — {result.failure_detail}"
         typer.echo(f"smoke | {result.voice_id} | {result.status.value}{status_detail}")
+
+
+@app.command("diagnostics-history")
+def diagnostics_history(
+    delete: bool = typer.Option(False, "--delete", help="Delete local diagnostics history."),
+) -> None:
+    store = DiagnosticsEventStore(data_dir=_runtime_paths().base_dir)
+    if delete:
+        typer.echo(f"diagnostics.history_deleted: {store.clear()}")
+        return
+    status = store.retention_status()
+    typer.echo(
+        "diagnostics.history: "
+        f"event_count={status['event_count']} "
+        f"retention_days={status['retention_days']} "
+        f"max_events={status['max_events']} "
+        f"storage_corrupted={str(status['storage_corrupted']).lower()}"
+    )
+
+
+@app.command("diagnostics-export")
+def diagnostics_export(
+    output: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Write export bundle to a JSON file instead of stdout.",
+        ),
+    ] = None,
+) -> None:
+    paths = _runtime_paths()
+    payload = DiagnosticsExportBuilder(data_dir=paths.base_dir).build()
+    serialized = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    if output is None:
+        typer.echo(serialized, nl=False)
+        return
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(serialized)
+    typer.echo(f"diagnostics.export_written: {output}")
 
 
 @app.command()
@@ -330,6 +397,42 @@ def storage_move(to: str = typer.Option(..., "--to")) -> None:
         raise typer.Exit(1) from exc
 
 
+def _remove_directory_contents(path: Path) -> int:
+    removed = 0
+    if not path.exists():
+        return removed
+    for child in path.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+        removed += 1
+    return removed
+
+
+@storage_app.command("cleanup")
+def storage_cleanup(
+    target: str = typer.Option(..., "--target", help="cache, logs, or diagnostics"),
+) -> None:
+    paths = _runtime_paths()
+    cleanup_targets = {
+        "cache": paths.cache_dir,
+        "logs": paths.logs_dir,
+        "diagnostics": paths.base_dir / "diagnostics",
+    }
+    if target == "models":
+        typer.echo("storage.cleanup_refused: model cleanup is not supported; models_protected=true")
+        raise typer.Exit(1)
+    if target not in cleanup_targets:
+        typer.echo("storage.cleanup_failed: target must be cache, logs, or diagnostics")
+        raise typer.Exit(2)
+
+    removed = _remove_directory_contents(cleanup_targets[target])
+    typer.echo(
+        f"storage.cleanup_complete: target={target}; removed={removed}; models_protected=true"
+    )
+
+
 @storage_app.command("repair")
 def storage_repair() -> None:
     paths = _runtime_paths()
@@ -490,7 +593,7 @@ async def _do_voice_pack_install(pack_id: str) -> None:
         )
     except InstallPlanError as exc:
         typer.echo(f"error: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     if plan.is_empty:
         typer.echo("Already installed.")

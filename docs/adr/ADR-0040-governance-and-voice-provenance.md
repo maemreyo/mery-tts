@@ -32,9 +32,13 @@ Provider and voice metadata must eventually support governance fields such as:
 
 Catalog trust tiers are required before community catalogs:
 
-1. Bundled/curated catalog — shipped by Mery and verified.
-2. Trusted remote catalog — signed and explicitly added by the user/admin.
-3. Community catalog — deferred until license/provenance/takedown governance exists.
+1. Bundled/curated catalog (`bundled_curated`) — shipped by Mery, package-resource backed, checksum verified, and treated as the default only for bundled catalog entries.
+2. Trusted remote catalog (`trusted_remote`) — signed, explicitly added by the user/admin, and required to declare remote source plus license/provenance metadata before refresh is accepted.
+3. Community catalog (`community`) — deferred until license/provenance/takedown governance exists; community entries must not be silently accepted as trusted remote or bundled voices.
+
+Required governance metadata for non-bundled entries includes `trust_tier`, `risk_class`, `license_id`, `license_scope`, `provenance`, `consent_required`, and `consent_status`. A remote catalog without an explicit trusted tier is not trusted by default.
+
+Community catalog enablement remains locked until all of the following exist and are tested: signature validation, provenance metadata, license metadata, takedown identifiers, checksum verification, and audit trail. Until then, `community` trust tier entries produce a structured `catalog.community_disabled` error instead of being refreshed or installed.
 
 ## Rationale
 

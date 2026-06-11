@@ -8,6 +8,14 @@ from typing import Literal
 
 from mery_tts.engines.base import EngineRegistry
 from mery_tts.errors import RecommendedAction, sanitize_diagnostic
+from mery_tts.hardware import (
+    BackendCapability,
+    BackendProbeResult,
+    HardwareBackendConfig,
+    backend_package_policy,
+    build_capability_from_probe_results,
+    resolve_backend_selection,
+)
 
 DoctorStatus = Literal["ok", "warn", "fail"]
 
@@ -99,6 +107,93 @@ class EngineHealthCheck(DoctorCheck):
                 recommended_action=RecommendedAction.CHECK_ENGINE,
             )
         return DoctorResult(check=self.name, status="ok", detail="all engines healthy")
+
+
+class BackendStateCheck(DoctorCheck):
+    def __init__(
+        self,
+        *,
+        config: HardwareBackendConfig,
+        capabilities: list[BackendCapability] | None = None,
+        probe_results_by_provider: dict[str, list[BackendProbeResult]] | None = None,
+        local_only: bool = True,
+        air_gapped: bool = False,
+    ) -> None:
+        self._config = config
+        self._capabilities = capabilities or []
+        self._probe_results_by_provider = probe_results_by_provider or {}
+        self._local_only = local_only
+        self._air_gapped = air_gapped
+
+    @property
+    def name(self) -> str:
+        return "backend_state"
+
+    def run(self) -> DoctorResult:
+        capabilities = list(self._capabilities)
+        for provider_id, probe_results in sorted(self._probe_results_by_provider.items()):
+            capabilities.append(
+                build_capability_from_probe_results(
+                    provider_id=provider_id,
+                    probe_results=probe_results,
+                )
+            )
+        if not capabilities:
+            return DoctorResult(
+                check=self.name,
+                status="ok",
+                detail=(
+                    "backend policy: auto; no provider backend probes configured; "
+                    "no network access required"
+                ),
+            )
+
+        details: list[str] = []
+        has_warning = False
+        for capability in sorted(capabilities, key=lambda item: item.provider_id):
+            selection = resolve_backend_selection(config=self._config, capability=capability)
+            state = self._state_for(
+                capability=capability,
+                selected_backend=selection.selected_backend,
+            )
+            segment = f"{capability.provider_id}: {state} selected={selection.selected_backend}"
+            if selection.fallback_reason is not None:
+                segment += f" fallback={selection.fallback_reason}"
+            if selection.missing_extras:
+                has_warning = True
+                install_commands = [
+                    backend_package_policy(
+                        provider_id=capability.provider_id,
+                        backend=backend,
+                        local_only=self._local_only,
+                        air_gapped=self._air_gapped,
+                    ).install_command
+                    for backend in capability.missing_extras_by_backend
+                ]
+                segment += " install " + ", ".join(f"`{command}`" for command in install_commands)
+            if state == "degraded":
+                has_warning = True
+            details.append(segment)
+
+        details.append("no network access required")
+        return DoctorResult(
+            check=self.name,
+            status="warn" if has_warning else "ok",
+            detail=" | ".join(details),
+        )
+
+    def _state_for(self, *, capability: BackendCapability, selected_backend: str) -> str:
+        accelerated = [backend for backend in capability.supported_backends if backend != "cpu"]
+        if any(
+            backend in accelerated and backend not in capability.available_backends
+            for backend in capability.supported_backends
+        ):
+            if capability.missing_extras_by_backend:
+                return "missing-extra"
+            return "degraded"
+        if selected_backend != "cpu":
+            return "accelerated"
+        return "cpu-only"
 
 
 class ModelAvailabilityCheck(DoctorCheck):

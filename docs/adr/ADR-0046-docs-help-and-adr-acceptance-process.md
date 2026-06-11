@@ -32,6 +32,20 @@ Local help topics include:
 
 Important errors should reference a `help_topic` or `docs_url`. Console should prefer local help and use online docs only as an optional supplement.
 
+Current local-help evidence:
+
+- `mery_tts.help` packages a local `manifest.json` plus markdown topics for install/setup, pairing/token, missing optional dependency, model corrupt/reinstall, catalog invalid/signature/checksum, local-only/air-gapped, diagnostics export, unsupported format/locale, and provider unavailable.
+- The local help contract exposes stable topic IDs, titles, `markdown` body format, package paths, and body text through `list_help_topics()` / `get_help_topic()` without network access.
+- The CLI exposes `mery help-topic` to list local topic IDs and `mery help-topic <topic-id>` to render a packaged markdown topic offline, so CLI/Console surfaces can reference the same topic IDs.
+- Focused evidence: `uv run pytest tests/unit/test_local_help.py tests/cli/test_help_cli.py -q` passed; matching Ruff and Python LSP diagnostics were clean.
+
+Current error-help evidence:
+
+- `LocalTTSError` serializes additive `help_topic` and `docs_url` fields while retaining `recommended_action`, `fallback_policy`, and sanitized diagnostics.
+- `mery_tts.errors.factories.HELP_TOPICS` maps user-actionable auth, provider, model, catalog, storage, and update errors to packaged local help topic IDs such as `pairing-token`, `provider-unavailable`, `catalog-invalid`, and `model-corrupt-reinstall`.
+- Structured error factory tests verify every non-`none` recommended action has local help/docs mapping and API contract tests verify additive fields do not break existing `/v1` error responses.
+- Focused evidence: `uv run pytest tests/unit/test_error_taxonomy.py tests/unit/test_error_factories.py tests/unit/test_local_help.py tests/cli/test_help_cli.py -q` passed; `uv run pytest tests/contract/test_api_schemas.py tests/contract/test_api_core.py tests/contract/test_openai_speech.py::test_openai_speech_rejects_unsupported_compressed_formats_without_fallback tests/contract/test_openai_speech.py::test_openai_speech_rejects_too_long_input tests/contract/test_openai_speech.py::test_openai_speech_requires_authentication -q` passed; matching Ruff and Python LSP diagnostics were clean.
+
 ### Branch Definition of Done
 
 Every production branch must satisfy a common Definition of Done:
@@ -46,6 +60,12 @@ Every production branch must satisfy a common Definition of Done:
 - Optional real-engine smoke is added when touching real engine paths.
 - UI branches include Vitest/RTL/MSW, Playwright, and accessibility checks.
 
+Current Definition of Done evidence:
+
+- `docs/agents/definition-of-done.md` records the branch completion gates, privacy review, UI-specific Vitest/RTL/MSW, Playwright, and accessibility checks, and a reusable evidence format for final notes/PR bodies/issues.
+- `AGENTS.md` links the Definition of Done and instructs agents to review it before calling implementation complete, making the checklist part of agent enforcement guidance.
+- Focused evidence: `uv run pytest tests/unit/test_definition_of_done_docs.py -q` passed; matching Ruff and Python LSP diagnostics were clean.
+
 ### ADR status rules
 
 ADR statuses have explicit meaning:
@@ -56,6 +76,13 @@ ADR statuses have explicit meaning:
 - **Deprecated** — no longer recommended, but not directly replaced.
 
 Agents should treat Accepted ADRs as binding law. Proposed ADRs are plans that must be checked before implementation.
+
+Current ADR-status evidence:
+
+- `docs/agents/adr-status-rules.md` defines Proposed, Accepted, Superseded, and Deprecated semantics, including the Accepted promotion checklist: review/grill complete, open questions resolved, issue set exists, related docs linked, and no conflict with earlier ADRs.
+- `docs/adr/INDEX.md` links the ADR status rules from the ADR process overview so readers can resolve status meaning from the index.
+- `AGENTS.md` links the ADR status rules and instructs agents to treat ADR statuses according to that guidance.
+- Focused evidence: `uv run pytest tests/unit/test_adr_status_rules_docs.py -q` passed; matching Ruff and Python LSP diagnostics were clean.
 
 ### Issue tracker linkage
 
@@ -68,6 +95,14 @@ Local help makes Mery recoverable offline. A shared branch Definition of Done pr
 ## Consequences
 
 - Existing Proposed ADRs may need a review pass before being promoted to Accepted.
+
+Current ADR-promotion workflow evidence:
+
+- `docs/agents/adr-promotion-workflow.md` defines a repeatable review pass for Proposed ADRs covering grill/review completion, blocking questions, issue set existence, related docs links, conflicts with earlier ADRs, and human-review-required conditions.
+- The workflow documents status/index update steps, including changing `**Status:** Proposed` to `**Status:** Accepted`, updating `docs/adr/INDEX.md` Status index rows, and handling Superseded/Deprecated outcomes.
+- Existing Proposed ADRs can be flagged as `review-pass-needed` when evidence is missing or human review is required.
+- `docs/adr/INDEX.md` and `AGENTS.md` link the promotion workflow so contributors and agents can find the review/pass process.
+- Focused evidence: `uv run pytest tests/unit/test_adr_promotion_workflow_docs.py -q` passed; matching Ruff and Python LSP diagnostics were clean.
 - Future implementation work should reference both ADR and local issue path.
 - Error taxonomy should include help topics for user-actionable errors.
 - Console and CLI should expose local recovery guidance consistently.

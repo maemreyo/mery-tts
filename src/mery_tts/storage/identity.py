@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 from typing import Any, cast
 
+from mery_tts.locale import normalize_bcp47_locales
 from mery_tts.providers.taxonomy import assert_provider_payload_allowed
 from mery_tts.voice import ModelFileVoicePayload, PresetVoicePayload, VoiceDescriptor
 
@@ -37,6 +38,8 @@ class StorageIdentityStore:
         voice_id: str,
         artifact_refs: list[str],
         payload_template: dict[str, Any],
+        *,
+        supported_locales: list[str] | None = None,
     ) -> Path:
         self.voices_dir.mkdir(parents=True, exist_ok=True)
         manifest_path = self.voices_dir / safe_voice_filename(voice_id)
@@ -46,6 +49,7 @@ class StorageIdentityStore:
                     "voiceId": voice_id,
                     "artifactRefs": artifact_refs,
                     "payloadTemplate": payload_template,
+                    "supportedLocales": normalize_bcp47_locales(supported_locales or []),
                 },
                 sort_keys=True,
             )
@@ -110,6 +114,9 @@ class StorageIdentityStore:
             if not self._artifact_exists(engine_id=engine_id, artifact_id=str(artifact_ref)):
                 raise ValueError(f"missing artifact '{artifact_ref}'")
         payload_template = manifest["payloadTemplate"]
+        supported_locales = normalize_bcp47_locales(
+            [str(tag) for tag in manifest.get("supportedLocales", [])]
+        )
         kind = str(payload_template.get("kind"))
         try:
             assert_provider_payload_allowed(kind)
@@ -122,6 +129,7 @@ class StorageIdentityStore:
                 voice_id=voice_id,
                 engine_id=engine_id,
                 payload=PresetVoicePayload(preset_id=str(payload_template["preset_id"])),
+                supported_locales=supported_locales,
             )
         if kind == "model-file":
             artifact_id = str(payload_template.get("artifact_id", artifact_refs[0]))
@@ -136,6 +144,7 @@ class StorageIdentityStore:
                     artifact_id=artifact_id,
                     relative_path=str(payload_template["relative_path"]),
                 ),
+                supported_locales=supported_locales,
             )
         raise ValueError(f"payload family '{kind}' not yet implemented")
 

@@ -13,7 +13,9 @@ internal install/readiness dependencies.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from mery_tts.locale import Bcp47Locale, normalize_bcp47_locale, normalize_bcp47_locales
 
 
 class ProviderRuntimeRequirement(BaseModel):
@@ -49,13 +51,26 @@ class VoicePack(BaseModel):
     voice_pack_id: str
     display_name: str
     description: str = ""
-    locale: str = ""
+    locale: Bcp47Locale | str = ""
+    supported_locales: list[Bcp47Locale] = Field(default_factory=list)
     use_case: str = ""
     voice_ids: list[str] = Field(default_factory=list)
     artifact_ids: list[str] = Field(default_factory=list)
     provider_runtime_ids: list[str] = Field(default_factory=list)
     estimated_size_bytes: int = 0
     recommended: bool = False
+
+    @field_validator("locale")
+    @classmethod
+    def normalize_locale(cls, value: str) -> str:
+        if value == "":
+            return value
+        return normalize_bcp47_locale(value)
+
+    @field_validator("supported_locales")
+    @classmethod
+    def normalize_supported_locales(cls, value: list[str]) -> list[str]:
+        return normalize_bcp47_locales(value)
 
     @model_validator(mode="after")
     def validate_ids(self) -> VoicePack:
@@ -159,6 +174,8 @@ def voice_packs_for_catalog_graph(
                 "display_name": pack.display_name,
                 "description": pack.description,
                 "locale": pack.locale,
+                "supported_locales": pack.supported_locales
+                or ([pack.locale] if pack.locale else []),
                 "use_case": pack.use_case,
                 "estimated_size_bytes": pack.estimated_size_bytes,
                 "recommended": pack.recommended,

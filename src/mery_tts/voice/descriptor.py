@@ -3,6 +3,9 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from mery_tts.governance import ConsentStatus, VoiceRiskClass
+from mery_tts.locale import Bcp47Locale, normalize_bcp47_locales
+
 
 class PresetVoicePayload(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -71,3 +74,15 @@ class VoiceDescriptor(BaseModel):
     voice_id: str = Field(min_length=1)
     engine_id: str = Field(min_length=1)
     payload: VoicePayload
+    supported_locales: list[Bcp47Locale] = Field(default_factory=list)
+    risk_class: VoiceRiskClass = "stock"
+    license_id: str | None = Field(default=None, min_length=1)
+    license_scope: str | None = Field(default=None, min_length=1)
+    provenance: str | None = Field(default=None, min_length=1)
+    consent_required: bool = False
+    consent_status: ConsentStatus = "not_required"
+
+    @field_validator("supported_locales")
+    @classmethod
+    def normalize_supported_locales(cls, value: list[str]) -> list[str]:
+        return normalize_bcp47_locales(value)

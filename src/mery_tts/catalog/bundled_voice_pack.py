@@ -103,6 +103,16 @@ def _build_provider_runtime(voice: CatalogVoice) -> ProviderRuntimeRequirement:
     )
 
 
+def _supported_locales_for_voices(voices: list[CatalogVoice], locale: str) -> list[str]:
+    seen: set[str] = set()
+    supported: list[str] = []
+    for candidate in [locale, *(tag for voice in voices for tag in voice.supported_locales)]:
+        if candidate not in seen:
+            supported.append(candidate)
+            seen.add(candidate)
+    return supported
+
+
 def _build_voice_pack(
     *,
     locale: str,
@@ -133,6 +143,7 @@ def _build_voice_pack(
         display_name=display_name,
         description=f"{display_name} voice pack with {len(voices)} voice(s).",
         locale=locale,
+        supported_locales=_supported_locales_for_voices(voices, locale),
         use_case=use_case,
         voice_ids=[voice.voice_id for voice in voices],
         artifact_ids=artifact_ids,

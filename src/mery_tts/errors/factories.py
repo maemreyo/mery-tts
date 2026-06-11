@@ -37,6 +37,29 @@ class ErrorPolicy:
     recoverability: ErrorRecoverability
 
 
+HELP_TOPICS: dict[ErrorCode, str] = {
+    ErrorCode.CONNECTION_DAEMON_UNREACHABLE: "provider-unavailable",
+    ErrorCode.CONNECTION_TIMEOUT: "provider-unavailable",
+    ErrorCode.CONNECTION_RATE_LIMITED: "provider-unavailable",
+    ErrorCode.MODEL_NOT_INSTALLED: "model-corrupt-reinstall",
+    ErrorCode.MODEL_INSTALL_FAILED: "model-corrupt-reinstall",
+    ErrorCode.MODEL_DELETE_FAILED: "model-corrupt-reinstall",
+    ErrorCode.CATALOG_SIGNATURE_INVALID: "catalog-invalid",
+    ErrorCode.CATALOG_SCHEMA_INVALID: "catalog-invalid",
+    ErrorCode.CATALOG_COMMUNITY_DISABLED: "catalog-invalid",
+    ErrorCode.ENGINE_UNAVAILABLE: "provider-unavailable",
+    ErrorCode.ENGINE_VOICE_UNSUPPORTED: "provider-unavailable",
+    ErrorCode.SYNTHESIS_FAILED: "provider-unavailable",
+    ErrorCode.PLAYBACK_DEVICE_UNAVAILABLE: "provider-unavailable",
+    ErrorCode.STORAGE_MANIFEST_MISSING: "model-corrupt-reinstall",
+    ErrorCode.STORAGE_WRITE_FAILED: "diagnostics-export",
+    ErrorCode.UPDATE_CONFIRMATION_REQUIRED: "model-corrupt-reinstall",
+    ErrorCode.AUTH_TOKEN_INVALID: "pairing-token",
+    ErrorCode.AUTH_TOKEN_MISSING: "pairing-token",
+    ErrorCode.AUTH_RATE_LIMITED: "pairing-token",
+}
+
+
 POLICIES: dict[ErrorCode, ErrorPolicy] = {
     ErrorCode.CONNECTION_DAEMON_UNREACHABLE: ErrorPolicy(
         recommended_action=RecommendedAction.RETRY,
@@ -46,6 +69,11 @@ POLICIES: dict[ErrorCode, ErrorPolicy] = {
     ErrorCode.CONNECTION_TIMEOUT: ErrorPolicy(
         recommended_action=RecommendedAction.RETRY,
         fallback_policy=FallbackPolicy.USE_CACHED_AUDIO,
+        recoverability=ErrorRecoverability.RETRYABLE,
+    ),
+    ErrorCode.CONNECTION_RATE_LIMITED: ErrorPolicy(
+        recommended_action=RecommendedAction.RETRY,
+        fallback_policy=FallbackPolicy.RETRY_WITH_BACKOFF,
         recoverability=ErrorRecoverability.RETRYABLE,
     ),
     ErrorCode.MODEL_NOT_INSTALLED: ErrorPolicy(
@@ -73,6 +101,11 @@ POLICIES: dict[ErrorCode, ErrorPolicy] = {
         fallback_policy=FallbackPolicy.DISABLE_FEATURE,
         recoverability=ErrorRecoverability.UNRECOVERABLE,
     ),
+    ErrorCode.CATALOG_COMMUNITY_DISABLED: ErrorPolicy(
+        recommended_action=RecommendedAction.NONE,
+        fallback_policy=FallbackPolicy.DISABLE_FEATURE,
+        recoverability=ErrorRecoverability.USER_ACTION,
+    ),
     ErrorCode.ENGINE_UNAVAILABLE: ErrorPolicy(
         recommended_action=RecommendedAction.CHECK_ENGINE,
         fallback_policy=FallbackPolicy.USE_DEFAULT_VOICE,
@@ -93,6 +126,16 @@ POLICIES: dict[ErrorCode, ErrorPolicy] = {
         fallback_policy=FallbackPolicy.NONE,
         recoverability=ErrorRecoverability.UNRECOVERABLE,
     ),
+    ErrorCode.SYNTHESIS_LOCALE_MISMATCH: ErrorPolicy(
+        recommended_action=RecommendedAction.NONE,
+        fallback_policy=FallbackPolicy.NONE,
+        recoverability=ErrorRecoverability.USER_ACTION,
+    ),
+    ErrorCode.SYNTHESIS_GATED_FEATURE: ErrorPolicy(
+        recommended_action=RecommendedAction.NONE,
+        fallback_policy=FallbackPolicy.DISABLE_FEATURE,
+        recoverability=ErrorRecoverability.USER_ACTION,
+    ),
     ErrorCode.PLAYBACK_DEVICE_UNAVAILABLE: ErrorPolicy(
         recommended_action=RecommendedAction.CHECK_ENGINE,
         fallback_policy=FallbackPolicy.USE_CACHED_AUDIO,
@@ -105,6 +148,16 @@ POLICIES: dict[ErrorCode, ErrorPolicy] = {
     ),
     ErrorCode.STORAGE_WRITE_FAILED: ErrorPolicy(
         recommended_action=RecommendedAction.FREE_SPACE,
+        fallback_policy=FallbackPolicy.NONE,
+        recoverability=ErrorRecoverability.USER_ACTION,
+    ),
+    ErrorCode.STORAGE_MODEL_CLEANUP_REFUSED: ErrorPolicy(
+        recommended_action=RecommendedAction.NONE,
+        fallback_policy=FallbackPolicy.NONE,
+        recoverability=ErrorRecoverability.USER_ACTION,
+    ),
+    ErrorCode.UPDATE_CONFIRMATION_REQUIRED: ErrorPolicy(
+        recommended_action=RecommendedAction.CONFIRM_UPDATE,
         fallback_policy=FallbackPolicy.NONE,
         recoverability=ErrorRecoverability.USER_ACTION,
     ),
@@ -196,6 +249,7 @@ def diagnostic_error(
         user_message_key=f"errors.{code.value.replace('.', '_')}",
         recommended_action=policy.recommended_action,
         fallback_policy=policy.fallback_policy,
+        help_topic=HELP_TOPICS.get(code),
         sanitized_diagnostic=diagnostic_text or "diagnostic omitted",
         request_id=request_id,
         timestamp=datetime.now(UTC),

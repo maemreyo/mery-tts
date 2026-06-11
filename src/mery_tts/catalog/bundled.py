@@ -18,6 +18,14 @@ def bundled_catalog_voice_summaries(catalog: Catalog | None = None) -> list[Voic
             voice_id=f"catalog.{model.model_id}",
             engine_id=model.engine_id,
             display_name=_display_name(model.model_id),
+            supported_locales=model.supported_locales or [model.locale],
+            risk_class=model.risk_class,
+            license_id=model.license_id,
+            license_scope=model.license_scope,
+            provenance=model.provenance,
+            consent_required=model.consent_required,
+            consent_status=model.consent_status,
+            trust_tier=model.trust_tier or "bundled_curated",
         )
         for model in active_catalog.models
     ]

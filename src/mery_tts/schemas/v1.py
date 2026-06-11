@@ -3,8 +3,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from mery_tts.governance import CatalogTrustTier, ConsentStatus, VoiceRiskClass
+from mery_tts.locale import Bcp47Locale, normalize_bcp47_locales
 from mery_tts.streaming.capabilities import StreamingGranularity
 
 StreamingCapabilityMode = Literal[
@@ -32,14 +34,38 @@ class VersionedModel(BaseModel):
     request_id: str = Field(min_length=1)
 
 
+class VersionLayersVo(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    app_version: str | None = None
+    api_major: Literal["v1"] = "v1"
+    catalog_schema_version: str = "catalog-v1"
+    voice_pack_manifest_version: str = "voice-pack-v1"
+    provider_capability_version: str = "provider-capability-v1"
+
+
 class HealthResponse(VersionedModel):
     status: Literal["ok", "degraded", "unavailable", "ready", "unpaired", "incompatible"]
+    live: Literal["alive"] = "alive"
+    ready: bool = False
+    health_status: Literal["ok", "degraded", "unavailable"] = "unavailable"
+    health_checks: dict[str, str] = Field(default_factory=dict)
     helper_id: str | None = None
     helper_version: str | None = None
     contract_version: str | None = None
-    engines: list["EngineReadinessSummaryVo"] = Field(default_factory=list)
+    version_layers: VersionLayersVo = Field(default_factory=VersionLayersVo)
+    engines: list[EngineReadinessSummaryVo] = Field(default_factory=list)
     total_usable_voices: int = 0
     total_installed_voices: int = 0
+
+
+class BackendSelectionVo(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    supported_backends: list[str] = Field(default_factory=lambda: ["cpu"])
+    selected_backend: str = "cpu"
+    fallback_reason: str | None = None
+    missing_extras: list[str] = Field(default_factory=list)
 
 
 class EngineReadinessSummaryVo(BaseModel):
@@ -54,6 +80,7 @@ class EngineReadinessSummaryVo(BaseModel):
     smoke_failed_count: int = 0
     status: Literal["available", "degraded", "unavailable"] = "unavailable"
     reason: str | None = None
+    backend_selection: BackendSelectionVo = Field(default_factory=BackendSelectionVo)
 
 
 class EngineSummary(BaseModel):
@@ -63,6 +90,7 @@ class EngineSummary(BaseModel):
     status: Literal["available", "degraded", "unavailable"]
     reason: str | None = None
     streaming: StreamingCapabilityInfoVo | None = None
+    backend_selection: BackendSelectionVo = Field(default_factory=BackendSelectionVo)
 
 
 class EnginesResponse(VersionedModel):
@@ -95,8 +123,21 @@ class VoiceSummary(BaseModel):
     voice_id: str
     engine_id: str
     display_name: str
+    supported_locales: list[Bcp47Locale] = Field(default_factory=list)
+    risk_class: VoiceRiskClass = "stock"
+    license_id: str | None = Field(default=None, min_length=1)
+    license_scope: str | None = Field(default=None, min_length=1)
+    provenance: str | None = Field(default=None, min_length=1)
+    consent_required: bool = False
+    consent_status: ConsentStatus = "not_required"
+    trust_tier: CatalogTrustTier = "bundled_curated"
     streaming: StreamingCapabilityInfoVo | None = None
     capabilities: VoiceCapabilitiesVo | None = None
+
+    @field_validator("supported_locales")
+    @classmethod
+    def normalize_supported_locales(cls, value: list[str]) -> list[str]:
+        return normalize_bcp47_locales(value)
 
 
 class InstalledVoicesResponse(VersionedModel):
@@ -109,6 +150,7 @@ class CatalogVoicesResponse(VersionedModel):
 
 class ModelInstallRequest(VersionedModel):
     model_id: str
+    user_confirmed: bool = False
 
 
 class ModelInstallResponse(VersionedModel):
@@ -133,13 +175,73 @@ class ModelDeleteResponse(VersionedModel):
     deleted: bool
 
 
+class StorageAdvisoryVo(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    threshold_bytes: int
+    used_bytes: int
+    status: Literal["ok", "warn"]
+    message: str
+
+
+StorageCleanupTarget = Literal["cache", "logs", "diagnostics", "models"]
+
+
+class StorageCleanupRequest(VersionedModel):
+    target: StorageCleanupTarget
+
+
+class StorageCleanupResponse(VersionedModel):
+    target: StorageCleanupTarget
+    removed_entries: int
+    models_protected: bool = True
+
+
 class StorageResponse(VersionedModel):
     used_bytes: int
     free_bytes: int | None = None
+    breakdown: dict[Literal["models", "cache", "logs", "diagnostics"], int] = Field(
+        default_factory=dict
+    )
+    advisory: StorageAdvisoryVo | None = None
+
+
+class DiagnosticsEventVo(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    schema_version: Literal["v1"] = "v1"
+    event_id: str
+    event_type: str
+    occurred_at: datetime
+    severity: Literal["info", "warning", "error"] = "info"
+    source: str
+    message: str
+    metadata: dict[str, str | int | float | bool] = Field(default_factory=dict)
+
+
+class DiagnosticsRetentionStatusVo(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    event_count: int = 0
+    retention_days: int = 7
+    max_events: int = 1000
+    oldest_event_at: str | None = None
+    newest_event_at: str | None = None
+    storage_corrupted: bool = False
 
 
 class DiagnosticsResponse(VersionedModel):
     checks: dict[str, str]
+    events: list[DiagnosticsEventVo] = Field(default_factory=list)
+
+
+class DiagnosticsHistoryResponse(VersionedModel):
+    retention_status: DiagnosticsRetentionStatusVo
+    events: list[DiagnosticsEventVo] = Field(default_factory=list)
+
+
+class DiagnosticsHistoryDeleteResponse(VersionedModel):
+    deleted_events: int
 
 
 class PairingResponse(VersionedModel):
@@ -210,6 +312,7 @@ class VoicePackSummary(BaseModel):
     display_name: str
     description: str = ""
     locale: str = ""
+    supported_locales: list[Bcp47Locale] = Field(default_factory=list)
     use_case: str = ""
     estimated_size_bytes: int = 0
     recommended: bool = False
@@ -219,6 +322,11 @@ class VoicePackSummary(BaseModel):
     voices_total: int = 0
     runtimes_ready: bool = False
     status: Literal["available", "partial", "missing_runtime", "installed"] = "available"
+
+    @field_validator("supported_locales")
+    @classmethod
+    def normalize_supported_locales(cls, value: list[str]) -> list[str]:
+        return normalize_bcp47_locales(value)
 
 
 class VoicePacksResponse(VersionedModel):
@@ -232,10 +340,16 @@ class SetupRecommendationVo(BaseModel):
     display_name: str
     description: str = ""
     locale: str = ""
+    supported_locales: list[Bcp47Locale] = Field(default_factory=list)
     use_case: str = ""
     estimated_size_bytes: int = 0
     status: str = "available"
     reason: str | None = None
+
+    @field_validator("supported_locales")
+    @classmethod
+    def normalize_supported_locales(cls, value: list[str]) -> list[str]:
+        return normalize_bcp47_locales(value)
 
 
 class SetupRecommendationsResponse(VersionedModel):
@@ -252,6 +366,7 @@ class ProviderRuntimeSummaryVo(BaseModel):
     status: str
     explanation: str | None = None
     recommended_action: str | None = None
+    backend_selection: BackendSelectionVo = Field(default_factory=BackendSelectionVo)
 
 
 class ProviderRuntimesResponse(VersionedModel):

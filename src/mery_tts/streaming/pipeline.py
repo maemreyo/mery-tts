@@ -68,6 +68,9 @@ class StreamingPipeline:
         self._metadata: PCMStreamMetadata | None = None
         self._assigner = SequenceAssigner()
         self._cancelled = False
+        self._cancelled_by: str | None = None
+        self._phase = "pre_first_byte"
+        self._lifecycle_reason: str | None = None
         self._metadata_drift = False
         self._sequence_error = False
 
@@ -91,10 +94,12 @@ class StreamingPipeline:
     def metadata(self) -> PCMStreamMetadata | None:
         return self._metadata
 
-    def cancel(self) -> None:
+    def cancel(self, *, reason: str = "client_disconnect") -> None:
         """Cancel the in-flight stream. Idempotent and adapter-safe."""
         if self._cancellation.is_cancelled():
             return
+        self._cancelled = True
+        self._cancelled_by = reason
         self._cancellation.cancel()
         # The adapter's official cancel hook is idempotent at the
         # contract level; multiple calls are safe (ADR-0033).
@@ -119,6 +124,9 @@ class StreamingPipeline:
         """
         emitted: list[PCMChunk] = []
         self._cancelled = False
+        self._cancelled_by = None
+        self._phase = "pre_first_byte"
+        self._lifecycle_reason = None
         self._metadata_drift = False
         self._sequence_error = False
         try:
@@ -134,9 +142,12 @@ class StreamingPipeline:
                 chunk = self._process_chunk(raw_chunk)
                 emitted.append(chunk)
                 yield chunk
+                self._phase = "post_first_byte"
         except (StreamMetadataError, StreamSequenceError) as exc:
             self._metadata_drift = True
             self._sequence_error = isinstance(exc, StreamSequenceError)
+            self._phase = "post_first_byte" if self._metadata is not None else "pre_first_byte"
+            self._lifecycle_reason = "incompatible_chunk_metadata"
             _LOGGER.info(
                 "stream.metadata_drift",
                 extra={
@@ -158,6 +169,35 @@ class StreamingPipeline:
         else:
             self._metadata.validate(chunk)
         return self._assigner.process(chunk)
+
+    def mark_post_first_byte_failure(self, *, reason: str) -> None:
+        self._cancelled = True
+        self._cancelled_by = "post_first_byte_failure"
+        self._phase = "post_first_byte"
+        self._lifecycle_reason = reason
+        if not self._cancellation.is_cancelled():
+            self._cancellation.cancel()
+            try:
+                self._adapter.cancel(self._cancellation.request_id)
+            except Exception as exc:
+                _LOGGER.warning(
+                    "stream.adapter_cancel_error",
+                    extra={
+                        "request_id": self._cancellation.request_id,
+                        "engine_id": self._adapter.engine_id,
+                        "reason": type(exc).__name__,
+                    },
+                )
+
+    def lifecycle_diagnostics(self) -> dict[str, str | bool]:
+        diagnostics: dict[str, str | bool] = {
+            "cancelled": self._cancelled,
+            "cancelled_by": self._cancelled_by or "none",
+            "phase": self._phase,
+        }
+        if self._lifecycle_reason is not None:
+            diagnostics["reason"] = self._lifecycle_reason
+        return diagnostics
 
     def result(self) -> PipelineResult:
         return PipelineResult(

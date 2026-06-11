@@ -1,10 +1,12 @@
 import asyncio
+import os
 from collections.abc import Awaitable, Callable
 from importlib import resources
+from pathlib import Path
 from typing import Any, Literal, cast
 from urllib.parse import unquote, urlparse
 
-from fastapi import FastAPI, Request, Response, WebSocket, status
+from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.responses import Response as FastAPIResponse
 from pydantic import BaseModel
@@ -17,6 +19,7 @@ from mery_tts.api.openai.speech import (
     synthesize_annotated_openai_speech,
     validate_openai_model,
 )
+from mery_tts.api.ws.synthesis import ws_synthesize
 from mery_tts.audio.encoder import encode_wav
 from mery_tts.catalog import (
     bundled_catalog_to_voice_pack_graph,
@@ -24,6 +27,8 @@ from mery_tts.catalog import (
     load_bundled_catalog,
 )
 from mery_tts.catalog.graph_adapter import legacy_catalog_to_graph
+from mery_tts.diagnostics.export import DiagnosticsExportBuilder
+from mery_tts.diagnostics.history import DiagnosticsEvent, DiagnosticsEventStore
 from mery_tts.engines import EngineRegistry, discover_engine_registry
 from mery_tts.engines.base import EngineAdapter
 from mery_tts.errors import ErrorCategory, ErrorCode, diagnostic_error
@@ -31,15 +36,16 @@ from mery_tts.jobs.install import FileInstallJobStore, InstallJobService
 from mery_tts.jobs.worker import BundledInstallWorker
 from mery_tts.models.store import ModelStore
 from mery_tts.providers.installers import discover_provider_installers
-from mery_tts.readiness import (
-    derive_engine_summary,
-    derive_helper_status,
-)
+from mery_tts.readiness import derive_engine_summary
 from mery_tts.readiness.health import EngineReadinessSummary
 from mery_tts.schemas.v1 import (
     AnnotatedSpeechResponse,
     CatalogVoicesResponse,
+    DiagnosticsEventVo,
+    DiagnosticsHistoryDeleteResponse,
+    DiagnosticsHistoryResponse,
     DiagnosticsResponse,
+    DiagnosticsRetentionStatusVo,
     EngineReadinessSummaryVo,
     EnginesResponse,
     EngineSummary,
@@ -57,8 +63,12 @@ from mery_tts.schemas.v1 import (
     SetupRecommendationsResponse,
     SetupRecommendationVo,
     SpeechMarkVo,
+    StorageAdvisoryVo,
+    StorageCleanupRequest,
+    StorageCleanupResponse,
     StorageResponse,
     StreamingCapabilityInfoVo,
+    VersionLayersVo,
     VoiceCapabilitiesVo,
     VoicePackInstallResponse,
     VoicePacksResponse,
@@ -92,7 +102,6 @@ from mery_tts.synthesis import (
     SynthesisErrorKind,
 )
 from mery_tts.voice import InstalledVoiceResolver, VoiceDescriptor, VoiceRegistry
-from mery_tts.api.ws.synthesis import ws_synthesize
 
 CONTRACT_VERSION = "v1"
 
@@ -300,6 +309,47 @@ def _invalid_model_id_response() -> JSONResponse:
     return JSONResponse(error.model_dump(mode="json"), status_code=400)
 
 
+def _directory_size(path: Path) -> int:
+    if not path.exists():
+        return 0
+    return sum(file.stat().st_size for file in path.rglob("*") if file.is_file())
+
+
+def _remove_directory_contents(path: Path) -> int:
+    removed = 0
+    if not path.exists():
+        return removed
+    for child in path.iterdir():
+        if child.is_dir():
+            import shutil
+
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+        removed += 1
+    return removed
+
+
+def _storage_warn_threshold_bytes() -> int:
+    raw_value = os.environ.get("MERY_TTS_STORAGE_WARN_BYTES")
+    if raw_value is None:
+        return 5 * 1024 * 1024 * 1024
+    try:
+        return max(0, int(raw_value))
+    except ValueError:
+        return 5 * 1024 * 1024 * 1024
+
+
+def _update_confirmation_required_response(*, model_id: str) -> JSONResponse:
+    error = diagnostic_error(
+        code=ErrorCode.UPDATE_CONFIRMATION_REQUIRED,
+        category=ErrorCategory.CATALOG,
+        request_id="local",
+        diagnostic={"reason": "explicit confirmation required", "model_id": model_id},
+    )
+    return JSONResponse(error.model_dump(mode="json"), status_code=409)
+
+
 def _auth_error_response(*, missing: bool) -> JSONResponse:
     code = ErrorCode.AUTH_TOKEN_MISSING if missing else ErrorCode.AUTH_TOKEN_INVALID
     reason = "authorization missing" if missing else "authorization invalid"
@@ -394,6 +444,14 @@ def create_app(
     install_job_service: InstallJobService | None = None,
     smoke_record_store: SmokeRecordStore | None = None,
     streaming_config: StreamingConfig | None = None,
+    enable_metrics: bool = False,
+    provider_network_policy: dict[str, str] | None = None,
+    local_only: bool = False,
+    air_gapped: bool = False,
+    provider_concurrency_limits: dict[str, int] | None = None,
+    provider_queue_limits: dict[str, int] | None = None,
+    default_timeout_seconds: float | None = None,
+    provider_timeout_overrides: dict[str, float] | None = None,
 ) -> FastAPI:
     paths = RuntimePaths.from_environment()
     should_reload_auth = config_store is not None or config is None
@@ -432,6 +490,7 @@ def create_app(
             voice_id=voice.voice_id,
             engine_id=voice.engine_id,
             display_name=_display_name(voice.voice_id),
+            supported_locales=voice.supported_locales,
             streaming=_voice_streaming_capability_vo(
                 adapter=engine_registry.adapters[voice.engine_id],
                 voice=voice,
@@ -469,6 +528,7 @@ def create_app(
 
     if smoke_record_store is None:
         smoke_record_store = SmokeRecordStore(data_dir=paths.base_dir)
+    diagnostics_event_store = DiagnosticsEventStore(data_dir=paths.base_dir)
 
     if streaming_config is None:
         streaming_config = StreamingConfig()
@@ -497,6 +557,13 @@ def create_app(
     synthesis_service = SpeechSynthesisService(
         voice_registry=voice_registry,
         voice_aliases=voice_aliases,
+        provider_network_policy=provider_network_policy,
+        local_only=local_only,
+        air_gapped=air_gapped,
+        provider_concurrency_limits=provider_concurrency_limits,
+        provider_queue_limits=provider_queue_limits,
+        default_timeout_seconds=default_timeout_seconds,
+        provider_timeout_overrides=provider_timeout_overrides,
     )
 
     for voice in installed_voice_descriptors:
@@ -563,7 +630,9 @@ def create_app(
                     headers={
                         "Access-Control-Allow-Origin": origin,
                         "Access-Control-Allow-Credentials": "true",
-                        "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Requested-With",
+                        "Access-Control-Allow-Headers": (
+                            "Authorization, Content-Type, X-Requested-With"
+                        ),
                         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
                         "Access-Control-Max-Age": "86400",
                     },
@@ -618,12 +687,12 @@ def create_app(
             return JSONResponse({"detail": "asset not found"}, status_code=404)
         return _console_index_response()
 
-    @app.get(
-        "/v1/health",
-        response_model=HealthResponse,
-        responses=NATIVE_ERROR_RESPONSES,
-    )
-    def health() -> HealthResponse:
+    def _readiness_snapshot() -> tuple[
+        list[EngineReadinessSummary],
+        list[EngineReadinessSummaryVo],
+        int,
+        int,
+    ]:
         current_smoke = smoke_record_store.load_all()
         engine_summaries: list[EngineReadinessSummary] = []
         engine_summaries_vo: list[EngineReadinessSummaryVo] = []
@@ -657,20 +726,19 @@ def create_app(
                     reason=summary.reason,
                 )
             )
+        return engine_summaries, engine_summaries_vo, total_installed, total_usable
 
-        helper_status = derive_helper_status(
-            engine_summaries=engine_summaries,
-            is_paired=True,
-            contract_compatible=True,
-        )
-        status_map = {
-            "ready": "ready",
-            "degraded": "degraded",
-            "unavailable": "unavailable",
-            "unpaired": "unpaired",
-            "incompatible": "incompatible",
-        }
-        mapped_status = status_map.get(helper_status.value, "unavailable")
+    @app.get(
+        "/v1/health",
+        response_model=HealthResponse,
+        responses=NATIVE_ERROR_RESPONSES,
+    )
+    def health() -> HealthResponse:
+        engine_summaries, engine_summaries_vo, total_installed, total_usable = _readiness_snapshot()
+        is_ready = total_usable > 0
+        health_checks = _health_checks(engine_summaries=engine_summaries, ready=is_ready)
+        health_status = _health_status(engine_summaries=engine_summaries, ready=is_ready)
+        mapped_status = health_status if health_status != "ok" else "ready"
 
         return HealthResponse(
             request_id="local",
@@ -678,13 +746,66 @@ def create_app(
                 Literal["ok", "degraded", "unavailable", "ready", "unpaired", "incompatible"],
                 mapped_status,
             ),
+            live="alive",
+            ready=is_ready,
+            health_status=cast(Literal["ok", "degraded", "unavailable"], health_status),
+            health_checks=health_checks,
             helper_id=config.helper_id,
             helper_version=__version__,
             contract_version=CONTRACT_VERSION,
+            version_layers=VersionLayersVo(
+                app_version=__version__,
+                api_major=CONTRACT_VERSION,
+            ),
             engines=engine_summaries_vo,
             total_usable_voices=total_usable,
             total_installed_voices=total_installed,
         )
+
+    def _health_checks(
+        *,
+        engine_summaries: list[EngineReadinessSummary],
+        ready: bool,
+    ) -> dict[str, str]:
+        checks = {
+            "process": "alive",
+            "readiness": "ready" if ready else "not_ready",
+        }
+        for summary in engine_summaries:
+            checks[f"engine:{summary.engine_id}"] = summary.status
+        return checks
+
+    def _health_status(
+        *,
+        engine_summaries: list[EngineReadinessSummary],
+        ready: bool,
+    ) -> str:
+        if not ready:
+            return "unavailable"
+        if any(summary.status != "available" for summary in engine_summaries):
+            return "degraded"
+        return "ok"
+
+    if enable_metrics:
+
+        @app.get("/metrics", response_model=None)
+        def metrics() -> Response:
+            _engine_summaries, _engine_vos, total_installed, total_usable = _readiness_snapshot()
+            payload = "\n".join(
+                [
+                    "# HELP mery_info Static Mery runtime information",
+                    "# TYPE mery_info gauge",
+                    f'mery_info{{contract_version="{CONTRACT_VERSION}"}} 1',
+                    "# HELP mery_usable_voices Voices currently usable for synthesis",
+                    "# TYPE mery_usable_voices gauge",
+                    f"mery_usable_voices {total_usable}",
+                    "# HELP mery_installed_voices Installed voices visible to readiness",
+                    "# TYPE mery_installed_voices gauge",
+                    f"mery_installed_voices {total_installed}",
+                    "",
+                ]
+            )
+            return Response(content=payload, media_type="text/plain; version=0.0.4")
 
     @app.get(
         "/v1/engines",
@@ -723,10 +844,58 @@ def create_app(
     )
     def storage() -> StorageResponse:
         stats = model_store.disk_usage()
+        breakdown = {
+            "models": _directory_size(paths.models_dir),
+            "cache": _directory_size(paths.cache_dir),
+            "logs": _directory_size(paths.logs_dir),
+            "diagnostics": _directory_size(paths.base_dir / "diagnostics"),
+        }
+        used_bytes = sum(breakdown.values())
+        threshold_bytes = _storage_warn_threshold_bytes()
+        advisory_status = "warn" if used_bytes > threshold_bytes else "ok"
+        advisory_message = (
+            "storage usage exceeds advisory threshold; cleanup is user-controlled"
+            if advisory_status == "warn"
+            else "storage usage is below advisory threshold; cleanup is user-controlled"
+        )
         return StorageResponse(
             request_id="local",
-            used_bytes=stats.used_bytes,
+            used_bytes=used_bytes,
             free_bytes=stats.available_bytes,
+            breakdown=breakdown,
+            advisory=StorageAdvisoryVo(
+                threshold_bytes=threshold_bytes,
+                used_bytes=used_bytes,
+                status=advisory_status,
+                message=advisory_message,
+            ),
+        )
+
+    @app.post(
+        "/v1/storage/cleanup",
+        response_model=StorageCleanupResponse,
+        responses=NATIVE_ERROR_RESPONSES,
+    )
+    def storage_cleanup(request: StorageCleanupRequest) -> StorageCleanupResponse | JSONResponse:
+        cleanup_targets = {
+            "cache": paths.cache_dir,
+            "logs": paths.logs_dir,
+            "diagnostics": paths.base_dir / "diagnostics",
+        }
+        if request.target == "models":
+            error = diagnostic_error(
+                code=ErrorCode.STORAGE_MODEL_CLEANUP_REFUSED,
+                category=ErrorCategory.STORAGE,
+                request_id="local",
+                diagnostic={"reason": "model cleanup is not supported"},
+            )
+            return JSONResponse(error.model_dump(mode="json"), status_code=409)
+        removed = _remove_directory_contents(cleanup_targets[request.target])
+        return StorageCleanupResponse(
+            request_id="local",
+            target=request.target,
+            removed_entries=removed,
+            models_protected=True,
         )
 
     @app.get(
@@ -735,14 +904,78 @@ def create_app(
         responses=NATIVE_ERROR_RESPONSES,
     )
     def diagnostics_get() -> DiagnosticsResponse:
-        doctor_path = RuntimePaths.from_environment().base_dir / "diagnostics" / "last-doctor.json"
+        doctor_path = paths.base_dir / "diagnostics" / "last-doctor.json"
         if doctor_path.exists():
             import json
 
             payload = json.loads(doctor_path.read_text())
             checks = {result["check"]: result["status"] for result in payload.get("results", [])}
-            return DiagnosticsResponse(request_id="local", checks=checks)
-        return DiagnosticsResponse(request_id="local", checks={"never_run": "true"})
+            checks.update(_governance_diagnostic_checks())
+            return DiagnosticsResponse(
+                request_id="local",
+                checks=checks,
+                events=_diagnostics_event_vos(diagnostics_event_store.load_all()),
+            )
+        checks = {"never_run": "true"}
+        checks.update(_governance_diagnostic_checks())
+        return DiagnosticsResponse(
+            request_id="local",
+            checks=checks,
+            events=_diagnostics_event_vos(diagnostics_event_store.load_all()),
+        )
+
+    def _governance_diagnostic_checks() -> dict[str, str]:
+        return {
+            "governance.gated_features": "user_action_required:synthesis.gated_feature",
+            "governance.community_catalogs": "user_action_required:catalog.community_disabled",
+        }
+
+    def _diagnostics_event_vos(events: list[DiagnosticsEvent]) -> list[DiagnosticsEventVo]:
+        return [
+            DiagnosticsEventVo(
+                event_id=event.event_id,
+                event_type=str(event.event_type),
+                occurred_at=event.occurred_at,
+                severity=event.severity,
+                source=event.source,
+                message=event.message,
+                metadata=event.metadata,
+            )
+            for event in events
+        ]
+
+    @app.get(
+        "/v1/diagnostics/history",
+        response_model=DiagnosticsHistoryResponse,
+        responses=NATIVE_ERROR_RESPONSES,
+    )
+    def diagnostics_history() -> DiagnosticsHistoryResponse:
+        return DiagnosticsHistoryResponse(
+            request_id="local",
+            retention_status=DiagnosticsRetentionStatusVo(
+                **diagnostics_event_store.retention_status()
+            ),
+            events=_diagnostics_event_vos(diagnostics_event_store.load_all()),
+        )
+
+    @app.delete(
+        "/v1/diagnostics/history",
+        response_model=DiagnosticsHistoryDeleteResponse,
+        responses=NATIVE_ERROR_RESPONSES,
+    )
+    def diagnostics_history_delete() -> DiagnosticsHistoryDeleteResponse:
+        return DiagnosticsHistoryDeleteResponse(
+            request_id="local",
+            deleted_events=diagnostics_event_store.clear(),
+        )
+
+    @app.get(
+        "/v1/diagnostics/export",
+        response_model=None,
+        responses=NATIVE_ERROR_RESPONSES,
+    )
+    def diagnostics_export() -> JSONResponse:
+        return JSONResponse(DiagnosticsExportBuilder(data_dir=paths.base_dir).build())
 
     @app.post(
         "/v1/diagnostics",
@@ -752,11 +985,14 @@ def create_app(
     def diagnostics_post() -> DiagnosticsResponse:
         from mery_tts.diagnostics.doctor import DoctorEngine
 
-        paths = RuntimePaths.from_environment()
         engine = DoctorEngine(data_dir=paths.base_dir)
         results = engine.run()
         checks = {result.check: result.status for result in results}
-        return DiagnosticsResponse(request_id="local", checks=checks)
+        return DiagnosticsResponse(
+            request_id="local",
+            checks=checks,
+            events=_diagnostics_event_vos(diagnostics_event_store.load_all()),
+        )
 
     def _on_install_complete(_job_id: str) -> None:
         smoke_record_store.load_all()
@@ -778,6 +1014,8 @@ def create_app(
     async def model_install(request: ModelInstallRequest) -> ModelInstallResponse | JSONResponse:
         if not is_safe_model_id(request.model_id):
             return _invalid_model_id_response()
+        if not request.user_confirmed:
+            return _update_confirmation_required_response(model_id=request.model_id)
 
         engine_id = "piper-plus" if "piper" in request.model_id.lower() else "kokoro"
         job = install_job_service.start_install(
@@ -879,6 +1117,7 @@ def create_app(
                     display_name=r.display_name,
                     description=r.description,
                     locale=r.locale,
+                    supported_locales=r.supported_locales,
                     use_case=r.use_case,
                     estimated_size_bytes=r.estimated_size_bytes,
                     status=r.status,
@@ -1022,8 +1261,8 @@ def create_app(
         try:
             while True:
                 await websocket.receive_text()
-        except Exception:
-            pass
+        except WebSocketDisconnect:
+            return
 
     @app.websocket("/v1/synthesize/stream")
     async def synthesize_stream(websocket: WebSocket) -> None:
@@ -1103,6 +1342,23 @@ def create_app(
             response.headers["X-Mery-Audio-Encoding"] = result.audio_metadata.encoding
             response.headers["X-Mery-Sample-Rate"] = str(result.audio_metadata.sample_rate_hz)
             response.headers["X-Mery-Channels"] = str(result.audio_metadata.channels)
+            if diag.normalization_diagnostics:
+                normalization = diag.normalization_diagnostics
+                response.headers["X-Mery-Normalizer-Version"] = str(
+                    normalization["normalizer_version"]
+                )
+                response.headers["X-Mery-Normalization-Locale"] = str(normalization["locale"])
+                response.headers["X-Mery-Normalization-Categories"] = str(
+                    normalization["categories_applied"]
+                )
+                response.headers["X-Mery-Normalization-Warnings"] = str(normalization["warnings"])
+                response.headers["X-Mery-Normalization-Length-Before"] = str(
+                    normalization["length_before"]
+                )
+                response.headers["X-Mery-Normalization-Length-After"] = str(
+                    normalization["length_after"]
+                )
+                response.headers["X-Mery-Segment-Count"] = str(normalization["segment_count"])
             return response
         except SynthesisError as exc:
             status_code = _synthesis_error_status(exc.kind)
@@ -1110,7 +1366,7 @@ def create_app(
                 code=_synthesis_error_code(exc.kind),
                 category=_synthesis_error_category(exc.kind),
                 request_id="local",
-                diagnostic={"reason": str(exc), "voice_id": exc.voice_id or ""},
+                diagnostic=exc.diagnostic or {"reason": str(exc), "voice_id": exc.voice_id or ""},
             )
             return JSONResponse(error.model_dump(mode="json"), status_code=status_code)
         except (KeyError, ValueError) as exc:
@@ -1189,18 +1445,22 @@ def create_app(
             capabilities=claim.capabilities,
         )
 
-    def _extract_mery_options(request: OpenAISpeechRequest) -> MeryRequestOptions | None:
+    def _extract_mery_options(request: OpenAISpeechRequest) -> MeryRequestOptions:
         extra = request.model_extra or {}
         mery_data = extra.get("mery")
         if not isinstance(mery_data, dict):
-            return None
+            return MeryRequestOptions(requested_locale=request.locale)
         fallback_ids = tuple(mery_data.get("fallbackVoiceIds", []))
         policy_str = mery_data.get("fallbackPolicy", "auto")
         policy = FallbackPolicy.DISABLED if policy_str == "disabled" else FallbackPolicy.AUTO
+        raw_timeout = mery_data.get("timeoutSeconds")
+        timeout_seconds = float(raw_timeout) if isinstance(raw_timeout, int | float) else None
         return MeryRequestOptions(
             fallback_voice_ids=fallback_ids,
             fallback_policy=policy,
             diagnostics=mery_data.get("diagnostics", "headers"),
+            requested_locale=request.locale,
+            timeout_seconds=timeout_seconds,
         )
 
     def _synthesis_error_status(kind: SynthesisErrorKind) -> int:
@@ -1215,6 +1475,11 @@ def create_app(
             SynthesisErrorKind.CANCELLED: 499,
             SynthesisErrorKind.AUTH_FAILURE: 401,
             SynthesisErrorKind.CONTRACT_INCOMPATIBLE: 400,
+            SynthesisErrorKind.LOCALE_MISMATCH: 400,
+            SynthesisErrorKind.GATED_FEATURE: 403,
+            SynthesisErrorKind.NETWORK_DISABLED: 503,
+            SynthesisErrorKind.PROVIDER_BUSY: 429,
+            SynthesisErrorKind.TIMEOUT: 504,
         }
         return status_map.get(kind, 500)
 
@@ -1230,6 +1495,11 @@ def create_app(
             SynthesisErrorKind.CANCELLED: ErrorCode.SYNTHESIS_FAILED,
             SynthesisErrorKind.AUTH_FAILURE: ErrorCode.AUTH_TOKEN_INVALID,
             SynthesisErrorKind.CONTRACT_INCOMPATIBLE: ErrorCode.SYNTHESIS_FAILED,
+            SynthesisErrorKind.LOCALE_MISMATCH: ErrorCode.SYNTHESIS_LOCALE_MISMATCH,
+            SynthesisErrorKind.GATED_FEATURE: ErrorCode.SYNTHESIS_GATED_FEATURE,
+            SynthesisErrorKind.NETWORK_DISABLED: ErrorCode.CONNECTION_TIMEOUT,
+            SynthesisErrorKind.PROVIDER_BUSY: ErrorCode.CONNECTION_RATE_LIMITED,
+            SynthesisErrorKind.TIMEOUT: ErrorCode.CONNECTION_TIMEOUT,
         }
         return code_map.get(kind, ErrorCode.SYNTHESIS_FAILED)
 
@@ -1245,6 +1515,11 @@ def create_app(
             SynthesisErrorKind.CANCELLED: ErrorCategory.SYNTHESIS,
             SynthesisErrorKind.AUTH_FAILURE: ErrorCategory.AUTH,
             SynthesisErrorKind.CONTRACT_INCOMPATIBLE: ErrorCategory.SYNTHESIS,
+            SynthesisErrorKind.LOCALE_MISMATCH: ErrorCategory.SYNTHESIS,
+            SynthesisErrorKind.GATED_FEATURE: ErrorCategory.SYNTHESIS,
+            SynthesisErrorKind.NETWORK_DISABLED: ErrorCategory.CONNECTION,
+            SynthesisErrorKind.PROVIDER_BUSY: ErrorCategory.CONNECTION,
+            SynthesisErrorKind.TIMEOUT: ErrorCategory.CONNECTION,
         }
         return category_map.get(kind, ErrorCategory.SYNTHESIS)
 

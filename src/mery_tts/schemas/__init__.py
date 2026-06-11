@@ -1,5 +1,6 @@
 from .v1 import (
     AudioEvent,
+    BackendSelectionVo,
     CatalogVoicesResponse,
     DiagnosticsResponse,
     EnginesResponse,
@@ -15,11 +16,13 @@ from .v1 import (
     PairingResponse,
     StorageResponse,
     SynthesisEvent,
+    VersionLayersVo,
     VoiceSummary,
 )
 
 __all__ = [
     "AudioEvent",
+    "BackendSelectionVo",
     "CatalogVoicesResponse",
     "DiagnosticsResponse",
     "EngineSummary",
@@ -35,5 +38,6 @@ __all__ = [
     "PairingResponse",
     "StorageResponse",
     "SynthesisEvent",
+    "VersionLayersVo",
     "VoiceSummary",
 ]

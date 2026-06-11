@@ -1,9 +1,11 @@
 from mery_tts.api.app import create_app
 from mery_tts.schemas.v1 import (
     AudioEvent,
+    BackendSelectionVo,
     CatalogVoicesResponse,
     DiagnosticsResponse,
     EnginesResponse,
+    EngineSummary,
     HealthResponse,
     HelperStatusChangedEvent,
     InstalledVoicesResponse,
@@ -15,6 +17,8 @@ from mery_tts.schemas.v1 import (
     PairingResponse,
     StorageResponse,
     SynthesisEvent,
+    VersionLayersVo,
+    VoiceSummary,
 )
 from mery_tts.security.config import HelperConfig
 
@@ -48,6 +52,116 @@ def test_rest_schema_contracts_include_version_and_correlation_fields() -> None:
     assert install_request.request_id == "req-install-request"
 
 
+def test_layered_versioning_schema_is_additive_and_old_client_safe() -> None:
+    layers = VersionLayersVo(
+        app_version="0.1.0",
+        api_major="v1",
+        catalog_schema_version="catalog-v1",
+        voice_pack_manifest_version="voice-pack-v1",
+        provider_capability_version="provider-capability-v1",
+    )
+    health = HealthResponse(
+        request_id="req-health",
+        status="ready",
+        helper_version="0.1.0",
+        contract_version="v1",
+        version_layers=layers,
+    )
+    old_client_view = HealthResponse.model_validate(
+        {
+            "schema_version": "v1",
+            "request_id": "req-health",
+            "status": "ready",
+            "unexpected_future_field": "ignored",
+        }
+    )
+
+    assert health.version_layers.model_dump() == {
+        "app_version": "0.1.0",
+        "api_major": "v1",
+        "catalog_schema_version": "catalog-v1",
+        "voice_pack_manifest_version": "voice-pack-v1",
+        "provider_capability_version": "provider-capability-v1",
+    }
+    assert old_client_view.schema_version == "v1"
+    assert old_client_view.status == "ready"
+
+
+def test_backend_selection_schema_is_additive_on_engine_and_provider_summaries() -> None:
+    backend = BackendSelectionVo(
+        supported_backends=["cpu", "coreml"],
+        selected_backend="cpu",
+        fallback_reason="requested backend coreml missing optional extra coreml",
+        missing_extras=["coreml"],
+    )
+    engine = EngineSummary(
+        engine_id="kokoro",
+        status="available",
+        backend_selection=backend,
+    )
+
+    assert engine.model_dump()["backend_selection"] == {
+        "supported_backends": ["cpu", "coreml"],
+        "selected_backend": "cpu",
+        "fallback_reason": "requested backend coreml missing optional extra coreml",
+        "missing_extras": ["coreml"],
+    }
+    assert "backend_selection" not in VoiceSummary(
+        voice_id="voice.legacy",
+        engine_id="piper-plus",
+        display_name="Legacy",
+    ).model_dump()
+
+
+def test_voice_summary_exposes_additive_supported_locales() -> None:
+    voice = VoiceSummary(
+        voice_id="voice.vi.demo",
+        engine_id="piper-plus",
+        display_name="Vietnamese Demo",
+        supported_locales=["vi-vn", "en-us", "vi-VN"],
+    )
+    legacy_voice = VoiceSummary(
+        voice_id="voice.legacy",
+        engine_id="piper-plus",
+        display_name="Legacy",
+    )
+
+    assert voice.supported_locales == ["vi-VN", "en-US"]
+    assert legacy_voice.supported_locales == []
+    assert "supported_locales" in voice.model_dump()
+
+
+def test_voice_summary_exposes_additive_governance_metadata() -> None:
+    voice = VoiceSummary(
+        voice_id="voice.reference.demo",
+        engine_id="piper-plus",
+        display_name="Reference Demo",
+        risk_class="reference",
+        license_id="license.fixture",
+        license_scope="offline-local-use",
+        provenance="authorized speaker sample",
+        consent_required=True,
+        consent_status="pending",
+    )
+    legacy_voice = VoiceSummary(
+        voice_id="voice.legacy",
+        engine_id="piper-plus",
+        display_name="Legacy",
+    )
+
+    assert voice.risk_class == "reference"
+    assert voice.license_id == "license.fixture"
+    assert voice.license_scope == "offline-local-use"
+    assert voice.provenance == "authorized speaker sample"
+    assert voice.consent_required is True
+    assert voice.consent_status == "pending"
+    assert voice.trust_tier == "bundled_curated"
+    assert legacy_voice.risk_class == "stock"
+    assert legacy_voice.consent_required is False
+    assert legacy_voice.consent_status == "not_required"
+    assert legacy_voice.trust_tier == "bundled_curated"
+
+
 def test_generated_openapi_schema_exposes_version_and_correlation_fields() -> None:
     app = create_app(config=HelperConfig(helper_id="mery-test", auth_token="secret" * 8, port=8765))
     schema = app.openapi()
@@ -74,6 +188,33 @@ def test_generated_openapi_schema_exposes_version_and_correlation_fields() -> No
     install_request_required = set(components["ModelInstallRequest"]["required"])
     assert install_request_properties["schema_version"]["const"] == "v1"
     assert {"request_id", "model_id"}.issubset(install_request_required)
+
+    voice_summary_properties = components["VoiceSummary"]["properties"]
+    voice_summary_required = set(components["VoiceSummary"].get("required", []))
+    assert "supported_locales" in voice_summary_properties
+    assert "supported_locales" not in voice_summary_required
+    assert "version_layers" in components["HealthResponse"]["properties"]
+    assert "version_layers" not in required
+    version_layers = components["VersionLayersVo"]["properties"]
+    assert version_layers["api_major"]["default"] == "v1"
+    assert version_layers["catalog_schema_version"]["default"] == "catalog-v1"
+    assert version_layers["voice_pack_manifest_version"]["default"] == "voice-pack-v1"
+    assert version_layers["provider_capability_version"]["default"] == "provider-capability-v1"
+    assert "backend_selection" in components["EngineSummary"]["properties"]
+    assert "backend_selection" not in set(components["EngineSummary"].get("required", []))
+    assert "backend_selection" not in components["VoiceSummary"]["properties"]
+
+    for governance_field in [
+        "risk_class",
+        "license_id",
+        "license_scope",
+        "provenance",
+        "consent_required",
+        "consent_status",
+        "trust_tier",
+    ]:
+        assert governance_field in voice_summary_properties
+        assert governance_field not in voice_summary_required
 
     health_response = schema["paths"]["/v1/health"]["get"]["responses"]["200"]
     assert health_response["content"]["application/json"]["schema"] == {
@@ -157,6 +298,8 @@ def test_generated_openapi_schema_includes_all_rest_endpoints() -> None:
         "/v1/catalog/voices",
         "/v1/storage",
         "/v1/diagnostics",
+        "/v1/diagnostics/export",
+        "/v1/diagnostics/history",
         "/v1/models/install",
         "/v1/models/{model_id}",
         "/v1/pair/claim",

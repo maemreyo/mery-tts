@@ -6,6 +6,7 @@ from typer.testing import CliRunner
 
 from mery_tts.cli.main import app
 from mery_tts.diagnostics.doctor import (
+    BackendStateCheck,
     CatalogAvailableCheck,
     DiskSpaceCheck,
     DoctorEngine,
@@ -19,6 +20,7 @@ from mery_tts.diagnostics.doctor import (
 )
 from mery_tts.engines.base import EngineAdapter, EngineRegistry
 from mery_tts.errors import RecommendedAction
+from mery_tts.hardware import BackendCapability, BackendProbeResult, HardwareBackendConfig
 from mery_tts.providers.rollout import provider_rollout_status
 
 
@@ -67,6 +69,34 @@ def test_doctor_cli_runs_with_persisted_output(monkeypatch, tmp_path: Path) -> N
     assert (tmp_path / "diagnostics" / "last-doctor.json").exists()
 
 
+def test_diagnostics_history_cli_lists_status_and_deletes(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+
+    list_result = CliRunner().invoke(app, ["diagnostics-history"])
+    delete_result = CliRunner().invoke(app, ["diagnostics-history", "--delete"])
+
+    assert list_result.exit_code == 0
+    assert "retention_days=7" in list_result.stdout
+    assert "max_events=1000" in list_result.stdout
+    assert "event_count=0" in list_result.stdout
+    assert delete_result.exit_code == 0
+    assert "diagnostics.history_deleted: 0" in delete_result.stdout
+
+
+def test_diagnostics_export_cli_writes_sanitized_bundle(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+    output_path = tmp_path / "export" / "diagnostics.json"
+
+    result = CliRunner().invoke(app, ["diagnostics-export", "--output", str(output_path)])
+
+    assert result.exit_code == 0
+    assert "diagnostics.export_written" in result.stdout
+    payload = json.loads(output_path.read_text())
+    assert payload["schema_version"] == "v1"
+    assert payload["bundle_type"] == "diagnostics_export"
+    assert "recent_diagnostics" in payload
+
+
 def test_doctor_cli_does_not_require_optional_engine_packages(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
     original_import = builtins.__import__
@@ -90,6 +120,8 @@ def test_doctor_cli_does_not_require_optional_engine_packages(monkeypatch, tmp_p
 
     assert result.exit_code in {0, 2}
     assert "engine_availability" in result.stdout
+    assert "backend_state" in result.stdout
+    assert "no network access required" in result.stdout
     assert import_attempts == []
 
 
@@ -110,6 +142,56 @@ def test_doctor_persistence_sanitizes_detail_metadata(tmp_path: Path) -> None:
     detail = payload["results"][0]["detail"]
 
     assert detail == "diagnostic omitted"
+
+
+def test_storage_cli_cleanup_targets_cache_logs_and_diagnostics_without_deleting_models(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+    (tmp_path / "models" / "kokoro" / "active-voice").mkdir(parents=True)
+    (tmp_path / "models" / "kokoro" / "active-voice" / "model.bin").write_bytes(b"model")
+    (tmp_path / "cache" / "downloads").mkdir(parents=True)
+    (tmp_path / "cache" / "downloads" / "artifact.tmp").write_bytes(b"cache")
+    (tmp_path / "logs").mkdir(parents=True)
+    (tmp_path / "logs" / "mery.log").write_bytes(b"logs")
+    (tmp_path / "diagnostics").mkdir(parents=True)
+    (tmp_path / "diagnostics" / "last-doctor.json").write_bytes(b"diagnostics")
+    runner = CliRunner()
+
+    cache = runner.invoke(app, ["storage", "cleanup", "--target", "cache"])
+    logs = runner.invoke(app, ["storage", "cleanup", "--target", "logs"])
+    diagnostics = runner.invoke(app, ["storage", "cleanup", "--target", "diagnostics"])
+
+    assert cache.exit_code == 0
+    assert "storage.cleanup_complete: target=cache" in cache.stdout
+    assert logs.exit_code == 0
+    assert "storage.cleanup_complete: target=logs" in logs.stdout
+    assert diagnostics.exit_code == 0
+    assert "storage.cleanup_complete: target=diagnostics" in diagnostics.stdout
+    assert not (tmp_path / "cache" / "downloads" / "artifact.tmp").exists()
+    assert not (tmp_path / "logs" / "mery.log").exists()
+    assert not (tmp_path / "diagnostics" / "last-doctor.json").exists()
+    assert (tmp_path / "models" / "kokoro" / "active-voice" / "model.bin").read_bytes() == b"model"
+    assert "models_protected=true" in cache.stdout
+    assert "models_protected=true" in logs.stdout
+    assert "models_protected=true" in diagnostics.stdout
+
+
+def test_storage_cli_rejects_model_cleanup_without_deleting_active_models(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+    (tmp_path / "models" / "kokoro" / "active-voice").mkdir(parents=True)
+    model_path = tmp_path / "models" / "kokoro" / "active-voice" / "model.bin"
+    model_path.write_bytes(b"model")
+
+    result = CliRunner().invoke(app, ["storage", "cleanup", "--target", "models"])
+
+    assert result.exit_code != 0
+    assert "model cleanup is not supported" in result.stdout
+    assert model_path.read_bytes() == b"model"
 
 
 def test_storage_cli_show_move_and_repair(monkeypatch, tmp_path: Path) -> None:
@@ -165,6 +247,47 @@ def test_readme_documents_phase_one_uv_and_pipx() -> None:
     assert 'mery speak --text "Hello from Mery"' in readme
     assert "mery speak --file input.txt --output hello.wav" in readme
     assert "--play" not in readme
+
+
+def test_doctor_backend_state_check_reports_cpu_only_accelerated_missing_and_degraded() -> None:
+    check = BackendStateCheck(
+        config=HardwareBackendConfig(default_backend="auto"),
+        capabilities=[
+            BackendCapability(
+                provider_id="cpu-provider",
+                supported_backends=["cpu"],
+                available_backends=["cpu"],
+            ),
+            BackendCapability(
+                provider_id="accelerated-provider",
+                supported_backends=["cuda", "cpu"],
+                available_backends=["cuda", "cpu"],
+            ),
+            BackendCapability(
+                provider_id="missing-provider",
+                supported_backends=["coreml", "cpu"],
+                available_backends=["cpu"],
+                missing_extras_by_backend={"coreml": "coreml"},
+            ),
+        ],
+        probe_results_by_provider={
+            "degraded-provider": [
+                BackendProbeResult(backend="cuda", status="degraded", reason="driver mismatch"),
+                BackendProbeResult(backend="cpu", status="available"),
+            ]
+        },
+    )
+
+    result = check.run()
+
+    assert result.check == "backend_state"
+    assert result.status == "warn"
+    assert "cpu-provider: cpu-only selected=cpu" in result.detail
+    assert "accelerated-provider: accelerated selected=cuda" in result.detail
+    assert "missing-provider: missing-extra selected=cpu" in result.detail
+    assert "install `pip install 'mery-tts-server[missing-provider,coreml]'`" in result.detail
+    assert "degraded-provider: degraded selected=cpu" in result.detail
+    assert "no network access required" in result.detail
 
 
 def test_doctor_engine_availability_check_with_loaded_engines() -> None:

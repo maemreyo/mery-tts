@@ -7,13 +7,18 @@ adapter calls, fallback, and synthesis diagnostics.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import asyncio
+from collections.abc import AsyncIterator, Sequence
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
 from mery_tts.engines.base import PCMChunk
+from mery_tts.governance import is_gated_voice_risk_class
+from mery_tts.text_normalization import normalize_text_for_locale
+from mery_tts.voice.descriptor import VoiceDescriptor
 from mery_tts.voice.registry import VoiceRegistry
 
 
@@ -30,6 +35,11 @@ class SynthesisErrorKind(StrEnum):
     CANCELLED = "cancelled"
     AUTH_FAILURE = "auth_failure"
     CONTRACT_INCOMPATIBLE = "contract_incompatible"
+    LOCALE_MISMATCH = "locale_mismatch"
+    GATED_FEATURE = "gated_feature"
+    NETWORK_DISABLED = "network_disabled"
+    PROVIDER_BUSY = "provider_busy"
+    TIMEOUT = "timeout"
 
 
 class FallbackPolicy(StrEnum):
@@ -47,6 +57,11 @@ NON_RECOVERABLE_KINDS = frozenset(
         SynthesisErrorKind.CANCELLED,
         SynthesisErrorKind.AUTH_FAILURE,
         SynthesisErrorKind.CONTRACT_INCOMPATIBLE,
+        SynthesisErrorKind.LOCALE_MISMATCH,
+        SynthesisErrorKind.GATED_FEATURE,
+        SynthesisErrorKind.NETWORK_DISABLED,
+        SynthesisErrorKind.PROVIDER_BUSY,
+        SynthesisErrorKind.TIMEOUT,
     }
 )
 
@@ -108,6 +123,9 @@ class SynthesisDiagnostics:
     fallback_voice_id: str | None = None
     fallback_reason: str | None = None
     attempts: tuple[VoiceAttempt, ...] = ()
+    requested_locale: str | None = None
+    selected_voice_locale: str | None = None
+    normalization_diagnostics: dict[str, str | int] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +159,8 @@ class MeryRequestOptions:
     fallback_voice_ids: tuple[str, ...] = ()
     fallback_policy: FallbackPolicy = FallbackPolicy.AUTO
     diagnostics: str = "headers"
+    requested_locale: str | None = None
+    timeout_seconds: float | None = None
 
 
 class VoicePlanResolver:
@@ -180,6 +200,56 @@ class VoicePlanResolver:
         )
 
 
+class ProviderResourceLimiter:
+    def __init__(
+        self,
+        *,
+        concurrency_limits: dict[str, int] | None = None,
+        queue_limits: dict[str, int] | None = None,
+    ) -> None:
+        self._concurrency_limits = concurrency_limits or {}
+        self._queue_limits = queue_limits or {}
+        self._active: dict[str, int] = {}
+        self._queued: dict[str, int] = {}
+        self._lock = asyncio.Lock()
+
+    @asynccontextmanager
+    async def acquire(self, provider_id: str) -> AsyncIterator[None]:
+        limit = self._concurrency_limits.get(provider_id)
+        if limit is None or limit <= 0:
+            yield
+            return
+        async with self._lock:
+            active = self._active.get(provider_id, 0)
+            if active >= limit:
+                queued = self._queued.get(provider_id, 0)
+                queue_limit = self._queue_limits.get(provider_id, 0)
+                if queued >= queue_limit:
+                    raise SynthesisError(
+                        kind=SynthesisErrorKind.PROVIDER_BUSY,
+                        message="provider_busy",
+                        engine_id=provider_id,
+                        diagnostic={"reason": "provider_busy", "provider_id": provider_id},
+                    )
+                self._queued[provider_id] = queued + 1
+                raise SynthesisError(
+                    kind=SynthesisErrorKind.PROVIDER_BUSY,
+                    message="provider_busy",
+                    engine_id=provider_id,
+                    diagnostic={"reason": "provider_busy", "provider_id": provider_id},
+                )
+            self._active[provider_id] = active + 1
+        try:
+            yield
+        finally:
+            async with self._lock:
+                remaining = self._active.get(provider_id, 0) - 1
+                if remaining > 0:
+                    self._active[provider_id] = remaining
+                else:
+                    self._active.pop(provider_id, None)
+
+
 class SpeechSynthesisService:
     """Shared synthesis orchestration service.
 
@@ -194,6 +264,13 @@ class SpeechSynthesisService:
         voice_aliases: dict[str, str] | None = None,
         plan_resolver: VoicePlanResolver | None = None,
         purpose: str = "user",
+        provider_network_policy: dict[str, str] | None = None,
+        local_only: bool = False,
+        air_gapped: bool = False,
+        provider_concurrency_limits: dict[str, int] | None = None,
+        provider_queue_limits: dict[str, int] | None = None,
+        default_timeout_seconds: float | None = None,
+        provider_timeout_overrides: dict[str, float] | None = None,
     ) -> None:
         self._registry = voice_registry
         self._aliases = voice_aliases or {}
@@ -201,6 +278,15 @@ class SpeechSynthesisService:
             voice_registry=voice_registry,
         )
         self._purpose = purpose
+        self._provider_network_policy = provider_network_policy or {}
+        self._local_only = local_only
+        self._air_gapped = air_gapped
+        self._resource_limiter = ProviderResourceLimiter(
+            concurrency_limits=provider_concurrency_limits,
+            queue_limits=provider_queue_limits,
+        )
+        self._default_timeout_seconds = default_timeout_seconds
+        self._provider_timeout_overrides = provider_timeout_overrides or {}
         self._last_request_id: str | None = None
 
     @property
@@ -225,6 +311,7 @@ class SpeechSynthesisService:
             )
 
         native_voice_id = self._resolve_native_voice_id(requested_voice)
+        mery_options = mery_options or MeryRequestOptions()
         plan = self._plan_resolver.resolve(native_voice_id, mery_options=mery_options)
         request_id = f"req-{uuid4().hex[:12]}"
         self._last_request_id = request_id
@@ -234,7 +321,26 @@ class SpeechSynthesisService:
 
         for voice_id in plan.ordered_voice_ids:
             try:
-                chunks = await self._try_synthesize(text, voice_id)
+                _, selected_voice = self._registry.resolve_route(voice_id)
+                selected_voice_locale = self._selected_voice_locale(selected_voice)
+                self._ensure_high_risk_voice_not_gated(selected_voice)
+                self._ensure_provider_network_allowed(selected_voice)
+                self._ensure_locale_matches(
+                    requested_locale=mery_options.requested_locale,
+                    voice=selected_voice,
+                    selected_voice_locale=selected_voice_locale,
+                )
+                normalized = normalize_text_for_locale(
+                    text,
+                    locale=mery_options.requested_locale or selected_voice_locale or "en-US",
+                )
+                async with self._resource_limiter.acquire(selected_voice.engine_id):
+                    chunks = await self._try_synthesize_segments_with_timeout(
+                        normalized.segments,
+                        voice_id,
+                        provider_id=selected_voice.engine_id,
+                        requested_timeout_seconds=mery_options.timeout_seconds,
+                    )
                 if not chunks:
                     raise SynthesisError(
                         kind=SynthesisErrorKind.ADAPTER_FAILURE,
@@ -247,11 +353,14 @@ class SpeechSynthesisService:
                     request_id=request_id,
                     plan=plan,
                     selected_voice_id=voice_id,
-                    selected_engine_id=chunks[0].__class__.__name__,
+                    selected_engine_id=selected_voice.engine_id,
                     fallback_used=is_fallback,
                     fallback_reason=last_error.message if is_fallback and last_error else None,
                     attempts=tuple(attempts),
                     chunks=chunks,
+                    requested_locale=mery_options.requested_locale,
+                    selected_voice_locale=selected_voice_locale,
+                    normalization_diagnostics=normalized.diagnostics(),
                 )
                 attempts.append(
                     VoiceAttempt(
@@ -284,6 +393,129 @@ class SpeechSynthesisService:
             kind=SynthesisErrorKind.UNKNOWN_VOICE,
             message="no voices available for synthesis",
         )
+
+    def _selected_voice_locale(self, voice: VoiceDescriptor) -> str | None:
+        supported_locales = getattr(voice, "supported_locales", [])
+        if supported_locales:
+            return supported_locales[0]
+        return None
+
+    def _ensure_high_risk_voice_not_gated(self, voice: VoiceDescriptor) -> None:
+        if not is_gated_voice_risk_class(voice.risk_class):
+            return
+        raise SynthesisError(
+            kind=SynthesisErrorKind.GATED_FEATURE,
+            message="gated_feature",
+            voice_id=voice.voice_id,
+            engine_id=voice.engine_id,
+            diagnostic={
+                "reason": "gated_feature",
+                "voice_id": voice.voice_id,
+                "risk_class": voice.risk_class,
+            },
+        )
+
+    def _ensure_provider_network_allowed(self, voice: VoiceDescriptor) -> None:
+        if self._provider_network_policy.get(voice.engine_id) != "remote":
+            return
+        if not self._local_only and not self._air_gapped:
+            return
+        policy = "air_gapped" if self._air_gapped else "local_only"
+        raise SynthesisError(
+            kind=SynthesisErrorKind.NETWORK_DISABLED,
+            message=f"network_disabled:{policy}:remote_provider",
+            voice_id=voice.voice_id,
+            engine_id=voice.engine_id,
+            diagnostic={
+                "reason": "network_disabled",
+                "policy": policy,
+                "operation": "remote_provider",
+                "provider_id": voice.engine_id,
+            },
+        )
+
+    def _ensure_locale_matches(
+        self,
+        *,
+        requested_locale: str | None,
+        voice: VoiceDescriptor,
+        selected_voice_locale: str | None,
+    ) -> None:
+        if requested_locale is None:
+            return
+        supported_locales = getattr(voice, "supported_locales", [])
+        if not supported_locales or requested_locale in supported_locales:
+            return
+        raise SynthesisError(
+            kind=SynthesisErrorKind.LOCALE_MISMATCH,
+            message="locale_mismatch",
+            voice_id=voice.voice_id,
+            engine_id=voice.engine_id,
+            diagnostic={
+                "reason": "locale_mismatch",
+                "requested_locale": requested_locale,
+                "selected_voice_locale": selected_voice_locale or "unknown",
+                "voice_id": voice.voice_id,
+            },
+        )
+
+    async def _try_synthesize_segments_with_timeout(
+        self,
+        segments: Sequence[str],
+        voice_id: str,
+        *,
+        provider_id: str,
+        requested_timeout_seconds: float | None,
+    ) -> list[PCMChunk]:
+        timeout_seconds = self._effective_timeout_seconds(
+            provider_id=provider_id,
+            requested_timeout_seconds=requested_timeout_seconds,
+        )
+        if timeout_seconds is None:
+            return await self._try_synthesize_segments(segments, voice_id)
+        try:
+            return await asyncio.wait_for(
+                self._try_synthesize_segments(segments, voice_id),
+                timeout_seconds,
+            )
+        except TimeoutError as exc:
+            raise SynthesisError(
+                kind=SynthesisErrorKind.TIMEOUT,
+                message="synthesis_timeout",
+                voice_id=voice_id,
+                engine_id=provider_id,
+                diagnostic={
+                    "reason": "synthesis_timeout",
+                    "provider_id": provider_id,
+                    "timeout_seconds": timeout_seconds,
+                },
+            ) from exc
+
+    def _effective_timeout_seconds(
+        self,
+        *,
+        provider_id: str,
+        requested_timeout_seconds: float | None,
+    ) -> float | None:
+        configured = self._provider_timeout_overrides.get(
+            provider_id,
+            self._default_timeout_seconds,
+        )
+        if configured is None:
+            return requested_timeout_seconds
+        if requested_timeout_seconds is None:
+            return configured
+        return min(configured, requested_timeout_seconds)
+
+    async def _try_synthesize_segments(
+        self,
+        segments: Sequence[str],
+        voice_id: str,
+    ) -> list[PCMChunk]:
+        chunks: list[PCMChunk] = []
+        for segment in segments:
+            chunks.extend(await self._try_synthesize(segment, voice_id))
+        return chunks
 
     async def _try_synthesize(self, text: str, voice_id: str) -> list[PCMChunk]:
         try:
@@ -358,6 +590,9 @@ class SpeechSynthesisService:
         fallback_reason: str | None,
         attempts: tuple[VoiceAttempt, ...],
         chunks: Sequence[PCMChunk],
+        requested_locale: str | None,
+        selected_voice_locale: str | None,
+        normalization_diagnostics: dict[str, str | int] | None,
     ) -> SynthesisDiagnostics:
         engine_id = selected_engine_id
         if chunks:
@@ -376,6 +611,9 @@ class SpeechSynthesisService:
             fallback_voice_id=selected_voice_id if fallback_used else None,
             fallback_reason=fallback_reason,
             attempts=attempts,
+            requested_locale=requested_locale,
+            selected_voice_locale=selected_voice_locale,
+            normalization_diagnostics=normalization_diagnostics,
         )
 
 

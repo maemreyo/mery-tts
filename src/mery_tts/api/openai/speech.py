@@ -13,9 +13,10 @@ from collections.abc import AsyncIterator
 from uuid import uuid4
 
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from mery_tts.audio.encoder import encode_wav
+from mery_tts.locale import Bcp47Locale, normalize_bcp47_locale
 from mery_tts.streaming.config import StreamingConfig
 from mery_tts.streaming.metadata import StreamMetadataError
 from mery_tts.streaming.pipeline import StreamingPipeline
@@ -33,6 +34,14 @@ class OpenAISpeechRequest(BaseModel):
     input: str = Field(min_length=1)
     response_format: str = "pcm"
     stream: bool = False
+    locale: Bcp47Locale | None = None
+
+    @field_validator("locale")
+    @classmethod
+    def normalize_locale(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return normalize_bcp47_locale(value)
 
 
 def openai_error(message: str, *, status: int = 400) -> tuple[dict[str, dict[str, str]], int]:

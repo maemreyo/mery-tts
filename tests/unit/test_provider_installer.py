@@ -101,7 +101,7 @@ def test_provider_runtime_explanation() -> None:
         provider_id="piper-plus",
         install_mode=InstallMode.AUTOMATIC,
         summary="Piper-plus is a fast local TTS engine.",
-        requirements=("Python 3.11+", "pip install mery-tts-server[piper]"),
+        requirements=("Python 3.11+", "pip install mery-tts-server[piper-plus]"),
         limitations=("GPU not supported yet",),
     )
     assert explanation.install_mode == InstallMode.AUTOMATIC

@@ -3,6 +3,7 @@
 All major architectural decisions for `mery-tts-server` are recorded here.
 Each ADR captures the context, the decision made, the rationale, and the
 consequences. Once accepted, an ADR is immutable; superseded ADRs are marked as such.
+See `docs/agents/adr-status-rules.md` for Proposed, Accepted, Superseded, and Deprecated semantics and agent binding behavior. Use `docs/agents/adr-promotion-workflow.md` for review-pass and status/index promotion steps.
 
 These ADRs distill the 27 design decisions from
 [`reports/local-tts-helper-design-decisions.md`](../reports/local-tts-helper-design-decisions.md).

@@ -28,9 +28,11 @@ def test_voice_packs_returns_bundled_locale_packs() -> None:
         response = client.get("/v1/voice-packs", headers=AUTH_HEADERS)
     assert response.status_code == 200
     body = response.json()
-    pack_ids = {pack["voice_pack_id"] for pack in body["voice_packs"]}
-    assert "pack.en-us" in pack_ids
-    assert "pack.vi-vn" in pack_ids
+    packs_by_id = {pack["voice_pack_id"]: pack for pack in body["voice_packs"]}
+    assert "pack.en-us" in packs_by_id
+    assert "pack.vi-vn" in packs_by_id
+    assert packs_by_id["pack.en-us"]["supported_locales"] == ["en-US"]
+    assert packs_by_id["pack.vi-vn"]["supported_locales"] == ["vi-VN"]
 
 
 def test_voice_pack_has_populated_voice_ids() -> None:
@@ -58,6 +60,7 @@ def test_setup_recommendations_ranks_locale_match_first() -> None:
     assert len(recs) >= 2
     assert recs[0]["voice_pack_id"] == "pack.vi-vn"
     assert recs[0]["locale"] == "vi-VN"
+    assert recs[0]["supported_locales"] == ["vi-VN"]
 
 
 def test_setup_recommendations_ranks_en_us_for_english_locale() -> None:

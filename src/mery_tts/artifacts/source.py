@@ -13,12 +13,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from importlib.resources import files
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from mery_tts.catalog.normalized import ArtifactEntry
-
-if TYPE_CHECKING:
-    from mery_tts.catalog.schema import Catalog, CatalogFile
+from mery_tts.catalog.schema import Catalog, CatalogFile
 
 
 class ArtifactFetchError(Exception):
@@ -126,16 +124,20 @@ class HttpArtifactSource:
 
     def __init__(
         self,
-        catalog: "Catalog",
+        catalog: Catalog,
         *,
         allowed_hosts: frozenset[str] | None = None,
         on_progress: Callable[[int, int], None] | None = None,
+        local_only: bool = False,
+        air_gapped: bool = False,
     ) -> None:
         self._catalog = catalog
         self._allowed_hosts = allowed_hosts if allowed_hosts is not None else _HUGGINGFACE_HOSTS
         self._on_progress = on_progress
+        self._local_only = local_only
+        self._air_gapped = air_gapped
 
-    def _catalog_files(self, artifact_id: str) -> list["CatalogFile"]:
+    def _catalog_files(self, artifact_id: str) -> list[CatalogFile]:
         for model in self._catalog.models:
             if model.model_id == artifact_id:
                 return list(model.files)
@@ -151,6 +153,10 @@ class HttpArtifactSource:
             )
 
     async def fetch(self, artifact: ArtifactEntry, target_dir: Path) -> FetchedArtifact:
+        if self._local_only or self._air_gapped:
+            policy = "air_gapped" if self._air_gapped else "local_only"
+            raise ArtifactFetchError(f"network_disabled:{policy}:model_download")
+
         import httpx
 
         catalog_files = self._catalog_files(artifact.artifact_id)
