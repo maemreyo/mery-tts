@@ -10,8 +10,10 @@ This docs tree is the canonical home for the Mery TTS Server design.
 ## Architecture
 
 - [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md) — system design, SoC, layer map, engine adapter contract.
+- [`architecture/core-runtime-contract.md`](architecture/core-runtime-contract.md) — backend `/v1` runtime contract that Console and clients must consume instead of duplicating runtime logic.
 - [`codebase/FOLDER_STRUCTURE.md`](codebase/FOLDER_STRUCTURE.md) — annotated repo + package layout.
 - [`codebase/TECH_STACK.md`](codebase/TECH_STACK.md) — packages, logging strategy, DevEX, UX patterns.
+- [`console/DESIGN.md`](console/DESIGN.md) — Console product, visual, architecture, generated API, packaging, dependency, and quality-gate contract.
 
 ## ADRs
 

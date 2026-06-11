@@ -1,6 +1,6 @@
 # ADR-0037 — Core Runtime Contract Before Console Expansion
 
-Status: needs-triage
+Status: completed
 
 ## Parent
 

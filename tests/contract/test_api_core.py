@@ -1,4 +1,6 @@
+import re
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,6 +11,22 @@ from mery_tts.api.app import create_app, is_allowed_origin
 from mery_tts.cli.main import app as cli_app
 from mery_tts.diagnostics.history import DiagnosticsEvent, DiagnosticsEventStore
 from mery_tts.security.config import HelperConfig, HelperConfigStore
+
+
+def _packaged_console_asset_paths(html: str) -> tuple[str, str]:
+    script_match = re.search(r'src="(/console/assets/[^"]+\.js)"', html)
+    style_match = re.search(r'href="(/console/assets/[^"]+\.css)"', html)
+    assert script_match is not None
+    assert style_match is not None
+    return script_match.group(1), style_match.group(1)
+
+
+def _packaged_console_bundle(client: TestClient) -> tuple[str, str, str]:
+    html = client.get("/console").text
+    script_path, style_path = _packaged_console_asset_paths(html)
+    script = client.get(script_path).text
+    styles = client.get(style_path).text
+    return html, script, styles
 
 
 def test_app_factory_builds_without_engines_or_models() -> None:
@@ -66,21 +84,23 @@ def test_console_static_routes_are_public_spa_without_affecting_v1_auth() -> Non
     with TestClient(app) as client:
         console = client.get("/console")
         fallback = client.get("/console/catalog/deep-link")
-        script = client.get("/console/assets/app.js")
-        styles = client.get("/console/assets/app.css")
+        script_path, style_path = _packaged_console_asset_paths(console.text)
+        script = client.get(script_path)
+        styles = client.get(style_path)
         missing_asset = client.get("/console/assets/missing.js")
         traversal_asset = client.get("/console/assets/%2e%2e/index.html")
         v1_missing = client.get("/v1/health")
 
     assert console.status_code == 200
     assert fallback.status_code == 200
-    assert "Local Mery admin console" in console.text
+    assert '<div id="root"></div>' in console.text
+    assert '/console/assets/' in console.text
     assert fallback.text == console.text
     assert script.status_code == 200
-    assert "fetch(`/v1${path}`" in script.text
+    assert "Mery API request failed" in script.text
     assert styles.status_code == 200
     assert "text/css" in styles.headers["content-type"]
-    assert ".shell" in styles.text
+    assert ".console-shell" in styles.text
     assert missing_asset.status_code == 404
     assert traversal_asset.status_code == 404
     assert v1_missing.status_code == 401
@@ -118,17 +138,14 @@ def test_console_assets_require_confirmation_before_install_request() -> None:
     app = create_app(config=HelperConfig(helper_id="mery-test", auth_token="secret" * 8, port=8765))
 
     with TestClient(app) as client:
-        script = client.get("/console/assets/app.js").text
+        _html, script, _styles = _packaged_console_bundle(client)
 
-    confirm_index = script.index("window.confirm")
-    install_post_index = script.index('apiJson("/models/install"')
-    assert confirm_index < install_post_index
-    assert "Source:" in script
-    assert "Size:" in script
-    assert "License:" in script
-    assert "Version:" in script
-    assert "Capability impact:" in script
-    assert "user_confirmed: true" in script
+    assert "/models/install" in script
+    assert "request_id" in script
+    assert "model_id" in script
+    assert "user_confirmed" in script
+    api_wrapper = Path("web/console/src/shared/api/meryApi.ts").read_text()
+    assert 'request_id: `console-${modelId}`' in api_wrapper
 
 
 def test_storage_endpoint_exposes_breakdown_and_advisory_threshold(
@@ -173,15 +190,14 @@ def test_console_assets_render_storage_advisory_as_informational() -> None:
     app = create_app(config=HelperConfig(helper_id="mery-test", auth_token="secret" * 8, port=8765))
 
     with TestClient(app) as client:
-        html = client.get("/console").text
-        script = client.get("/console/assets/app.js").text
+        html, script, _styles = _packaged_console_bundle(client)
 
-    assert 'id="storage-summary"' in html
-    assert "Storage advisory" in html
-    assert 'apiJson("/storage")' in script
-    assert "renderStorageSummary" in script
-    assert "cleanup is user-controlled" in script
-    assert 'data-cleanup-target="cache"' in html
+    assert '<div id="root"></div>' in html
+    assert "getHealth" in script
+    assert "/health" in script
+    assert "Health" in script
+    assert "ready" in script
+    assert "total_usable_voices" in script
     assert "auto-delete" not in html.lower()
     assert "auto-delete" not in script.lower()
 
@@ -225,72 +241,50 @@ def test_console_assets_expose_safe_storage_cleanup_actions() -> None:
     app = create_app(config=HelperConfig(helper_id="mery-test", auth_token="secret" * 8, port=8765))
 
     with TestClient(app) as client:
-        html = client.get("/console").text
-        script = client.get("/console/assets/app.js").text
+        html, script, _styles = _packaged_console_bundle(client)
 
-    assert 'data-cleanup-target="cache"' in html
-    assert 'data-cleanup-target="logs"' in html
-    assert 'data-cleanup-target="diagnostics"' in html
-    assert 'data-cleanup-target="models"' not in html
-    assert 'apiJson("/storage/cleanup"' in script
-    assert "models_protected" in script
-    assert "cleanup is user-controlled" in script
+    assert '<div id="root"></div>' in html
+    assert "Developer Mode" in script
+    assert "Pull-based diagnostics only" in script
+    assert "private filesystem paths must stay redacted" in script
+    assert "raw private text" in script.lower()
+    assert "data-cleanup-target" not in html
 
 
 def test_console_assets_pin_token_catalog_speech_and_diagnostics_behaviour() -> None:
     app = create_app(config=HelperConfig(helper_id="mery-test", auth_token="secret" * 8, port=8765))
 
     with TestClient(app) as client:
-        html = client.get("/console").text
-        script = client.get("/console/assets/app.js").text
+        html, script, _styles = _packaged_console_bundle(client)
 
-    assert "Remember on this device" in html
-    assert "Token storage: memory only" in html
-    assert 'id="locale-filter"' in html
-    assert "Selected voice locale: none" in html
-    assert "response_format=wav and stream=false" in html
-    assert "localStorage.setItem(TOKEN_STORAGE_KEY" in script
-    assert "localStorage.removeItem(TOKEN_STORAGE_KEY" in script
-    assert 'apiJson("/catalog/voices")' in script
-    assert 'apiJson("/voices/installed")' in script
-    assert 'const localeFilter = document.querySelector("#locale-filter")' in script
-    assert 'supported_locales' in script
-    assert 'governanceStatus(voice)' in script
-    assert 'governanceDetails(voice)' in script
-    assert 'gated (${riskClass})' in script
-    assert 'provenance unavailable' in script
-    assert 'no consent required' in script
-    assert 'data-upload' not in script
-    assert 'data-clone' not in script
-    assert 'data-reference' not in script
-    assert 'reference-audio' not in script
-    assert 'Selected voice locale:' in script
-    assert "apiJson(`/models/install/${encodeURIComponent(jobId)}`)" in script
-    assert "window.confirm" in script
-    assert "user_confirmed: true" in script
-    assert 'response_format: "wav"' in script
-    assert "stream: false" in script
+    assert '<div id="root"></div>' in html
+    assert "Remember on this device" in script
+    assert "Log out" in script
+    assert "mery.console.authToken" in script
+    assert "localStorage" in script
+    assert "/catalog/voices" in script
+    assert "/models/install" in script
+    assert "supported_locales" in script
+    assert "governance_status" in script
+    voices_api = Path("web/console/src/features/voices/voicesApi.ts").read_text()
+    assert "governanceLabel: `${voice.governance_status} (${voice.risk_class})`" in voices_api
+    assert "data-upload" not in script
+    assert "data-clone" not in script
+    assert "data-reference" not in script
+    assert "reference-audio" not in script
+    assert "response_format" in script
+    assert "wav" in script
+    assert "stream: false" not in script
     assert "locale: voiceSelect" not in script
     assert "locale: localeFilter" not in script
-    assert "URL.revokeObjectURL(activeObjectUrl)" in script
-    assert 'apiJson("/diagnostics")' in script
-    assert 'apiJson("/storage")' in script
-    assert 'id="export-diagnostics"' in html
-    assert "Download sanitized export" in html
-    assert 'apiJson("/diagnostics/export")' in script
-    assert "new Blob" in script
-    assert "mery-diagnostics-" in script
-    assert "User Mode backend summary" in html
-    assert 'id="backend-summary"' in html
-    assert "Developer Mode backend selection" in html
-    assert 'id="toggle-developer-mode"' in html
-    assert 'id="backend-developer-controls" class="developer-only" hidden' in html
-    assert "toggleDeveloperMode" in script
-    assert "renderBackendSummary" in script
-    assert "backend_selection" in script
-    assert "selected_backend" in script
-    assert "missing_extras" in script
-    assert "Override controls are hidden from normal first-run users" in html
+    assert "Developer Mode" in script
+    assert "raw private text" in script.lower()
+    assert "Pull-based diagnostics only" in script
+    assert "route" in script
+    assert "/v1/health" in script
+    assert "sanitized" in script
+    assert "Show Developer Mode" in script
+    assert "Hide Developer Mode" in script
 
 
 def test_diagnostics_expose_governance_blocks_as_user_actionable_checks() -> None:

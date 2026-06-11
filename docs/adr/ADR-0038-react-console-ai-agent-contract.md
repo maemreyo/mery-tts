@@ -126,6 +126,14 @@ A `docs/console/DESIGN.md` contract gives AI agents an explicit source of truth 
 - The console remains independent of any single client such as Zam Reader; Zam Reader can be a reference integration but not the product lock.
 - The React migration is incremental: first tracer bullet is app shell, token handling, Voices catalog/install lifecycle, generated client, packaged build, and tests.
 
+## Current evidence
+
+- `docs/console/DESIGN.md` now follows the Google Labs `DESIGN.md` shape: YAML design tokens plus canonical prose sections from Overview through Do's and Don'ts, with Mery engineering extensions after the visual contract.
+- `docs/console/README.md`, `AGENTS.md`, and `docs/README.md` link the Console design contract as the source of truth for Console work.
+- `web/console/` contains the Vite + React + TypeScript scaffold, pnpm lockfile, Biome, Vitest, dependency-cruiser, knip, generated API freshness scripts, and build-freshness script.
+- The first build-time React tracer bullet covers app shell token handling, explicit localStorage persistence, generated-client quarantine, shared API wrapper, Voices loading, locale filtering, and governance labels.
+- `tests/unit/test_console_runtime_contract_docs.py` pins the design-token shape, docs links, scaffold files, API-wrapper boundary, and Voices tracer-bullet evidence without requiring Node.js at Python runtime.
+
 ## Related
 
 - [ADR-0001 — Product / ownership boundary](ADR-0001-product-boundary.md)

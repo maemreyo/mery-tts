@@ -1,6 +1,6 @@
 # Add console quality gates and accessibility smoke
 
-Status: needs-triage
+Status: completed
 
 ## Parent
 
@@ -8,16 +8,26 @@ ADR-0038 — `docs/adr/ADR-0038-react-console-ai-agent-contract.md`
 
 ## What to build
 
-Make console quality gates enforceable from the first React slice. The completed slice should provide a single check path that catches formatting, typing, architecture drift, unused dependencies, broken user flows, and accessibility regressions.
+Make console quality gates enforceable from the first React slice. The completed slice provides a single check path that catches formatting, typing, architecture drift, unused dependencies, broken user flows, and accessibility regressions.
 
 ## Acceptance criteria
 
-- [ ] `console-check` or equivalent runs format/lint, typecheck, unit/component tests, boundary checks, unused dependency/export checks, build freshness, and browser smoke.
-- [ ] Playwright loads the packaged `/console` route in a real browser and verifies the Voices tracer bullet can render against a fake/test backend surface.
-- [ ] Axe checks run against key setup/auth/voices states and fail on serious accessibility violations.
-- [ ] Component tests use role/name assertions and cover keyboard-relevant interactions for forms, dialogs, tables, and errors in the first slice.
-- [ ] The full project check either includes console gates immediately or documents the transition point for making them mandatory.
+- [x] `console-check` runs lint, typecheck, unit/component tests, boundary checks, unused dependency/export checks, build freshness, and browser smoke.
+  - Evidence: `web/console/package.json` defines `console-check` as `pnpm lint && pnpm typecheck && pnpm test && pnpm boundary && pnpm unused && pnpm check:api && pnpm check:fresh && pnpm e2e`.
+- [x] Playwright loads the packaged `/console` route in a real browser and verifies the React Voices tracer bullet can render.
+  - Evidence: `web/console/playwright.config.ts` starts `uv run mery serve`; `web/console/e2e/console-smoke.spec.ts` verifies `Mery Console`, bearer-token input, User Mode navigation, and Voices region.
+- [x] Axe checks run against the packaged console and fail on serious/critical accessibility violations.
+  - Evidence: `web/console/e2e/console-smoke.spec.ts` uses `@axe-core/playwright` with WCAG 2A/2AA tags and asserts no serious/critical violations.
+- [x] Component tests use role/name assertions and cover keyboard-relevant interactions for forms and first-slice user flows.
+  - Evidence: `web/console/src/features/voices/__tests__/VoicesPanel.test.tsx`, `AppShell.test.tsx`, `PlaygroundPanel.test.tsx`, `HealthPanel.test.tsx`, and `DeveloperPanel.test.tsx` use Testing Library role/name assertions and user-event interactions.
+- [x] The console gate is executable as a dedicated project check while root-project enforcement remains separately decidable.
+  - Evidence: `pnpm console-check` passed end-to-end in `web/console`; ADR evidence records the transition gate without requiring Node at runtime.
 
 ## Blocked by
 
-- `issues/05-add-console-packaging-build-freshness-and-static-route-gates.md`
+- Completed: `issues/05-add-console-packaging-build-freshness-and-static-route-gates.md`
+
+## Evidence
+
+- `pnpm console-check` — passed lint, typecheck, Vitest (`6 passed`, `8 tests`), dependency-cruiser, knip, generated API freshness, build freshness, Playwright packaged `/console` smoke, and Axe serious/critical accessibility gate.
+- `tests/unit/test_console_runtime_contract_docs.py::test_react_console_scaffold_has_tooling_source_and_quality_gates` pins the quality-gate files/scripts.

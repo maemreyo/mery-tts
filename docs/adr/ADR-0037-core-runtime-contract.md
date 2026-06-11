@@ -22,7 +22,7 @@ If the console reimplements or papers over these concerns, the system becomes ha
 
 ## Decision
 
-Define and harden a **Core Runtime Contract** before or alongside React console expansion.
+Define and harden a **Core Runtime Contract** before or alongside React console expansion. The living contract is documented in [`docs/architecture/core-runtime-contract.md`](../architecture/core-runtime-contract.md).
 
 The Core Runtime Contract is the set of public backend capabilities that every client, including the console, consumes through `/v1` and generated OpenAPI types. It covers:
 
@@ -53,6 +53,12 @@ This decision also keeps model work out of scope. Mery integrates model engines;
 - The console cannot introduce a separate persistence, fallback, readiness, or voice-resolution model.
 - A future SQLite store is allowed only as an implementation detail behind repository interfaces and only after file-based storage no longer fits diagnostics/history/settings needs.
 - Documentation must include a core runtime contract before large UI expansion, so AI agents do not infer backend behavior from UI code.
+
+## Current evidence
+
+- The living contract exists at [`docs/architecture/core-runtime-contract.md`](../architecture/core-runtime-contract.md) and is linked from `AGENTS.md` plus `docs/README.md`.
+- The contract names the required engine, voice, install/readiness, synthesis, streaming, error/diagnostic, storage, and test contracts before Console UI work.
+- `tests/unit/test_console_runtime_contract_docs.py` pins the contract links, generated-client-only Console boundary, fake-engine gate language, optional real-engine smoke language, and model-training out-of-scope statement.
 
 ## Related
 

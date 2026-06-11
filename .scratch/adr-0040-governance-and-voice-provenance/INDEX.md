@@ -1,6 +1,6 @@
 # ADR-0040 — Governance and Voice Provenance
 
-Status: needs-triage
+Status: completed
 
 ## Parent
 

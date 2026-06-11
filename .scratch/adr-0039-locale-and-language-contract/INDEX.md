@@ -1,6 +1,6 @@
 # ADR-0039 — Locale and Language Contract
 
-Status: needs-triage
+Status: completed
 
 ## Parent
 

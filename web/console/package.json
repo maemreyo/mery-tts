@@ -1,0 +1,47 @@
+{
+  "name": "@mery/console",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
+    "lint": "biome check src",
+    "format": "biome format --write src",
+    "typecheck": "tsc --noEmit",
+    "boundary": "depcruise src --config .dependency-cruiser.cjs",
+    "unused": "knip --config knip.json",
+    "e2e": "playwright test",
+    "a11y": "playwright test --grep @a11y",
+    "generate:api": "node scripts/generate-openapi-client.mjs",
+    "check:api": "node scripts/check-generated-api-fresh.mjs",
+    "check:fresh": "node scripts/check-build-fresh.mjs",
+    "console-check": "pnpm lint && pnpm typecheck && pnpm test && pnpm boundary && pnpm unused && pnpm check:api && pnpm check:fresh && pnpm e2e"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.62.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.1",
+    "@biomejs/biome": "^1.9.4",
+    "@playwright/test": "^1.49.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "dependency-cruiser": "^16.6.0",
+    "jsdom": "^25.0.1",
+    "knip": "^5.39.0",
+    "msw": "^2.6.8",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
+  }
+}

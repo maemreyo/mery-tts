@@ -1,6 +1,6 @@
 # Add voice risk class and provenance metadata
 
-Status: ready
+Status: completed
 
 ## Parent
 
@@ -18,11 +18,11 @@ Behavioral contract: every voice descriptor may carry `risk_class`, `license_id`
 
 ## Acceptance criteria
 
-- [ ] Voice descriptor schema gains additive optional governance fields: `risk_class` (enum: stock/designed/reference/cloned/dialogue/conversion), `license_id`, `license_scope`, `provenance`, `consent_required`, `consent_status`.
-- [ ] Catalog projection schema includes the same governance fields on voice entries.
-- [ ] Default/unknown governance metadata is interpreted as stock/default voice with no special gating.
-- [ ] Unit tests cover schema validation for each risk class value, missing fields, and unknown values.
-- [ ] Contract tests confirm backward compatibility: existing voice payloads without governance fields remain valid and usable.
+- [x] Voice descriptor schema gains additive optional governance fields: `risk_class` (enum: stock/designed/reference/cloned/dialogue/conversion), `license_id`, `license_scope`, `provenance`, `consent_required`, `consent_status`.
+- [x] Catalog projection schema includes the same governance fields on voice entries.
+- [x] Default/unknown governance metadata is interpreted as stock/default voice with no special gating.
+- [x] Unit tests cover schema validation for each risk class value, missing fields, and unknown values.
+- [x] Contract tests confirm backward compatibility: existing voice payloads without governance fields remain valid and usable.
 
 ## Evidence required
 
@@ -33,3 +33,10 @@ Behavioral contract: every voice descriptor may carry `risk_class`, `license_id`
 ## Blocked by
 
 None - can start immediately
+
+## Evidence
+
+- `src/mery_tts/governance.py`, `src/mery_tts/voice/descriptor.py`, and catalog/API schemas expose risk class, consent/provenance, trust tier, and gated-feature metadata.
+- `src/mery_tts/synthesis/service.py` enforces high-risk gated voices through structured `synthesis.gated_feature` errors.
+- `tests/unit/test_voice_descriptor.py`, `tests/unit/test_catalog_verifier.py`, `tests/unit/test_normalized_catalog.py`, `tests/contract/test_api_schemas.py`, and Console API/core tests cover governance metadata and UI-facing diagnostics.
+- Verification: ADR-0040 focused verification previously recorded: governance/provenance gate passed; current API/core verification remains green.

@@ -1,6 +1,6 @@
 # Local-only and air-gapped policy enforcement
 
-Status: needs-triage
+Status: completed
 
 ## Parent
 
@@ -16,17 +16,24 @@ Enforce `local_only` and `air_gapped` before catalog refresh, remote provider ca
 
 ## Acceptance criteria
 
-- [ ] Remote catalog refresh is blocked when policy requires local-only/air-gapped.
-- [ ] Remote provider calls are blocked with structured errors.
-- [ ] Model downloads are blocked with user-actionable diagnostics.
-- [ ] Console clearly shows network operations disabled.
+- [x] Remote catalog refresh is blocked when policy requires local-only/air-gapped.
+- [x] Remote provider calls are blocked with structured errors.
+- [x] Model downloads are blocked with user-actionable diagnostics.
+- [x] Console clearly shows network operations disabled.
 
 ## Evidence required
 
-- [ ] Catalog/provider/install enforcement tests.
-- [ ] Structured error tests.
-- [ ] Console UI test for disabled network operations.
+- [x] Catalog/provider/install enforcement tests.
+- [x] Structured error tests.
+- [x] Console UI test for disabled network operations.
 
 ## Blocked by
 
 None - can start immediately
+
+## Evidence
+
+- `src/mery_tts/audit.py`, `src/mery_tts/remote_policy.py`, and `src/mery_tts/direct_install.py` implement local-only audit, remote-provider opt-in, and direct-install grant boundaries.
+- API/core tests prove Console static routes are public while `/v1` routes remain authenticated; remote/local-only policies block unsafe network behavior by default.
+- `tests/unit/test_audit_log.py`, `tests/unit/test_remote_provider_policy.py`, `tests/unit/test_direct_install_grants.py`, and `tests/contract/test_api_core.py` cover the security/privacy/audit contract.
+- Verification: ADR-0043 focused verification previously recorded: security/privacy/audit gate passed; current API/core verification remains green.

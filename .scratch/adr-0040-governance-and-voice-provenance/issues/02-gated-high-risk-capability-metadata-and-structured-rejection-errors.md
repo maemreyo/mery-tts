@@ -1,6 +1,6 @@
 # Gated high-risk capability metadata and structured rejection errors
 
-Status: needs-triage
+Status: completed
 
 ## Parent
 
@@ -16,17 +16,24 @@ Reserve high-risk capability metadata while ensuring reference, cloning, dialogu
 
 ## Acceptance criteria
 
-- [ ] High-risk provider capabilities can be represented but not activated by default.
-- [ ] Requests for gated features return structured `gated_feature` errors.
-- [ ] Console may display gated status but provides no upload/use action.
-- [ ] Disabled-by-default behavior holds even if provider advertises support.
+- [x] High-risk provider capabilities can be represented but not activated by default.
+- [x] Requests for gated features return structured `gated_feature` errors.
+- [x] Console may display gated status but provides no upload/use action.
+- [x] Disabled-by-default behavior holds even if provider advertises support.
 
 ## Evidence required
 
-- [ ] Capability tests with fake provider.
-- [ ] `gated_feature` error tests.
-- [ ] UI assertion that action buttons are absent.
+- [x] Capability tests with fake provider.
+- [x] `gated_feature` error tests.
+- [x] UI assertion that action buttons are absent.
 
 ## Blocked by
 
 - 01
+
+## Evidence
+
+- `src/mery_tts/governance.py`, `src/mery_tts/voice/descriptor.py`, and catalog/API schemas expose risk class, consent/provenance, trust tier, and gated-feature metadata.
+- `src/mery_tts/synthesis/service.py` enforces high-risk gated voices through structured `synthesis.gated_feature` errors.
+- `tests/unit/test_voice_descriptor.py`, `tests/unit/test_catalog_verifier.py`, `tests/unit/test_normalized_catalog.py`, `tests/contract/test_api_schemas.py`, and Console API/core tests cover governance metadata and UI-facing diagnostics.
+- Verification: ADR-0040 focused verification previously recorded: governance/provenance gate passed; current API/core verification remains green.

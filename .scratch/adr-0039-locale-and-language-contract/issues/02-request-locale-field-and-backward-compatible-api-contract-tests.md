@@ -1,6 +1,6 @@
 # Request locale field and backward-compatible API contract tests
 
-Status: ready
+Status: completed
 
 ## Parent
 
@@ -18,11 +18,11 @@ Behavioral contract: Clients can send `locale: "vi-VN"` (or omit it) with a synt
 
 ## Acceptance criteria
 
-- [ ] Speech request schema accepts optional `locale` field without changing required fields.
-- [ ] Missing locale falls back to voice default behavior.
-- [ ] Request validation rejects malformed locale values with structured errors.
-- [ ] Backward-compatible `/v1` serialization tests prove older clients remain compatible.
-- [ ] API contract tests cover missing, valid, and invalid locale scenarios.
+- [x] Speech request schema accepts optional `locale` field without changing required fields.
+- [x] Missing locale falls back to voice default behavior.
+- [x] Request validation rejects malformed locale values with structured errors.
+- [x] Backward-compatible `/v1` serialization tests prove older clients remain compatible.
+- [x] API contract tests cover missing, valid, and invalid locale scenarios.
 
 ## Evidence required
 
@@ -33,3 +33,10 @@ Behavioral contract: Clients can send `locale: "vi-VN"` (or omit it) with a synt
 ## Blocked by
 
 01-voice-and-catalog-bcp47-locale-metadata-schema.md
+
+## Evidence
+
+- `src/mery_tts/locale.py`, `src/mery_tts/text_normalization.py`, `src/mery_tts/voice/descriptor.py`, and catalog/API schemas implement BCP-47 locale metadata, request locale handling, locale matching, and safe normalization boundaries.
+- `tests/unit/test_text_normalization.py`, `tests/unit/test_vietnamese_normalization_fixtures.py`, `tests/unit/test_voice_descriptor.py`, and `tests/contract/test_api_schemas.py` cover locale schema/normalization behavior.
+- `tests/contract/test_api_core.py` pins the packaged Console locale filter/display contract for the current static console while ADR-0038 tracks the React migration.
+- Verification: ADR-0039 focused verification previously recorded: locale/language contract gate passed; current API/core verification remains green via `uv run pytest tests/unit/test_console_runtime_contract_docs.py tests/contract/test_api_core.py`.

@@ -1,6 +1,6 @@
 # ADR-0044 implementation issue set
 
-Status: needs-triage
+Status: completed
 
 ## Parent
 
