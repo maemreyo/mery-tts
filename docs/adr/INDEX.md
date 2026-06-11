@@ -34,6 +34,16 @@ These ADRs distill the 27 design decisions from
 | Streaming grill, RCM review | ADR-0033 | Streaming cancellation and adaptive backpressure |
 | Streaming grill, RCM review | ADR-0034 | OpenAI-compatible streaming HTTP semantics |
 | Streaming grill, RCM review | ADR-0035 | Streaming capability and provider scope |
+| Core-first console roadmap grill | ADR-0037 | Core runtime contract before console expansion |
+| Core-first console roadmap grill | ADR-0038 | React console architecture and AI-agent design contract |
+| Remaining branch grill | ADR-0039 | Locale and language contract |
+| Remaining branch grill | ADR-0040 | Governance and voice provenance |
+| Remaining branch grill | ADR-0041 | Operations, observability, and diagnostics history |
+| Remaining branch grill | ADR-0042 | Hardware backend policy |
+| Remaining branch grill | ADR-0043 | Security, privacy, and audit |
+| Remaining branch grill | ADR-0044 | Release, update, and storage lifecycle |
+| Remaining branch grill | ADR-0045 | Runtime resource policy |
+| Remaining branch grill | ADR-0046 | Docs, help, and ADR acceptance process |
 | Grill 04, Q41–Q46 | ADR-0018 | Provider rollout strategy |
 | Grill 06 | ADR-0019 | Provider adapter taxonomy |
 | Grill 05, Q47–Q55 | ADR-0020 | Web console architecture |
@@ -89,6 +99,17 @@ These ADRs distill the 27 design decisions from
 | [ADR-0033](ADR-0033-streaming-cancellation-and-backpressure.md) | Streaming cancellation and adaptive backpressure | ⏳ Proposed |
 | [ADR-0034](ADR-0034-openai-streaming-http-semantics.md) | OpenAI-compatible streaming HTTP semantics | ⏳ Proposed |
 | [ADR-0035](ADR-0035-streaming-capability-and-provider-scope.md) | Streaming capability and provider scope | ⏳ Proposed |
+| [ADR-0036](ADR-0036-annotated-synthesis-word-marks.md) | Annotated Synthesis: Word-Level Speech Marks Protocol | ⏳ Proposed |
+| [ADR-0037](ADR-0037-core-runtime-contract.md) | Core Runtime Contract Before Console Expansion | ⏳ Proposed |
+| [ADR-0038](ADR-0038-react-console-ai-agent-contract.md) | React Console Architecture and AI-Agent Design Contract | ⏳ Proposed |
+| [ADR-0039](ADR-0039-locale-and-language-contract.md) | Locale and Language Contract | ⏳ Proposed |
+| [ADR-0040](ADR-0040-governance-and-voice-provenance.md) | Governance and Voice Provenance | ⏳ Proposed |
+| [ADR-0041](ADR-0041-operations-observability-and-diagnostics-history.md) | Operations, Observability, and Diagnostics History | ⏳ Proposed |
+| [ADR-0042](ADR-0042-hardware-backend-policy.md) | Hardware Backend Policy | ⏳ Proposed |
+| [ADR-0043](ADR-0043-security-privacy-and-audit.md) | Security, Privacy, and Audit | ⏳ Proposed |
+| [ADR-0044](ADR-0044-release-update-and-storage-lifecycle.md) | Release, Update, and Storage Lifecycle | ⏳ Proposed |
+| [ADR-0045](ADR-0045-runtime-resource-policy.md) | Runtime Resource Policy | ⏳ Proposed |
+| [ADR-0046](ADR-0046-docs-help-and-adr-acceptance-process.md) | Docs, Help, and ADR Acceptance Process | ⏳ Proposed |
 
 ---
 
