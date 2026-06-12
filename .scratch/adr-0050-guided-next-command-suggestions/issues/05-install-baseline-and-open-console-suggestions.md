@@ -1,6 +1,6 @@
 # Install-baseline and open-console suggestions
 
-Status: ready-for-agent
+Status: done
 Type: AFK
 ADR: docs/adr/ADR-0050-guided-next-command-suggestions.md
 
@@ -34,3 +34,11 @@ This slice must support both `kind: "command"` and `kind: "url"` suggestions so 
 - docs/help updated: yes if install/open-console examples change.
 - optional real-engine smoke: N/A.
 - privacy gates: yes — explicit suggestion-output review.
+
+## Evidence
+
+- Added cancelled baseline install confirmation suggestions.
+- Added queued/started baseline install suggestions that avoid nonexistent polling commands.
+- Added `kind: "url"` manual Console suggestion for browser-open failure.
+- Preserved quiet successful `open-console` behavior when no readiness issue is known.
+- Added focused coverage in `tests/cli/test_launch.py`.

@@ -1,4 +1,5 @@
 import json
+import socket
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -134,7 +135,30 @@ def test_launch_readiness_action_json_reports_degraded_without_private_paths(mon
     ]
     assert recovery_actions[0]["recommended_action"] == "retry"
     assert recovery_actions[0]["command"] == "mery serve"
+    suggestions = payload["data"]["suggestions"]
+    assert [suggestion["id"] for suggestion in suggestions] == [
+        "start-server",
+        "install-baseline-voice",
+        "check-provider-runtime",
+    ]
+    assert suggestions[0]["value"] == "mery serve"
+    assert suggestions[1]["value"] == "mery launch --action install-baseline-voice --yes"
+    assert all(suggestion["kind"] == "command" for suggestion in suggestions)
     assert "Start or reconnect to the local server" in " ".join(payload["data"]["next_steps"])
+    assert str(tmp_path) not in result.stdout
+
+
+def test_launch_readiness_human_output_renders_next_suggestions(monkeypatch, tmp_path):
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+
+    result = runner.invoke(cli_main.app, ["launch", "--action", "readiness"])
+
+    assert result.exit_code == 0
+    assert "Next" in result.stdout
+    assert "Start or reconnect to the local server" in result.stdout
+    assert "mery serve" in result.stdout
+    assert "Install the bundled baseline voice" in result.stdout
+    assert "mery launch --action install-baseline-voice --yes" in result.stdout
     assert str(tmp_path) not in result.stdout
 
 
@@ -286,6 +310,32 @@ def test_launch_open_console_action_uses_configured_local_url(monkeypatch, tmp_p
     payload = _json_stdout(result.stdout)
     assert opened_urls == ["http://127.0.0.1:9876/console"]
     assert payload["data"]["url"] == "http://127.0.0.1:9876/console"
+    assert payload["data"]["suggestions"][0]["value"] == "mery serve"
+
+
+def test_launch_open_console_failure_suggests_manual_url_and_diagnostics(monkeypatch, tmp_path):
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("MERY_TTS_PORT", "9876")
+    monkeypatch.setattr(launcher_services, "open_url", lambda url: False)
+
+    result = runner.invoke(cli_main.app, ["launch", "--action", "open-console", "--json"])
+
+    assert result.exit_code == 0
+    payload = _json_stdout(result.stdout)
+    assert payload["status"] == "warning"
+    suggestions = payload["data"]["suggestions"]
+    assert suggestions[0] == {
+        "id": "open-console-manually",
+        "label": "Open Console manually",
+        "kind": "url",
+        "value": "http://127.0.0.1:9876/console",
+        "reason": "The browser could not be opened automatically.",
+        "priority": "high",
+        "category": "console",
+        "source": "action",
+    }
+    assert suggestions[1]["value"] == "mery launch --action server-status"
+    assert suggestions[2]["value"] == "mery launch --action readiness"
 
 
 def test_launch_pairing_status_reports_configured_token_without_secret(monkeypatch, tmp_path):
@@ -347,6 +397,12 @@ def test_launch_pair_action_hides_long_lived_token(monkeypatch, tmp_path):
     assert payload["data"]["token_disclosed"] is False
     assert payload["data"]["claim_endpoint"] == "/v1/pair/claim"
     assert "long-lived token is never printed" in payload["data"]["guidance"]
+    suggestions = payload["data"]["suggestions"]
+    assert [suggestion["id"] for suggestion in suggestions] == [
+        "start-server",
+        "check-readiness",
+        "install-baseline-voice",
+    ]
     config = json.loads((tmp_path / "config" / "config.json").read_text())
     assert config["auth_token"] not in result.stdout
 
@@ -363,7 +419,12 @@ def test_launch_setup_docs_paths_and_help_actions(monkeypatch, tmp_path):
     help_topics = runner.invoke(cli_main.app, ["launch", "--action", "help", "--json"])
 
     assert setup.exit_code == 0
+    setup_payload = _json_stdout(setup.stdout)
     assert "http://127.0.0.1:9877/console/setup" in setup.stdout
+    assert [suggestion["id"] for suggestion in setup_payload["data"]["suggestions"]] == [
+        "start-server",
+        "check-readiness",
+    ]
     assert docs.exit_code == 0
     assert "http://127.0.0.1:9877/openapi.json" in docs.stdout
     assert support_bundle.exit_code == 0
@@ -428,6 +489,11 @@ def test_launch_install_baseline_voice_requires_explicit_confirmation(monkeypatc
     assert payload["data"]["locale"] == "en-US"
     assert payload["data"]["source_kind"] == "remote"
     assert payload["data"]["remote_refresh_performed"] is False
+    assert payload["data"]["suggestions"][0]["id"] == "confirm-baseline-install"
+    assert (
+        payload["data"]["suggestions"][0]["value"]
+        == "mery launch --action install-baseline-voice --yes"
+    )
     assert not (tmp_path / "models" / "jobs" / "install").exists()
     assert not (tmp_path / "models" / "artifacts").exists()
 
@@ -450,6 +516,10 @@ def test_launch_install_baseline_voice_yes_starts_durable_job_without_download(
     assert payload["data"]["job_status"] == "running"
     assert str(payload["data"]["job_id"]).startswith("job-")
     assert payload["data"]["poll_action"] == "models.install.status"
+    assert [suggestion["id"] for suggestion in payload["data"]["suggestions"]] == [
+        "check-readiness",
+        "open-console",
+    ]
     assert payload["data"]["remote_refresh_performed"] is False
 
     jobs_dir = tmp_path / "models" / "jobs" / "install"
@@ -657,8 +727,42 @@ def test_launch_serve_foreground_records_bound_port_with_yes(monkeypatch, tmp_pa
             {"factory": True, "host": "127.0.0.1", "port": 9878, "log_level": "info"},
         )
     ]
+    payload = _json_stdout(result.stdout)
+    assert [suggestion["id"] for suggestion in payload["data"]["suggestions"]] == [
+        "pair-client",
+        "check-readiness",
+        "open-console",
+    ]
+    assert payload["data"]["suggestions"][0]["value"] == "mery pair"
     config = json.loads((tmp_path / "config" / "config.json").read_text())
     assert config["bound_port"] == 9878
+
+
+def test_launch_serve_foreground_port_unavailable_suppresses_suggestions(monkeypatch, tmp_path):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as blocker:
+        blocker.bind(("127.0.0.1", 0))
+        blocker.listen()
+        port = blocker.getsockname()[1]
+        calls: list[tuple[str, dict[str, object]]] = []
+
+        def fake_run(target: str, **kwargs: object) -> None:
+            calls.append((target, kwargs))
+
+        monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+        monkeypatch.setenv("MERY_TTS_PORT", str(port))
+        monkeypatch.setattr(launcher_services.uvicorn, "run", fake_run)
+
+        result = runner.invoke(
+            cli_main.app,
+            ["launch", "--action", "serve-foreground", "--yes", "--json"],
+        )
+
+    assert result.exit_code == 1
+    payload = _json_stdout(result.stdout)
+    assert payload["status"] == "error"
+    assert payload["data"] == {"port": port, "reason": "port_unavailable"}
+    assert "suggestions" not in payload["data"]
+    assert calls == []
 
 
 def test_launch_dev_check_actions_use_runner_without_real_commands(monkeypatch, tmp_path):

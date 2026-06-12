@@ -84,12 +84,12 @@ mery serve > /tmp/mery.log 2>&1 &
 echo $! > /tmp/mery.pid
 ```
 
-Override the port if 8765 is taken:
+Override the port if 8765 is taken by exporting `MERY_TTS_PORT` before the first config file is created:
 ```bash
-mery serve --port 9000 > /tmp/mery.log 2>&1 &
+MERY_TTS_PORT=9000 mery serve > /tmp/mery.log 2>&1 &
 ```
 
-The `mery pair` command (Step 3) prints the actual port the server bound to, so you do not have to hardcode `8765` everywhere.
+The `mery serve` command prints suggested next commands before it blocks. The `mery pair` command (Step 3) prints a pairing code and setup URL that include the configured local port.
 
 Verify the server is up:
 ```bash
@@ -470,7 +470,7 @@ Save as `mery-self-test.sh`, `chmod +x`, and run. The script caches the token in
 | 503 on `/v1/audio/speech` | No engine / no voices installed | Run Step 4 |
 | `mery pair` returns no code | Server not running | Start server first |
 | Token cached but still 401 | Server restarted with different config | Re-run Step 3, refresh token |
-| `mery serve` exits immediately | Port in use | `mery serve --port 9000` |
+| `mery serve` exits immediately | Port in use | `MERY_TTS_PORT=9000 mery serve` before config creation, or remove/update the local config port intentionally |
 | `kokoro` not available | Optional `[kokoro]` extra not installed | `uv tool install 'mery-tts-server[kokoro]' --force` |
 
 For everything else: `mery doctor` runs the full diagnostic suite and prints actionable fixes.

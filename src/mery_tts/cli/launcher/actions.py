@@ -12,6 +12,16 @@ from mery_tts.cli.launcher.types import (
     LauncherAction,
     LauncherContext,
 )
+from mery_tts.cli.suggestions import (
+    suggestions_for_install_baseline_cancelled,
+    suggestions_for_install_baseline_started,
+    suggestions_for_open_console_failure,
+    suggestions_for_pair,
+    suggestions_for_readiness,
+    suggestions_for_serve,
+    suggestions_for_setup_url,
+    suggestions_to_json,
+)
 from mery_tts.runtime_policy import appliance_runtime_policy
 
 
@@ -34,17 +44,20 @@ def status_action(context: LauncherContext) -> ActionResult:
 
 def readiness_action(context: LauncherContext) -> ActionResult:
     readiness = services.readiness_summary(context.paths)
+    suggestions = suggestions_for_readiness(readiness)
+    data = {**readiness, "suggestions": suggestions_to_json(suggestions)}
     return ActionResult(
         status=_action_status_for_readiness(str(readiness["status"])),
         title="Mery readiness",
         message=_readiness_message(str(readiness["status"])),
-        data=readiness,
+        data=data,
     )
 
 
 def install_baseline_voice_action(context: LauncherContext) -> ActionResult:
     if not context.yes:
         metadata = services.bundled_baseline_install_metadata()
+        suggestions = suggestions_for_install_baseline_cancelled()
         return ActionResult(
             status="cancelled",
             title="Install bundled baseline voice",
@@ -54,6 +67,7 @@ def install_baseline_voice_action(context: LauncherContext) -> ActionResult:
                 "recovery_action": "launcher.install_baseline_voice.confirm",
                 "confirmation_required": True,
                 "job_started": False,
+                "suggestions": suggestions_to_json(suggestions),
             },
         )
 
@@ -65,11 +79,17 @@ def install_baseline_voice_action(context: LauncherContext) -> ActionResult:
             message="No bundled baseline voice candidate is available.",
             data=result,
         )
+    suggestions = suggestions_for_install_baseline_started()
     return ActionResult(
         status="ok",
         title="Install bundled baseline voice",
         message="Install job started. Poll the returned job id for progress.",
-        data={**result, "confirmation_required": True, "job_started": True},
+        data={
+            **result,
+            "confirmation_required": True,
+            "job_started": True,
+            "suggestions": suggestions_to_json(suggestions),
+        },
     )
 
 
@@ -93,11 +113,18 @@ def open_console_action(context: LauncherContext) -> ActionResult:
     config = services.load_config(context.paths)
     url = services.console_url(config)
     opened = services.open_url(url)
+    data: dict[str, object] = {"url": url, "opened": opened}
+    if not opened:
+        data["suggestions"] = suggestions_to_json(suggestions_for_open_console_failure(url))
+    else:
+        readiness = services.readiness_summary(context.paths)
+        if readiness.get("status") != "ready":
+            data["suggestions"] = suggestions_to_json(suggestions_for_readiness(readiness))
     return ActionResult(
         status="ok" if opened else "warning",
         title="Open Web Console",
         message=f"Opened {url}" if opened else f"Could not open {url}; copy it into your browser.",
-        data={"url": url, "opened": opened},
+        data=data,
     )
 
 
@@ -151,12 +178,22 @@ def stop_server_action(context: LauncherContext) -> ActionResult:
 
 def serve_foreground_action(context: LauncherContext) -> ActionResult:
     config = services.load_config(context.paths)
+    if not services.is_port_available(config.port):
+        return ActionResult(
+            status="error",
+            title="Start server in this terminal",
+            message=f"Port {config.port} is unavailable on 127.0.0.1.",
+            data={"port": config.port, "reason": "port_unavailable"},
+        )
+    suggestions = suggestions_for_serve()
+    if not context.json_output:
+        services.print_pre_blocking_suggestions(suggestions)
     services.serve_foreground(context.paths)
     return ActionResult(
         status="ok",
         title="Server stopped",
         message="Foreground server exited.",
-        data={"port": config.port},
+        data={"port": config.port, "suggestions": suggestions_to_json(suggestions)},
     )
 
 
@@ -176,22 +213,33 @@ def pairing_status_action(context: LauncherContext) -> ActionResult:
 
 def pair_action(context: LauncherContext) -> ActionResult:
     challenge = services.create_pairing_challenge(context.paths)
+    config = services.load_config(context.paths)
+    suggestions = suggestions_for_pair(
+        server_reachable=services.is_server_reachable(config.port),
+        installed_voice_count=services.installed_voice_count(context.paths),
+    )
     return ActionResult(
         status="ok",
         title="Pair a client",
         message="Pairing code created. Use it before it expires.",
-        data=challenge,
+        data={**challenge, "suggestions": suggestions_to_json(suggestions)},
     )
 
 
 def setup_url_action(context: LauncherContext) -> ActionResult:
     config = services.load_config(context.paths)
     url = services.setup_url(config)
+    pairing = services.pairing_status(context.paths)
+    suggestions = suggestions_for_setup_url(
+        server_reachable=services.is_server_reachable(config.port),
+        pairing_needed=not bool(pairing["paired"]),
+        installed_voice_count=services.installed_voice_count(context.paths),
+    )
     return ActionResult(
         status="ok",
         title="Setup URL",
         message=url,
-        data={"url": url},
+        data={"url": url, "suggestions": suggestions_to_json(suggestions)},
     )
 
 

@@ -1,7 +1,9 @@
 import asyncio
 import contextlib
 import json
+import os
 import shutil
+import socket
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Annotated
@@ -13,6 +15,15 @@ from mery_tts import __version__
 from mery_tts.audio.exporter import AudioExporter
 from mery_tts.catalog import bundled_catalog_voice_summaries
 from mery_tts.catalog.bundled import load_bundled_catalog
+from mery_tts.catalog.bundled_voice_pack import bundled_catalog_to_voice_pack_graph
+from mery_tts.cli.suggestions import (
+    format_human_suggestions,
+    suggestions_for_pair,
+    suggestions_for_serve,
+    suggestions_for_setup_recommendation,
+    suggestions_for_setup_url,
+    suggestions_to_json,
+)
 from mery_tts.diagnostics.doctor import (
     BackendStateCheck,
     CatalogAvailableCheck,
@@ -65,6 +76,47 @@ def _pairing_service() -> PairingService:
     store = HelperConfigStore(paths.config_dir)
     config = store.load_or_create()
     return PairingService(config_store=store, config=config)
+
+
+def _configured_port_without_creating_config(paths: RuntimePaths) -> int:
+    config_path = paths.config_dir / "config.json"
+    if config_path.exists():
+        payload = json.loads(config_path.read_text())
+        return int(payload.get("port", 8765))
+    raw_port = os.environ.get("MERY_TTS_PORT")
+    return int(raw_port) if raw_port is not None else 8765
+
+
+def _auth_configured_without_creating_config(paths: RuntimePaths) -> bool:
+    config_path = paths.config_dir / "config.json"
+    if not config_path.exists():
+        return False
+    try:
+        payload = json.loads(config_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return False
+    return bool(payload.get("auth_token"))
+
+
+def _local_server_reachable(port: int) -> bool:
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
+def _local_port_available(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        try:
+            probe.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
+
+
+def _installed_voice_count(paths: RuntimePaths) -> int:
+    return len(StorageIdentityStore(paths.models_dir).hydrate_installed_voice_descriptors())
 
 
 @app.callback()
@@ -264,7 +316,19 @@ def serve() -> None:
     paths = _runtime_paths()
     store = HelperConfigStore(paths.config_dir)
     config = store.load_or_create()
+    if not _local_port_available(config.port):
+        typer.echo(
+            f"mery serve failed: port {config.port} is unavailable on 127.0.0.1.",
+            err=True,
+        )
+        raise typer.Exit(1)
     store.record_bound_port(config.port)
+    typer.echo(
+        format_human_suggestions(
+            suggestions_for_serve(),
+            title="Next, in another terminal",
+        )
+    )
     uvicorn.run(
         "mery_tts.api.app:create_app",
         factory=True,
@@ -284,10 +348,20 @@ def pair(
         typer.echo("Token rotated. Existing clients must re-pair.")
         return
     challenge = service.create_challenge()
+    paths = _runtime_paths()
     typer.echo(f"Pairing code: {challenge.code}")
     typer.echo(f"Setup URL: {challenge.setup_url}")
     typer.echo(f"Expires: {challenge.expires_at.isoformat()}")
     typer.echo("Open Zam Reader Options and paste the setup URL before the code expires.")
+    port = _configured_port_without_creating_config(paths)
+    typer.echo(
+        format_human_suggestions(
+            suggestions_for_pair(
+                server_reachable=_local_server_reachable(port),
+                installed_voice_count=_installed_voice_count(paths),
+            )
+        )
+    )
 
 
 @app.command()
@@ -508,7 +582,6 @@ def setup_recommend(
     intent: str = typer.Option("general", "--intent", help="Use-case intent."),
     locale: str = typer.Option("", "--locale", help="Locale preference."),
 ) -> None:
-    from mery_tts.catalog.voice_pack import VoicePackGraph
     from mery_tts.setup.services import (
         SetupService,
         SimpleInstalledRuntimeStore,
@@ -521,7 +594,7 @@ def setup_recommend(
     descriptors = store.hydrate_installed_voice_descriptors()
     installed_ids = {d.voice_id for d in descriptors}
 
-    catalog = SimpleVoicePackCatalog(VoicePackGraph())
+    catalog = SimpleVoicePackCatalog(bundled_catalog_to_voice_pack_graph(load_bundled_catalog()))
     service = SetupService(
         catalog=catalog,
         installed_voices=SimpleInstalledVoiceStore(installed_ids),
@@ -541,7 +614,18 @@ def setup_recommend(
         }
         for r in recommendations
     ]
-    typer.echo(json.dumps({"recommendations": result, "client": client, "intent": intent}))
+    top_voice_pack_id = result[0]["voice_pack_id"] if result else None
+    suggestions = suggestions_to_json(suggestions_for_setup_recommendation(top_voice_pack_id))
+    typer.echo(
+        json.dumps(
+            {
+                "recommendations": result,
+                "client": client,
+                "intent": intent,
+                "suggestions": suggestions,
+            }
+        )
+    )
 
 
 @setup_app.command("url")
@@ -552,12 +636,24 @@ def setup_url(
 ) -> None:
     from mery_tts.setup.intent import SetupIntent
 
+    paths = _runtime_paths()
+    port = _configured_port_without_creating_config(paths)
     si = SetupIntent(
         client=client,
         intent=intent,
         locale=locale or None,
     )
-    typer.echo(si.to_console_url())
+    typer.echo(si.to_console_url(base_url=f"http://127.0.0.1:{port}"))
+    typer.echo(
+        format_human_suggestions(
+            suggestions_for_setup_url(
+                server_reachable=_local_server_reachable(port),
+                pairing_needed=not _auth_configured_without_creating_config(paths),
+                installed_voice_count=_installed_voice_count(paths),
+                setup_intent=intent,
+            )
+        )
+    )
 
 
 @voice_packs_app.command("list")

@@ -1,6 +1,6 @@
 # Suggestion model and readiness tracer bullet
 
-Status: ready-for-agent
+Status: done
 Type: AFK
 ADR: docs/adr/ADR-0050-guided-next-command-suggestions.md
 
@@ -47,3 +47,11 @@ None - can start immediately.
 - docs/help updated: N/A for this first tracer unless user-facing docs change.
 - optional real-engine smoke: N/A.
 - privacy gates: yes — explicit no-token/private-path review.
+
+## Evidence
+
+- Added shared suggestion model/resolver/renderer under `src/mery_tts/cli/suggestions/`.
+- Added readiness-derived `data.suggestions` while preserving existing `recovery_actions` and `next_steps`.
+- Added human rendering for `Next` suggestions in launcher result output.
+- Added unit coverage in `tests/unit/test_cli_suggestions.py`.
+- Added CLI readiness JSON/human coverage in `tests/cli/test_launch.py`.

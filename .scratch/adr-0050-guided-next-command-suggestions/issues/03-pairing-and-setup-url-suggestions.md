@@ -1,6 +1,6 @@
 # Pairing and setup URL suggestions
 
-Status: ready-for-agent
+Status: done
 Type: AFK
 ADR: docs/adr/ADR-0050-guided-next-command-suggestions.md
 
@@ -34,3 +34,10 @@ This slice must keep the secure pairing boundary intact: pairing output may expo
 - docs/help updated: yes — pairing/setup docs if command examples change.
 - optional real-engine smoke: N/A.
 - privacy gates: yes — explicit pairing-output review.
+
+## Evidence
+
+- Added direct `mery pair` suggestions without token disclosure.
+- Added launcher `pair` and `setup-url` `data.suggestions`.
+- Added direct `mery setup url` human suggestions.
+- Added focused coverage in `tests/cli/test_pair_cli.py`, `tests/cli/test_setup_cli.py`, and `tests/cli/test_launch.py`.

@@ -48,10 +48,10 @@ mery doctor
 # Optional: open the guided launcher for common actions
 mery launch
 
-# 3. Start the server (binds 127.0.0.1:8765 by default)
+# 3. Start the server (binds 127.0.0.1:8765 by default and prints next commands before blocking)
 mery serve
 
-# 4. Pair your client — prints a 6-char code for the client to claim
+# 4. Pair your client — prints a 6-char code, setup URL, and suggested next commands
 mery pair
 
 # 5. Review and install English voices (ships with none by default)
@@ -72,7 +72,7 @@ mery launch --list-actions
 mery launch --action readiness --json
 ```
 
-The launcher keeps `mery` scriptable: bare `mery` still shows CLI help, while `mery launch` provides a user-first readiness summary plus a menu for status, Console, pairing, setup URLs, local help, and developer checks when running from a repo checkout. The P1 setup path uses the packaged bundled catalog by default: `mery launch --action install-baseline-voice --json` displays the baseline pack/model id, provider, locale, source kind, approximate size, license/provenance, and capability impact without downloading anything; add `--yes` only after reviewing that metadata to start the durable install job.
+The launcher keeps `mery` scriptable: bare `mery` still shows CLI help, while `mery launch` is the guided entrypoint for setup readiness, status, Console, pairing, setup URLs, local help, and developer checks when running from a repo checkout. Direct setup/onboarding commands such as `mery serve`, `mery pair`, `mery setup url`, and `mery setup recommend` may print concise suggested next commands so terminal users can continue without opening the launcher. The P1 setup path uses the packaged bundled catalog by default: `mery launch --action install-baseline-voice --json` displays the baseline pack/model id, provider, locale, source kind, approximate size, license/provenance, and capability impact without downloading anything; add `--yes` only after reviewing that metadata to start the durable install job.
 
 For the full AI-agent install contract (one link, hand it to an agent, it self-installs), see [`INSTALL_FOR_AGENTS.md`](INSTALL_FOR_AGENTS.md).
 
@@ -104,7 +104,7 @@ Phase 1 early access runtime. Core CLI/API, pairing, security, catalog, durable 
 | [`docs/integration/api-reference.md`](docs/integration/api-reference.md) | Full HTTP and WebSocket reference |
 | [`docs/integration/integration-testing-guide.md`](docs/integration/integration-testing-guide.md) | Verified end-to-end guide with test coverage |
 | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) | System design, SoC, layer map |
-| [`docs/adr/INDEX.md`](docs/adr/INDEX.md) | Architecture Decision Records through ADR-0049 |
+| [`docs/adr/INDEX.md`](docs/adr/INDEX.md) | Architecture Decision Records through ADR-0050 |
 | [`docs/codebase/FOLDER_STRUCTURE.md`](docs/codebase/FOLDER_STRUCTURE.md) | Repo and package layout |
 
 ---

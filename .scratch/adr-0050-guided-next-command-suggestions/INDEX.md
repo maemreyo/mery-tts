@@ -1,6 +1,6 @@
 # Guided Next-Command Suggestions
 
-Status: ready-for-agent
+Status: done
 ADR: docs/adr/ADR-0050-guided-next-command-suggestions.md
 
 ## Purpose

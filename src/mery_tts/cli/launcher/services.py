@@ -17,6 +17,7 @@ from typing import Literal
 import uvicorn
 
 from mery_tts.catalog.bundled import load_bundled_catalog
+from mery_tts.cli.suggestions import CommandSuggestion, format_human_suggestions
 from mery_tts.diagnostics.doctor import DoctorEngine
 from mery_tts.diagnostics.export import DiagnosticsExportBuilder
 from mery_tts.diagnostics.recovery import ReadinessBlocker, recovery_action_for
@@ -60,12 +61,27 @@ def setup_url(config: HelperConfig, *, client: str = "mery-cli", intent: str = "
     )
 
 
+def print_pre_blocking_suggestions(suggestions: tuple[CommandSuggestion, ...]) -> None:
+    message = format_human_suggestions(suggestions, title="Next, in another terminal")
+    if message:
+        print(message)
+
+
 def is_server_reachable(port: int) -> bool:
     try:
         with socket.create_connection(("127.0.0.1", port), timeout=1):
             return True
     except OSError:
         return False
+
+
+def is_port_available(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        try:
+            probe.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
 
 
 def server_session_path(paths: RuntimePaths) -> Path:
@@ -554,6 +570,8 @@ def path_summary(paths: RuntimePaths) -> dict[str, str]:
 def serve_foreground(paths: RuntimePaths) -> None:
     store = HelperConfigStore(paths.config_dir)
     config = store.load_or_create()
+    if not is_port_available(config.port):
+        raise OSError(f"port {config.port} is unavailable on 127.0.0.1")
     store.record_bound_port(config.port)
     uvicorn.run(
         "mery_tts.api.app:create_app",

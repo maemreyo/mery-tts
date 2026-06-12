@@ -1,5 +1,6 @@
 import inspect
 import json
+import socket
 import wave
 
 from typer.testing import CliRunner
@@ -78,6 +79,10 @@ def test_serve_starts_uvicorn_with_configured_port(monkeypatch, tmp_path) -> Non
     result = runner.invoke(app, ["serve"])
 
     assert result.exit_code == 0
+    assert "Next, in another terminal" in result.stdout
+    assert "mery pair" in result.stdout
+    assert "mery launch --action readiness" in result.stdout
+    assert "mery launch --action open-console" in result.stdout
     assert calls == [
         (
             "mery_tts.api.app:create_app",
@@ -92,6 +97,32 @@ def test_serve_starts_uvicorn_with_configured_port(monkeypatch, tmp_path) -> Non
     config = json.loads((tmp_path / "config" / "config.json").read_text())
     assert config["port"] == 9876
     assert config["bound_port"] == 9876
+
+
+def test_serve_port_unavailable_does_not_print_happy_path_suggestions(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as blocker:
+        blocker.bind(("127.0.0.1", 0))
+        blocker.listen()
+        port = blocker.getsockname()[1]
+        calls = []
+
+        def fake_run(target: str, **kwargs: object) -> None:
+            calls.append((target, kwargs))
+
+        monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+        monkeypatch.setenv("MERY_TTS_PORT", str(port))
+        monkeypatch.setattr(cli_main.uvicorn, "run", fake_run)
+
+        result = runner.invoke(app, ["serve"])
+
+    assert result.exit_code == 1
+    assert "port" in result.stderr
+    assert "Next, in another terminal" not in result.stdout
+    assert "mery pair" not in result.stdout
+    assert calls == []
 
 
 def test_engines_command_delegates_to_engine_registry(monkeypatch, tmp_path) -> None:

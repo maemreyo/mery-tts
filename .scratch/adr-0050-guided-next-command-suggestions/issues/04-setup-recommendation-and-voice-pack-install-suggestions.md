@@ -1,6 +1,6 @@
 # Setup recommendation and voice-pack install suggestions
 
-Status: ready-for-agent
+Status: done
 Type: AFK
 ADR: docs/adr/ADR-0050-guided-next-command-suggestions.md
 
@@ -34,3 +34,10 @@ This slice must also resolve the current direct-CLI mismatch where `mery setup r
 - docs/help updated: yes — setup recommendation docs/help if direct CLI behavior is clarified.
 - optional real-engine smoke: N/A.
 - privacy gates: yes — explicit suggestion-output review.
+
+## Evidence
+
+- Aligned direct `mery setup recommend` with bundled catalog graph projection instead of an empty graph.
+- Added top-level JSON `suggestions` to direct setup recommendation output.
+- Added install recommendation suggestions that point at `mery voice-packs install <pack_id>`.
+- Added focused coverage in `tests/cli/test_setup_cli.py`.

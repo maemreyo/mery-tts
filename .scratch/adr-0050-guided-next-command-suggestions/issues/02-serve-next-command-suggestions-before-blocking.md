@@ -1,6 +1,6 @@
 # Serve next-command suggestions before blocking
 
-Status: ready-for-agent
+Status: done
 Type: AFK
 ADR: docs/adr/ADR-0050-guided-next-command-suggestions.md
 
@@ -34,3 +34,9 @@ The intended suggestions are state-filtered among pairing, readiness, and openin
 - docs/help updated: yes if serve output examples change.
 - optional real-engine smoke: N/A.
 - privacy gates: yes — explicit serve-output review.
+
+## Evidence
+
+- Added `mery serve` pre-blocking `Next, in another terminal` suggestions.
+- Added launcher `serve-foreground` suggestions in JSON and pre-blocking human mode.
+- Added CLI coverage in `tests/cli/test_cli_skeleton.py` and `tests/cli/test_launch.py`.

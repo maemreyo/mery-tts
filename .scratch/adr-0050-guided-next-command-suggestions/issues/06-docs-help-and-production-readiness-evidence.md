@@ -1,6 +1,6 @@
 # Docs help and production-readiness evidence
 
-Status: ready-for-agent
+Status: done
 Type: AFK
 ADR: docs/adr/ADR-0050-guided-next-command-suggestions.md
 
@@ -38,3 +38,11 @@ The goal is that future contributors and AI agents can discover the guided flow 
 - docs/help updated: yes — list changed paths.
 - optional real-engine smoke: N/A unless engine adapter behavior changed.
 - privacy gates: yes — explicit raw text/token/reference audio/private path review.
+
+## Evidence
+
+- Updated README pairing wording for next-command suggestions.
+- Corrected `INSTALL_FOR_AGENTS.md` stale `mery serve --port` guidance and documented pre-blocking suggestions.
+- Corrected local `install-setup` help from nonexistent `mery setup list` to `mery voice-packs list`.
+- Documented stable-additive launcher `data.suggestions` in `docs/integration/api-reference.md`.
+- Verification recorded in final implementation note.

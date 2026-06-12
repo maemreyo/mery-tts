@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from rich.console import Console
 from rich.panel import Panel
@@ -72,13 +72,44 @@ def render_result(result: ActionResult) -> None:
         "cancelled": "blue",
     }[result.status]
     console.print(Panel(result.message, title=result.title, border_style=style))
+    suggestions = _suggestions_from_data(result.data)
+    if suggestions:
+        _render_suggestions(console, suggestions)
     if result.data:
         table = Table(show_header=False, box=None)
         table.add_column("Key", style="cyan")
         table.add_column("Value")
         for key, value in result.data.items():
+            if key == "suggestions":
+                continue
             table.add_row(str(key), _format_value(value))
         console.print(table)
+
+
+def _suggestions_from_data(data: object) -> tuple[Mapping[str, object], ...]:
+    if not isinstance(data, Mapping):
+        return ()
+    suggestions = data.get("suggestions")
+    if not isinstance(suggestions, Sequence) or isinstance(suggestions, str):
+        return ()
+    return tuple(suggestion for suggestion in suggestions if isinstance(suggestion, Mapping))
+
+
+def _render_suggestions(console: Console, suggestions: Sequence[Mapping[str, object]]) -> None:
+    table = Table(title="Next", show_header=False, box=None)
+    table.add_column("Step", style="cyan")
+    table.add_column("Suggestion")
+    for index, suggestion in enumerate(suggestions, start=1):
+        label = str(suggestion.get("label") or suggestion.get("id") or "Next step")
+        value = str(suggestion.get("value") or "")
+        reason = str(suggestion.get("reason") or "")
+        detail = label
+        if value:
+            detail = f"{detail}\n{value}"
+        if reason:
+            detail = f"{detail}\n{reason}"
+        table.add_row(str(index), detail)
+    console.print(table)
 
 
 def _format_value(value: object) -> str:

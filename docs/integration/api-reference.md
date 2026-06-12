@@ -12,6 +12,7 @@ This is the complete, accurate reference for every HTTP and WebSocket endpoint M
 - **All `/v1/*` endpoints** require `Authorization: Bearer <token>` except `/v1/pair/claim` and `/v1/events` (WebSocket). The Bearer scheme is **case-sensitive** and the server does an **exact string match** on the full header value — `bearer <token>` (lowercase) and `Bearer <token> ` (trailing whitespace) both return 401.
 - **JSON responses** include `schema_version: "v1"` and `request_id: "local"`. Binary endpoints (`/v1/audio/speech`, `/console/assets/*`) return the appropriate media type, not JSON.
 - **All error responses** use the diagnostic error schema (see [Errors](#errors)).
+- **CLI launcher JSON may include stable-additive `data.suggestions`** for setup/onboarding actions. Suggestions are advisory objects with `id`, `label`, `kind`, `value`, `reason`, `priority`, `category`, and `source`; existing consumers may ignore this optional field. Direct setup/onboarding CLI commands may also print concise human next-command suggestions, and existing JSON-first direct commands such as `mery setup recommend` may add a stable-additive top-level `suggestions` array.
 - **Streaming audio** uses `Transfer-Encoding: chunked` with `Content-Type: audio/L16;rate=<hz>;channels=1` where `<hz>` is the model's native sample rate (e.g. `16000` for `amy-low`, `22050` for the bundled demo). MP3 is not supported.
 - **Timestamps** are ISO-8601 UTC.
 - **IDs** are stable, opaque strings (e.g., `pack.en-us`, `catalog.piper-plus.vi-vn.demo`, `job-abc123`).
