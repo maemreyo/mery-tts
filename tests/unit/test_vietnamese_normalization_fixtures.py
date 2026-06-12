@@ -53,6 +53,26 @@ def test_vietnamese_normalization_fixtures_are_sanitized(case: dict[str, object]
     assert str(case["expected"]) not in str(result.diagnostics())
 
 
+async def test_synthesis_service_preserves_mutable_empty_alias_map() -> None:
+    adapter = CapturingVietnameseAdapter()
+    voice = VoiceDescriptor(
+        voice_id="voice.dynamic.alias",
+        engine_id="fake-vi",
+        payload=PresetVoicePayload(preset_id="dynamic-alias"),
+        supported_locales=["vi-VN"],
+    )
+    registry = VoiceRegistry({"fake-vi": adapter})
+    registry.register(voice)
+    aliases: dict[str, str] = {}
+    service = SpeechSynthesisService(voice_registry=registry, voice_aliases=aliases)
+
+    aliases["fresh-alias"] = "voice.dynamic.alias"
+    result = await service.synthesize(text="xin chào", requested_voice="fresh-alias")
+
+    assert result.diagnostics.selected_voice_id == "voice.dynamic.alias"
+    assert adapter.seen_texts == ["xin chào"]
+
+
 @pytest.mark.parametrize("case", _fixture_cases(), ids=lambda case: str(case["id"]))
 async def test_vietnamese_fixtures_reach_fake_engine_after_core_normalization(
     case: dict[str, object],

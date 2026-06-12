@@ -65,7 +65,7 @@ def test_real_voice_smoke_dry_run_writes_release_artifact(tmp_path: Path) -> Non
     assert openai_artifact["mode"] == "non_streaming"
     assert openai_artifact["streaming_secondary_for_p1"] is True
     assert openai_artifact["success_request"] == {
-        "model": "piper-plus.en-us.lessac-low",
+        "model": "tts-1",
         "voice": "piper-plus.en-us.lessac-low",
         "input": "<fixed-smoke-text>",
         "response_format": "pcm",
@@ -76,7 +76,7 @@ def test_real_voice_smoke_dry_run_writes_release_artifact(tmp_path: Path) -> Non
         "non_empty_audio": True,
     }
     assert openai_artifact["failure_request"] == {
-        "model": "piper-plus.en-us.lessac-low",
+        "model": "tts-1",
         "voice": "piper-plus.en-us.uninstalled-smoke",
         "input": "<fixed-smoke-text>",
         "response_format": "pcm",
@@ -108,6 +108,20 @@ def test_real_voice_smoke_command_result_has_sanitizable_shape(tmp_path: Path) -
     assert result["stdout"].startswith("dry-run mery launch")
     assert result["started_at"] == "1970-01-01T00:00:00+00:00"
     assert result["finished_at"] == "1970-01-01T00:00:00+00:00"
+
+
+def test_real_voice_smoke_accepts_expected_preinstall_doctor_warnings() -> None:
+    assert harness._doctor_preflight_ok(
+        {
+            "returncode": 2,
+            "stdout": "model_availability | warn | no models installed",
+            "stderr": "",
+        }
+    )
+    assert not harness._doctor_preflight_ok(
+        {"returncode": 2, "stdout": "Traceback (most recent call last)", "stderr": ""}
+    )
+    assert not harness._doctor_preflight_ok({"returncode": 1, "stdout": "", "stderr": ""})
 
 
 def test_real_voice_smoke_parse_args_defaults_to_safe_dry_run_false() -> None:

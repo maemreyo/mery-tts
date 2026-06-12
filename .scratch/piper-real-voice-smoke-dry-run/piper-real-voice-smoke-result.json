@@ -23,7 +23,7 @@
     },
     "failure_request": {
       "input": "<fixed-smoke-text>",
-      "model": "piper-plus.en-us.lessac-low",
+      "model": "tts-1",
       "response_format": "pcm",
       "voice": "piper-plus.en-us.uninstalled-smoke"
     },
@@ -35,7 +35,7 @@
     "streaming_secondary_for_p1": true,
     "success_request": {
       "input": "<fixed-smoke-text>",
-      "model": "piper-plus.en-us.lessac-low",
+      "model": "tts-1",
       "response_format": "pcm",
       "voice": "piper-plus.en-us.lessac-low"
     }

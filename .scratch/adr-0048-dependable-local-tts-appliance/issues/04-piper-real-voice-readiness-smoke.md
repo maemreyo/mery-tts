@@ -48,8 +48,8 @@ This slice is optional for normal deterministic CI when real runtime/network pre
 - Harness contract:
   - Uses isolated `MERY_TTS_DATA_DIR` and configurable local port.
   - Previews `mery launch --action install-baseline-voice --json` and asserts no job starts without confirmation.
-  - Runs `mery launch --action install-baseline-voice --yes --json` and captures the durable `job_id`.
-  - Starts the local server, polls `/v1/models/install/{job_id}`, checks `/v1/voices/installed`, checks `/v1/models/piper-plus.en-us.lessac-low`, posts `/v1/audio/speech`, deletes `/v1/models/piper-plus.en-us.lessac-low`, verifies status after delete, terminates server, and removes temp storage unless `--keep-temp` is used.
+  - Starts the local server, posts `/v1/models/install` with `user_confirmed: true`, and captures the durable `job_id` from the live API worker.
+  - Polls `/v1/models/install/{job_id}`, checks `/v1/voices/installed`, checks `/v1/models/piper-plus.en-us.lessac-low`, posts `/v1/audio/speech`, deletes `/v1/models/piper-plus.en-us.lessac-low`, verifies status after delete, terminates server, and removes temp storage unless `--keep-temp` is used.
   - Restricts HTTP helper calls to `http://127.0.0.1` or `http://localhost` and records command/API artifacts in `.scratch/`.
 - Deterministic CI proof:
   - `uv run pytest tests/unit/test_real_voice_smoke_harness.py` → `3 passed`.

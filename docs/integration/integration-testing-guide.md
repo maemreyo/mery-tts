@@ -138,7 +138,7 @@ Response 200:
   "request_id": "local",
   "helper_id": "mery-3c05b6067165412d809d63495e163290",
   "port": 8765,
-  "auth_token": "QPD9Lhklo4kfAT2E2BDpsFOzU1f_zWgfGhnMn_CRaQw",
+  "auth_token": "<auth_token>",
   "contract_version": "v1",
   "capabilities": ["rest", "websocket", "openai-compatible-speech"]
 }

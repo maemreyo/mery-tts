@@ -698,7 +698,7 @@ The first recommendation is always the best fit for the provided context. Locale
   "request_id": "local",
   "helper_id": "mery-04570851f22b48fa8e0784f87f9a4f27",
   "port": 8765,
-  "auth_token": "cJDij9adTOtvHiZBuesJohPodiDqvnj386w4nu62lq0",
+  "auth_token": "<auth_token>",
   "contract_version": "v1",
   "capabilities": ["rest", "websocket", "openai-compatible-speech"]
 }

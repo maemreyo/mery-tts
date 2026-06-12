@@ -1,0 +1,226 @@
+{
+  "api_artifacts": {
+    "delete": {
+      "deleted": true,
+      "model_id": "piper-plus.en-us.lessac-low",
+      "request_id": "local",
+      "schema_version": "v1"
+    },
+    "health": {
+      "contract_version": "v1",
+      "engines": [
+        {
+          "backend_selection": {
+            "fallback_reason": null,
+            "missing_extras": [],
+            "selected_backend": "cpu",
+            "supported_backends": [
+              "cpu"
+            ]
+          },
+          "dependency_status": "missing",
+          "engine_id": "kokoro",
+          "installed_voice_count": 0,
+          "reason": "dependency_missing: kokoro package is not installed",
+          "smoke_failed_count": 0,
+          "smoke_passed_count": 0,
+          "smoked_voice_count": 0,
+          "status": "unavailable",
+          "usable_voice_count": 0
+        },
+        {
+          "backend_selection": {
+            "fallback_reason": null,
+            "missing_extras": [],
+            "selected_backend": "cpu",
+            "supported_backends": [
+              "cpu"
+            ]
+          },
+          "dependency_status": "available",
+          "engine_id": "piper-plus",
+          "installed_voice_count": 0,
+          "reason": "no voices installed",
+          "smoke_failed_count": 0,
+          "smoke_passed_count": 0,
+          "smoked_voice_count": 0,
+          "status": "unavailable",
+          "usable_voice_count": 0
+        }
+      ],
+      "health_checks": {
+        "engine:kokoro": "unavailable",
+        "engine:piper-plus": "unavailable",
+        "process": "alive",
+        "readiness": "not_ready"
+      },
+      "health_status": "unavailable",
+      "helper_id": "mery-5a69fe83584643ee956dfdce9f28e6b1",
+      "helper_version": "0.1.0",
+      "live": "alive",
+      "ready": false,
+      "request_id": "local",
+      "schema_version": "v1",
+      "status": "unavailable",
+      "total_installed_voices": 0,
+      "total_usable_voices": 0,
+      "version_layers": {
+        "api_major": "v1",
+        "app_version": "0.1.0",
+        "catalog_schema_version": "catalog-v1",
+        "provider_capability_version": "provider-capability-v1",
+        "voice_pack_manifest_version": "voice-pack-v1"
+      }
+    },
+    "install_job": {
+      "error": null,
+      "job_id": "job-0fcbb2ca1d8f478cb2a44cd05f609950",
+      "model_id": "piper-plus.en-us.lessac-low",
+      "request_id": "local",
+      "schema_version": "v1",
+      "status": "completed"
+    },
+    "installed_voices": {
+      "request_id": "local",
+      "schema_version": "v1",
+      "voices": [
+        {
+          "capabilities": {
+            "word_marks": true
+          },
+          "display_name": "Piper Plus En Us Lessac Low",
+          "engine_id": "piper-plus",
+          "language_support": {
+            "p1_audio_gate": true,
+            "scope": "voice",
+            "supported_locales": [],
+            "wording": "Language support is specific to this installed or catalog voice."
+          },
+          "streaming": {
+            "format": "pcm_s16le",
+            "granularity": "sentence",
+            "mode": "sentence_chunked",
+            "sample_rates_hz": [
+              16000
+            ],
+            "supported": true,
+            "true_incremental": false
+          },
+          "voice_id": "piper-plus.en-us.lessac-low"
+        }
+      ]
+    },
+    "model_install": {
+      "job_id": "job-0fcbb2ca1d8f478cb2a44cd05f609950",
+      "request_id": "local",
+      "schema_version": "v1",
+      "status": "running"
+    },
+    "model_status_after_delete": {
+      "model_id": "piper-plus.en-us.lessac-low",
+      "request_id": "local",
+      "schema_version": "v1",
+      "status": "not_installed"
+    },
+    "model_status_after_install": {
+      "model_id": "piper-plus.en-us.lessac-low",
+      "request_id": "local",
+      "schema_version": "v1",
+      "status": "installed"
+    },
+    "openai_packaged_speech": {
+      "endpoint": "/v1/audio/speech",
+      "failure_request": {
+        "input": "<fixed-smoke-text>",
+        "model": "tts-1",
+        "response_format": "pcm",
+        "voice": "piper-plus.en-us.uninstalled-smoke"
+      },
+      "failure_response": {
+        "body": {
+          "category": "engine",
+          "code": "engine.voice_unsupported",
+          "docs_url": null,
+          "fallback_policy": "use_default_voice",
+          "help_topic": "provider-unavailable",
+          "recommended_action": "install_model",
+          "recoverability": "user_action",
+          "request_id": "local",
+          "sanitized_diagnostic": "reason=voice 'piper-plus.en-us.uninstalled-smoke' is not installed,voice_id=piper-plus.en-us.uninstalled-smoke",
+          "severity": "error",
+          "timestamp": "2026-06-12T03:35:58.962279Z",
+          "user_message_key": "errors.engine_voice_unsupported"
+        },
+        "content_type": "application/json",
+        "status": 400
+      },
+      "mode": "non_streaming",
+      "secret_redaction": {
+        "authorization_header": "<redacted>",
+        "token_recorded": false
+      },
+      "streaming_secondary_for_p1": true,
+      "success_request": {
+        "input": "<fixed-smoke-text>",
+        "model": "tts-1",
+        "response_format": "pcm",
+        "voice": "piper-plus.en-us.lessac-low"
+      },
+      "success_response": {
+        "byte_count": 66048,
+        "content_type": "audio/pcm",
+        "status": 200
+      }
+    }
+  },
+  "artifact_dir": "/Users/trung.ngo/Documents/zaob-dev/mery-tts/.scratch/piper-real-voice-smoke",
+  "audio_bytes": 66048,
+  "baseline": {
+    "locale": "en-US",
+    "model_id": "piper-plus.en-us.lessac-low",
+    "pack_id": "pack.en-us",
+    "provider": "piper-plus"
+  },
+  "commands": [
+    {
+      "argv": [
+        "/Users/trung.ngo/Documents/zaob-dev/mery-tts/.venv/bin/python3",
+        "-m",
+        "mery_tts.cli.main",
+        "doctor"
+      ],
+      "dry_run": false,
+      "finished_at": "2026-06-12T03:35:54.095019+00:00",
+      "name": "doctor",
+      "returncode": 2,
+      "started_at": "2026-06-12T03:35:53.614959+00:00",
+      "stderr": "<frozen runpy>:128: RuntimeWarning: 'mery_tts.cli.main' found in sys.modules after import of package 'mery_tts.cli', but prior to execution of 'mery_tts.cli.main'; this may result in unpredictable behaviour\n",
+      "stdout": "check | status | detail\nengine_availability | ok | available: piper-plus | missing: kokoro\nengine_health | ok | all engines healthy\nbackend_state | ok | backend policy: auto; no provider backend probes configured; no network access required\nmodel_availability | warn | no models installed\ntoken_configured | ok | token configured\nserver_reachability | warn | server not running\ndisk_space | ok | disk ok: 34062 MB free\nplatform_paths | ok | all paths writable\ncatalog_available | ok | bundled catalog: 3 model(s)\n"
+    },
+    {
+      "argv": [
+        "/Users/trung.ngo/Documents/zaob-dev/mery-tts/.venv/bin/python3",
+        "-m",
+        "mery_tts.cli.main",
+        "launch",
+        "--action",
+        "install-baseline-voice",
+        "--json"
+      ],
+      "dry_run": false,
+      "finished_at": "2026-06-12T03:35:54.397040+00:00",
+      "name": "install-baseline-preview",
+      "returncode": 0,
+      "started_at": "2026-06-12T03:35:54.095127+00:00",
+      "stderr": "<frozen runpy>:128: RuntimeWarning: 'mery_tts.cli.main' found in sys.modules after import of package 'mery_tts.cli', but prior to execution of 'mery_tts.cli.main'; this may result in unpredictable behaviour\n",
+      "stdout": "{\n  \"data\": {\n    \"approximate_size_bytes\": 63206176,\n    \"available\": true,\n    \"capability_impact\": \"Enables the P1 English local speech happy path.\",\n    \"catalog_id\": \"bundled-v1\",\n    \"confirmation_required\": true,\n    \"job_started\": false,\n    \"license\": \"custom\",\n    \"locale\": \"en-US\",\n    \"model_id\": \"piper-plus.en-us.lessac-low\",\n    \"pack_id\": \"pack.en-us\",\n    \"provenance\": \"remote\",\n    \"provider\": \"piper-plus\",\n    \"recovery_action\": \"launcher.install_baseline_voice.confirm\",\n    \"remote_refresh_performed\": false,\n    \"source_kind\": \"remote\"\n  },\n  \"message\": \"Review install metadata and re-run with --yes to start the install job.\",\n  \"status\": \"cancelled\",\n  \"title\": \"Install bundled baseline voice\"\n}\n"
+    }
+  ],
+  "data_dir": "/var/folders/c_/91y1n1cd6rv5c9qxcxjnmr_w0000gn/T/mery-real-voice-smoke-fesahqzm/data",
+  "dry_run": false,
+  "generated_at": "2026-06-12T03:35:58.975992+00:00",
+  "harness": "piper-real-voice-readiness-smoke",
+  "repo_root": "/Users/trung.ngo/Documents/zaob-dev/mery-tts",
+  "schema_version": "v1",
+  "temp_dir": "/var/folders/c_/91y1n1cd6rv5c9qxcxjnmr_w0000gn/T/mery-real-voice-smoke-fesahqzm"
+}

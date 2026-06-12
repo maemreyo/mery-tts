@@ -645,3 +645,7 @@ async def _do_voice_pack_install(pack_id: str) -> None:
         typer.echo(" done")
 
     typer.echo(f"Voice pack {pack_id!r} installed.")
+
+
+if __name__ == "__main__":
+    app()

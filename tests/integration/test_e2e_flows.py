@@ -304,3 +304,8 @@ def test_bundled_install_job_completes_via_api(tmp_path: Path) -> None:
         assert status_body["status"] == "completed", (
             f"install job failed: {status_body.get('error')}"
         )
+
+        voices_body = client.get("/v1/voices/installed", headers=AUTH_HEADERS).json()
+        assert any(
+            voice["voice_id"] == "catalog.piper-plus.vi-vn.demo" for voice in voices_body["voices"]
+        )

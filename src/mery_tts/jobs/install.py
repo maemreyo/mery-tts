@@ -124,8 +124,8 @@ class InstallJobService:
             [job.artifact_id],
             payload_template,
         )
-        self._job_store.save(completed)
         self._refresh()
+        self._job_store.save(completed)
         return completed
 
     def fail_install(self, job_id: str, *, reason: str) -> InstallJob:

@@ -273,7 +273,7 @@ class SpeechSynthesisService:
         provider_timeout_overrides: dict[str, float] | None = None,
     ) -> None:
         self._registry = voice_registry
-        self._aliases = voice_aliases or {}
+        self._aliases = voice_aliases if voice_aliases is not None else {}
         self._plan_resolver = plan_resolver or VoicePlanResolver(
             voice_registry=voice_registry,
         )

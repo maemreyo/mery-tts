@@ -95,6 +95,12 @@ def _run_command(
     }
 
 
+def _doctor_preflight_ok(result: dict[str, object]) -> bool:
+    returncode = result.get("returncode")
+    output = f"{result.get('stdout', '')}\n{result.get('stderr', '')}"
+    return returncode in {0, 2} and "Traceback" not in output
+
+
 def _json_from_command(result: dict[str, object]) -> dict[str, Any]:
     if result["returncode"] != 0:
         raise RuntimeError(f"{result['name']} failed with exit code {result['returncode']}")
@@ -154,13 +160,19 @@ def _request_bytes(
             "Content-Type": "application/json",
         },
     )
-    with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
-        body = bytes(response.read())
-        return {
-            "status": response.status,
-            "content_type": response.headers.get("Content-Type", ""),
-            "byte_count": len(body),
-        }
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+            body = bytes(response.read())
+            return {
+                "status": response.status,
+                "content_type": response.headers.get("Content-Type", ""),
+                "byte_count": len(body),
+            }
+    except urllib.error.HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"{method} {url} failed with HTTP {exc.code}: {error_body}"
+        ) from exc
 
 
 def _request_json_error(
@@ -261,7 +273,7 @@ def _dry_run_payload(
             "mode": "non_streaming",
             "streaming_secondary_for_p1": True,
             "success_request": {
-                "model": BASELINE_MODEL_ID,
+                "model": "tts-1",
                 "voice": BASELINE_MODEL_ID,
                 "input": "<fixed-smoke-text>",
                 "response_format": "pcm",
@@ -272,7 +284,7 @@ def _dry_run_payload(
                 "non_empty_audio": True,
             },
             "failure_request": {
-                "model": BASELINE_MODEL_ID,
+                "model": "tts-1",
                 "voice": "piper-plus.en-us.uninstalled-smoke",
                 "input": "<fixed-smoke-text>",
                 "response_format": "pcm",
@@ -322,7 +334,7 @@ def run_smoke(config: RealVoiceSmokeConfig) -> Path:
             dry_run=False,
         )
         commands.append(doctor)
-        if doctor["returncode"] != 0:
+        if not _doctor_preflight_ok(doctor):
             raise RuntimeError("doctor failed before real voice smoke")
 
         install_preview = _run_command(
@@ -345,29 +357,6 @@ def run_smoke(config: RealVoiceSmokeConfig) -> Path:
         if preview_payload.get("data", {}).get("job_started") is not False:
             raise RuntimeError("unconfirmed install unexpectedly started a job")
 
-        install_confirmed = _run_command(
-            "install-baseline-confirmed",
-            (
-                config.python_executable,
-                "-m",
-                "mery_tts.cli.main",
-                "launch",
-                "--action",
-                "install-baseline-voice",
-                "--yes",
-                "--json",
-            ),
-            cwd=config.repo_root,
-            env=env,
-            dry_run=False,
-            timeout=300,
-        )
-        commands.append(install_confirmed)
-        confirmed_payload = _json_from_command(install_confirmed)
-        job_id = str(confirmed_payload.get("data", {}).get("job_id") or "")
-        if not job_id:
-            raise RuntimeError("confirmed install did not return a job id")
-
         server = subprocess.Popen(  # noqa: S603
             (
                 config.python_executable,
@@ -384,6 +373,21 @@ def run_smoke(config: RealVoiceSmokeConfig) -> Path:
         token = _load_token(data_dir)
         base_url = f"http://127.0.0.1:{config.port}"
         api_artifacts["health"] = _wait_for_server(base_url, token=token)
+        confirmed_payload = _request_json(
+            "POST",
+            f"{base_url}/v1/models/install",
+            token=token,
+            payload={
+                "schema_version": "v1",
+                "request_id": "piper-real-voice-smoke-install",
+                "model_id": BASELINE_MODEL_ID,
+                "user_confirmed": True,
+            },
+        )
+        api_artifacts["model_install"] = confirmed_payload
+        job_id = str(confirmed_payload.get("job_id") or "")
+        if not job_id:
+            raise RuntimeError("confirmed API install did not return a job id")
         install_job = _poll_job(base_url, token=token, job_id=job_id)
         api_artifacts["install_job"] = install_job
         if install_job.get("status") != "completed":
@@ -396,7 +400,7 @@ def run_smoke(config: RealVoiceSmokeConfig) -> Path:
             "GET", f"{base_url}/v1/models/{BASELINE_MODEL_ID}", token=token
         )
         openai_success_request: dict[str, object] = {
-            "model": BASELINE_MODEL_ID,
+            "model": "tts-1",
             "voice": BASELINE_MODEL_ID,
             "input": "Mery real voice readiness smoke.",
             "response_format": "pcm",
@@ -418,7 +422,7 @@ def run_smoke(config: RealVoiceSmokeConfig) -> Path:
             raise RuntimeError("OpenAI speech returned empty audio")
 
         openai_failure_request: dict[str, object] = {
-            "model": BASELINE_MODEL_ID,
+            "model": "tts-1",
             "voice": "piper-plus.en-us.uninstalled-smoke",
             "input": "Mery real voice readiness smoke.",
             "response_format": "pcm",

@@ -492,6 +492,7 @@ def create_app(
         catalog_voices = bundled_catalog_voice_summaries()
     installed_voice_descriptors = storage_identity_store.hydrate_installed_voice_descriptors()
     voice_resolver = InstalledVoiceResolver(artifacts_dir=storage_identity_store.artifacts_dir)
+    app_owns_voice_aliases = voice_aliases is None
     if voice_aliases is None:
         # Default: every installed voice is addressable by its own
         # voice_id. This makes the OpenAI-compatible endpoint usable
@@ -537,6 +538,9 @@ def create_app(
     def _refresh_voice_registry() -> None:
         descriptors = storage_identity_store.hydrate_installed_voice_descriptors()
         voice_registry.refresh(descriptors)
+        if app_owns_voice_aliases:
+            voice_aliases.clear()
+            voice_aliases.update({voice.voice_id: voice.voice_id for voice in descriptors})
         if app_owns_voice_registry:
             for voice in descriptors:
                 if voice.engine_id in engine_registry.adapters:

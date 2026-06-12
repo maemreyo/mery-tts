@@ -31,8 +31,8 @@ The harness records `piper-real-voice-smoke-result.json` with command and API ar
 
 1. Create isolated `MERY_TTS_DATA_DIR` storage with no preinstalled voice state.
 2. Run the launcher baseline install preview without `--yes` and confirm no job starts.
-3. Run the launcher baseline install with `--yes` and capture the durable install `job_id`.
-4. Start the local server from the same isolated storage.
+3. Start the local server from the same isolated storage.
+4. POST `/v1/models/install` with `user_confirmed: true` and capture the durable install `job_id` from the live API worker.
 5. Poll `/v1/models/install/{job_id}` until a terminal success state.
 6. Verify `/v1/voices/installed` includes the installed baseline voice.
 7. Verify `/v1/models/{model_id}` reports `installed`.
@@ -47,7 +47,7 @@ The real smoke records an `api_artifacts.openai_packaged_speech` object in `pipe
 
 - `endpoint`: `/v1/audio/speech`
 - `mode`: `non_streaming`
-- `success_request`: sanitized request shape using `model` and `voice` set to `piper-plus.en-us.lessac-low`, fixed smoke text redacted as `<fixed-smoke-text>`, and `response_format: pcm`
+- `success_request`: sanitized request shape using OpenAI-compatible `model: tts-1`, installed native `voice: piper-plus.en-us.lessac-low`, fixed smoke text redacted as `<fixed-smoke-text>`, and `response_format: pcm`
 - `success_response`: HTTP status, content type, and byte count only; raw audio bytes are not persisted
 - `failure_request`: sanitized uninstalled-voice request shape for `piper-plus.en-us.uninstalled-smoke`
 - `failure_response`: structured JSON error metadata proving the uninstalled voice path does not produce partial audio success
