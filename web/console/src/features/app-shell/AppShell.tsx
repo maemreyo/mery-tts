@@ -8,24 +8,24 @@ import {
   persistSession,
   readInitialSession,
 } from "@shared/auth/session";
-import { Button } from "@shared/ui/Button";
-import { FieldGroup, FormField } from "@shared/ui/FormField";
-import { Panel } from "@shared/ui/Panel";
-import { SwitchField } from "@shared/ui/SwitchField";
+import { TokenProvider } from "@shared/auth/TokenContext";
 import { useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { SectionTabs } from "./SectionTabs";
+import { AppLayout } from "./AppLayout";
+import { ContentArea } from "./ContentArea";
+import { NavigationProvider } from "./NavigationContext";
+import { Sidebar } from "./Sidebar";
+import { TopBar, type SessionFormValues } from "./TopBar";
 
 const sessionSchema = z.object({
   token: z.string().trim().max(4096, "Bearer token is too long."),
   remember: z.boolean(),
 });
 
-type SessionFormValues = z.infer<typeof sessionSchema>;
-
 export function AppShell() {
   const [session, setSession] = useState(readInitialSession);
+
   const form = useForm<SessionFormValues>({
     resolver: zodResolver(sessionSchema),
     values: session,
@@ -36,6 +36,7 @@ export function AppShell() {
   }, [session]);
 
   const applySession = form.handleSubmit((values) => setSession(values));
+
   const logout = () => {
     const cleared = clearSession();
     setSession(cleared);
@@ -43,74 +44,24 @@ export function AppShell() {
   };
 
   return (
-    <main className="console-shell">
-      <Panel>
-        <h1>Mery Console</h1>
-        <p>
-          Local-first TTS control plane. User Mode is recovery-focused;
-          Developer Mode remains opt-in.
-        </p>
-        <form className="session-form" onSubmit={applySession}>
-          <FieldGroup>
-            <FormField
-              label="Bearer token"
-              type="password"
-              autoComplete="off"
-              error={form.formState.errors.token?.message}
-              {...form.register("token")}
-            />
-            <Controller
-              control={form.control}
-              name="remember"
-              render={({ field }) => (
-                <SwitchField
-                  checked={field.value}
-                  label="Remember on this device"
-                  onCheckedChange={field.onChange}
-                />
-              )}
-            />
-            <Button type="submit" variant="primary">
-              Use token
-            </Button>
-            <Button type="button" onClick={logout}>
-              Log out
-            </Button>
-          </FieldGroup>
-        </form>
-      </Panel>
-      <SectionTabs
-        panels={{
-          voices: (
-            <Panel>
-              <div id="voices">
-                <VoicesPanel token={session.token} />
-              </div>
-            </Panel>
-          ),
-          playground: (
-            <Panel>
-              <div id="playground">
-                <PlaygroundPanel token={session.token} />
-              </div>
-            </Panel>
-          ),
-          health: (
-            <Panel>
-              <div id="health">
-                <HealthPanel token={session.token} />
-              </div>
-            </Panel>
-          ),
-          developer: (
-            <Panel>
-              <div id="developer">
-                <DeveloperPanel />
-              </div>
-            </Panel>
-          ),
-        }}
-      />
-    </main>
+    <TokenProvider value={session.token}>
+      <NavigationProvider>
+        <AppLayout
+          sidebar={<Sidebar />}
+          topbar={
+            <TopBar form={form} onSubmit={applySession} onLogout={logout} />
+          }
+        >
+          <ContentArea
+            panels={{
+              voices:     <VoicesPanel token={session.token} />,
+              playground: <PlaygroundPanel token={session.token} />,
+              health:     <HealthPanel token={session.token} />,
+              developer:  <DeveloperPanel />,
+            }}
+          />
+        </AppLayout>
+      </NavigationProvider>
+    </TokenProvider>
   );
 }

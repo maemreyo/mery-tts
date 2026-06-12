@@ -20,8 +20,8 @@ describe("HealthPanel", () => {
   it("renders backend-owned readiness data", async () => {
     renderWithQuery(<HealthPanel token="test-token" />);
     await waitFor(() =>
-      expect(screen.getByText("Ready: yes")).toBeInTheDocument(),
+      expect(screen.getByText("Ready")).toBeInTheDocument(),
     );
-    expect(screen.getByText("Status: ok")).toBeInTheDocument();
+    expect(screen.getByText("ok")).toBeInTheDocument();
   });
 });

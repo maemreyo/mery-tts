@@ -4,6 +4,7 @@ import { Button } from "@shared/ui/Button";
 import { ConfirmDialog } from "@shared/ui/ConfirmDialog";
 import { FieldGroup, FormField } from "@shared/ui/FormField";
 import { SelectField } from "@shared/ui/SelectField";
+import { SkeletonTable } from "@shared/ui/Skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type SortingState,
@@ -155,79 +156,99 @@ export function VoicesPanel({ token }: VoicesPanelProps) {
   }
 
   return (
-    <section aria-labelledby="voices-heading" className="voice-grid">
-      <h2 id="voices-heading">{t("voicesHeading")}</h2>
-      <FieldGroup>
-        <FormField
-          label={t("searchVoices")}
-          value={search}
-          onChange={(event) => setSearch(event.currentTarget.value)}
-          placeholder="English Demo"
-        />
-        <FormField
-          label={t("localeFilter")}
-          value={localeFilter}
-          onChange={(event) => setLocaleFilter(event.currentTarget.value)}
-          placeholder="en-US, vi-VN"
-        />
-        <SelectField
-          label={t("sortVoices")}
-          options={[...sortOptions]}
-          value={sortMode}
-          onValueChange={setSortMode}
-        />
-      </FieldGroup>
-      <output>{status}</output>
-      {installJobQuery.data ? (
-        <output>{installStatusLabel(installJobQuery.data.status)}</output>
-      ) : null}
-      <div className="table-scroll">
-        <table>
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th key={header.id} scope="col">
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-                  </th>
+    <section aria-labelledby="voices-heading">
+      <div className="page-header">
+        <h2 id="voices-heading">{t("voicesHeading")}</h2>
+        <p>Manage available voice models for local TTS synthesis.</p>
+      </div>
+
+      <div className="panel voice-grid">
+        <FieldGroup>
+          <FormField
+            label={t("searchVoices")}
+            value={search}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+            placeholder="English Demo"
+          />
+          <FormField
+            label={t("localeFilter")}
+            value={localeFilter}
+            onChange={(event) => setLocaleFilter(event.currentTarget.value)}
+            placeholder="en-US, vi-VN"
+          />
+          <SelectField
+            label={t("sortVoices")}
+            options={[...sortOptions]}
+            value={sortMode}
+            onValueChange={setSortMode}
+          />
+        </FieldGroup>
+
+        {installJobQuery.data && (
+          <div>
+            <span className={`badge ${installJobQuery.data.status === "succeeded" ? "badge--success" : installJobQuery.data.status === "failed" ? "badge--error" : "badge--neutral"}`}>
+              {installStatusLabel(installJobQuery.data.status)}
+            </span>
+          </div>
+        )}
+
+        <output role="status" style={{ fontSize: 13, color: "var(--text-muted)" }}>
+          {status}
+        </output>
+        {voicesQuery.isLoading ? (
+          <SkeletonTable rows={6} />
+        ) : (
+          <div className="table-scroll">
+            <table>
+              <thead>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <th key={header.id} scope="col">
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                      </th>
+                    ))}
+                    <th scope="col">Action</th>
+                  </tr>
                 ))}
-                <th scope="col">Action</th>
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    data-label={String(cell.column.columnDef.header)}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
+              </thead>
+              <tbody>
+                {table.getRowModel().rows.map((row) => (
+                  <tr key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <td
+                        key={cell.id}
+                        data-label={String(cell.column.columnDef.header)}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                    <td data-label="Action">
+                      {row.original.installable ? (
+                        <ConfirmDialog
+                          title="Confirm voice install"
+                          description={`Install ${row.original.title} using backend model id ${row.original.modelId}.`}
+                          onConfirm={() => installMutation.mutate(row.original)}
+                        >
+                          <Button type="button" variant="primary">
+                            {t("installVoice")}
+                          </Button>
+                        </ConfirmDialog>
+                      ) : (
+                        <span className="badge badge--neutral">
+                          {row.original.governanceStatus}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
                 ))}
-                <td data-label="Action">
-                  {row.original.installable ? (
-                    <ConfirmDialog
-                      title="Confirm voice install"
-                      description={`Install ${row.original.title} using backend model id ${row.original.modelId}.`}
-                      onConfirm={() => installMutation.mutate(row.original)}
-                    >
-                      <Button type="button" variant="primary">
-                        {t("installVoice")}
-                      </Button>
-                    </ConfirmDialog>
-                  ) : (
-                    <span>{row.original.governanceStatus}</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </section>
   );
