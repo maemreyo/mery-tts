@@ -1,15 +1,34 @@
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from mery_tts.api.app import create_app
+from mery_tts.engines.base import EngineAdapter, EngineRegistry, PCMChunk
 from mery_tts.models.store import ModelStore
 from mery_tts.security.config import HelperConfigStore
 from mery_tts.security.pairing import PairingService
 from mery_tts.storage.identity import StorageIdentityStore
+from mery_tts.voice import VoiceDescriptor
 
 TOKEN = "secret" * 8
 HEADERS = {"Authorization": f"Bearer {TOKEN}"}
+
+
+class _DeterministicKokoroAdapter(EngineAdapter):
+    engine_id = "kokoro"
+    accepted_voice_kinds = frozenset({"preset"})
+
+    async def synthesize(
+        self,
+        text: str,
+        voice: VoiceDescriptor,
+        *,
+        request_id: str | None = None,
+    ) -> AsyncIterator[PCMChunk]:
+        _ = (text, voice, request_id)
+        if False:
+            yield PCMChunk(pcm=b"", sample_rate_hz=24_000, channels=1)
 
 
 def test_management_endpoints_return_versioned_shapes(tmp_path: Path) -> None:
@@ -75,7 +94,11 @@ def test_installed_voices_returns_persisted_voice_manifests(tmp_path: Path) -> N
         ["artifact.kokoro"],
         {"kind": "preset", "preset_id": "af_heart"},
     )
-    app = create_app(config=config, model_store=ModelStore(tmp_path))
+    app = create_app(
+        config=config,
+        model_store=ModelStore(tmp_path),
+        engine_registry=EngineRegistry(adapters={"kokoro": _DeterministicKokoroAdapter()}),
+    )
 
     with TestClient(app) as client:
         response = client.get("/v1/voices/installed", headers=HEADERS)

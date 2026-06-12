@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from mery_tts.cli.launcher import services
+import mery_tts.cli.launcher.services as services
 from mery_tts.cli.launcher.runner import SubprocessRunner
 from mery_tts.cli.launcher.types import (
     ActionGroup,

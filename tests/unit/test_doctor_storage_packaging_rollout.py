@@ -4,6 +4,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+from mery_tts.cli import main as cli_main
 from mery_tts.cli.main import app
 from mery_tts.diagnostics.doctor import (
     BackendStateCheck,
@@ -18,6 +19,7 @@ from mery_tts.diagnostics.doctor import (
     ServerReachabilityCheck,
     TokenConfiguredCheck,
 )
+from mery_tts.diagnostics.repair import build_doctor_repair_plan
 from mery_tts.engines.base import EngineAdapter, EngineRegistry
 from mery_tts.errors import RecommendedAction
 from mery_tts.hardware import BackendCapability, BackendProbeResult, HardwareBackendConfig
@@ -67,6 +69,70 @@ def test_doctor_cli_runs_with_persisted_output(monkeypatch, tmp_path: Path) -> N
     assert result.exit_code in {0, 2}
     assert "check" in result.stdout
     assert (tmp_path / "diagnostics" / "last-doctor.json").exists()
+
+
+def test_doctor_repair_plan_suggests_engine_extra_install() -> None:
+    plan = build_doctor_repair_plan(
+        [
+            DoctorResult(
+                check="engine_availability",
+                status="fail",
+                detail="no engines available",
+                recommended_action=RecommendedAction.CHECK_ENGINE,
+            )
+        ]
+    )
+
+    assert plan.status == "manual_required"
+    assert plan.steps[0].to_json() == {
+        "id": "install-engine-extras",
+        "title": "Install optional engine packages",
+        "reason": "No usable TTS engine package is available in the current environment.",
+        "command": "uv sync --all-extras",
+        "risk": "network",
+        "execution": "manual",
+        "requires_confirmation": True,
+        "next_command": "uv run mery doctor",
+    }
+
+
+def test_doctor_cli_prints_fix_guidance_for_missing_engines(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(cli_main, "discover_engine_registry", lambda: EngineRegistry(adapters={}))
+
+    result = CliRunner().invoke(app, ["doctor"])
+
+    assert result.exit_code == 2
+    assert "Fix plan:" in result.stdout
+    assert "Fix: uv sync --all-extras" in result.stdout
+    assert str(tmp_path) not in result.stdout
+
+
+def test_doctor_fix_plan_outputs_stable_json(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(cli_main, "discover_engine_registry", lambda: EngineRegistry(adapters={}))
+
+    result = CliRunner().invoke(app, ["doctor", "--fix-plan"])
+
+    assert result.exit_code == 2
+    payload = json.loads(result.stdout)
+    assert payload["schema_version"] == "doctor-repair-plan-v1"
+    assert payload["contract"] == "stable_additive"
+    assert payload["status"] == "manual_required"
+    assert payload["steps"][0]["command"] == "uv sync --all-extras"
+
+
+def test_doctor_repair_requires_yes_and_reports_plan(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("MERY_TTS_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(cli_main, "discover_engine_registry", lambda: EngineRegistry(adapters={}))
+
+    result = CliRunner().invoke(app, ["doctor", "--repair", "--json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "cancelled"
+    assert payload["message"] == "Doctor repair requires --yes."
+    assert payload["repair_plan"]["steps"][0]["command"] == "uv sync --all-extras"
 
 
 def test_diagnostics_history_cli_lists_status_and_deletes(monkeypatch, tmp_path: Path) -> None:

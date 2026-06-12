@@ -30,6 +30,7 @@ from mery_tts.diagnostics.doctor import (
     DiskSpaceCheck,
     DoctorCheck,
     DoctorEngine,
+    DoctorResult,
     EngineAvailabilityCheck,
     EngineHealthCheck,
     ModelAvailabilityCheck,
@@ -39,6 +40,7 @@ from mery_tts.diagnostics.doctor import (
 )
 from mery_tts.diagnostics.export import DiagnosticsExportBuilder
 from mery_tts.diagnostics.history import DiagnosticsEventStore
+from mery_tts.diagnostics.repair import DoctorRepairPlan, build_doctor_repair_plan
 from mery_tts.engines.base import PCMChunk
 from mery_tts.engines.discovery import discover_engine_registry
 from mery_tts.hardware import HardwareBackendConfig
@@ -159,6 +161,10 @@ def doctor(
     providers: str = typer.Option(
         "", "--providers", help="Comma-separated provider list for smoke (e.g. piper-plus,kokoro)."
     ),
+    fix_plan: bool = typer.Option(False, "--fix-plan", help="Print a structured repair plan."),
+    repair: bool = typer.Option(False, "--repair", help="Run safe automatic doctor repairs."),
+    yes: bool = typer.Option(False, "--yes", help="Approve repair execution."),
+    json_output: bool = typer.Option(False, "--json", help="Emit structured JSON output."),
 ) -> None:
     paths = _runtime_paths()
     config_store = HelperConfigStore(paths.config_dir)
@@ -186,9 +192,30 @@ def doctor(
 
     engine = DoctorEngine(checks=checks, data_dir=paths.base_dir)
     results = engine.run()
-    typer.echo("check | status | detail")
-    for result in results:
-        typer.echo(f"{result.check} | {result.status} | {result.detail}")
+    repair_plan = build_doctor_repair_plan(results)
+
+    if fix_plan:
+        typer.echo(json.dumps(repair_plan.to_json(), indent=2, sort_keys=True))
+        raise typer.Exit(engine.exit_code(results))
+
+    if repair:
+        _run_doctor_repair(paths, repair_plan=repair_plan, yes=yes, json_output=json_output)
+        raise typer.Exit(0)
+
+    if json_output:
+        typer.echo(
+            json.dumps(
+                {
+                    "schema_version": "doctor-result-v1",
+                    "results": [result.to_json() for result in results],
+                    "repair_plan": repair_plan.to_json(),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+    else:
+        _print_doctor_results(results, repair_plan=repair_plan)
 
     if deep:
         typer.echo("\n--- Deep smoke ---")
@@ -199,6 +226,68 @@ def doctor(
         _run_deep_smoke(paths, provider_list)
 
     raise typer.Exit(engine.exit_code(results))
+
+
+def _print_doctor_results(
+    results: list[DoctorResult],
+    *,
+    repair_plan: DoctorRepairPlan,
+) -> None:
+    typer.echo("check | status | detail")
+    for result in results:
+        payload = result.to_json()
+        typer.echo(f"{payload['check']} | {payload['status']} | {payload['detail']}")
+    if repair_plan.steps:
+        typer.echo("\nFix plan:")
+        for step in repair_plan.steps:
+            typer.echo(f"- {step.title}")
+            typer.echo(f"  Fix: {step.command}")
+            typer.echo(f"  Next: {step.next_command}")
+            if step.execution == "manual":
+                typer.echo("  Repair: manual step; review and run explicitly.")
+            else:
+                typer.echo("  Repair: mery doctor --repair --yes")
+
+
+def _run_doctor_repair(
+    paths: RuntimePaths,
+    *,
+    repair_plan: DoctorRepairPlan,
+    yes: bool,
+    json_output: bool,
+) -> None:
+    if not yes:
+        payload: dict[str, object] = {
+            "status": "cancelled",
+            "message": "Doctor repair requires --yes.",
+            "repair_plan": repair_plan.to_json(),
+        }
+        if json_output:
+            typer.echo(json.dumps(payload, indent=2, sort_keys=True))
+        else:
+            typer.echo("Doctor repair requires --yes.")
+            _print_doctor_results([], repair_plan=repair_plan)
+        raise typer.Exit(1)
+
+    executed: list[dict[str, object]] = []
+    skipped = [step.to_json() for step in repair_plan.manual_steps]
+    for step in repair_plan.automatic_steps:
+        if step.id == "cleanup-cache":
+            removed = _cleanup_storage_target(paths, "cache")
+            executed.append({**step.to_json(), "removed": removed})
+    payload = {
+        "status": "ok",
+        "executed": executed,
+        "skipped_manual_steps": skipped,
+        "next_command": "uv run mery doctor",
+    }
+    if json_output:
+        typer.echo(json.dumps(payload, indent=2, sort_keys=True))
+        return
+    typer.echo(f"doctor.repair_complete: executed={len(executed)}; skipped={len(skipped)}")
+    for skipped_step in skipped:
+        typer.echo(f"manual: {skipped_step['command']}")
+    typer.echo("next: uv run mery doctor")
 
 
 def _run_deep_smoke(paths: "RuntimePaths", providers: list[str]) -> None:
@@ -503,24 +592,30 @@ def _remove_directory_contents(path: Path) -> int:
     return removed
 
 
-@storage_app.command("cleanup")
-def storage_cleanup(
-    target: str = typer.Option(..., "--target", help="cache, logs, or diagnostics"),
-) -> None:
-    paths = _runtime_paths()
+def _cleanup_storage_target(paths: RuntimePaths, target: str) -> int:
     cleanup_targets = {
         "cache": paths.cache_dir,
         "logs": paths.logs_dir,
         "diagnostics": paths.base_dir / "diagnostics",
     }
+    if target not in cleanup_targets:
+        raise ValueError("target must be cache, logs, or diagnostics")
+    return _remove_directory_contents(cleanup_targets[target])
+
+
+@storage_app.command("cleanup")
+def storage_cleanup(
+    target: str = typer.Option(..., "--target", help="cache, logs, or diagnostics"),
+) -> None:
+    paths = _runtime_paths()
     if target == "models":
         typer.echo("storage.cleanup_refused: model cleanup is not supported; models_protected=true")
         raise typer.Exit(1)
-    if target not in cleanup_targets:
+    try:
+        removed = _cleanup_storage_target(paths, target)
+    except ValueError:
         typer.echo("storage.cleanup_failed: target must be cache, logs, or diagnostics")
-        raise typer.Exit(2)
-
-    removed = _remove_directory_contents(cleanup_targets[target])
+        raise typer.Exit(2) from None
     typer.echo(
         f"storage.cleanup_complete: target={target}; removed={removed}; models_protected=true"
     )

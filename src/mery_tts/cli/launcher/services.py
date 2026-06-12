@@ -143,7 +143,7 @@ def start_session_server(paths: RuntimePaths) -> dict[str, object]:
         env=env,
     )
     log_handle.close()
-    session = {
+    session: dict[str, object] = {
         "pid": process.pid,
         "host": "127.0.0.1",
         "port": config.port,

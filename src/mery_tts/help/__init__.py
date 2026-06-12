@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from importlib import resources
+from importlib.resources.abc import Traversable
 from typing import Any, cast
 
 REQUIRED_HELP_TOPIC_IDS = frozenset(
@@ -32,7 +33,7 @@ class HelpTopic:
     body: str
 
 
-def _help_root() -> resources.abc.Traversable:
+def _help_root() -> Traversable:
     return resources.files(__package__ or "mery_tts.help")
 
 

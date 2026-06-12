@@ -18,7 +18,7 @@ This docs tree is the canonical home for the Mery TTS Server design.
 
 ## ADRs
 
-- [`adr/INDEX.md`](adr/INDEX.md) — Architecture Decision Records through ADR-0050, with design decision coverage map.
+- [`adr/INDEX.md`](adr/INDEX.md) — Architecture Decision Records through ADR-0051, with design decision coverage map.
 
 ## Reports
 

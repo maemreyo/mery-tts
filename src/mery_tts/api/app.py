@@ -3,7 +3,7 @@ import os
 from collections.abc import Awaitable, Callable
 from importlib import resources
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal, Protocol, cast
 from urllib.parse import unquote, urlparse
 
 from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect, status
@@ -103,7 +103,12 @@ from mery_tts.synthesis import (
     SynthesisError,
     SynthesisErrorKind,
 )
-from mery_tts.voice import InstalledVoiceResolver, VoiceDescriptor, VoiceRegistry
+from mery_tts.voice import InstalledVoiceResolver, ResolvedVoice, VoiceDescriptor, VoiceRegistry
+
+
+class _ResolvedVoiceRegistrar(Protocol):
+    def register_resolved_voice(self, resolved: ResolvedVoice) -> None: ...
+
 
 CONTRACT_VERSION = "v1"
 
@@ -548,7 +553,8 @@ def create_app(
                     if hasattr(adapter, "register_resolved_voice"):
                         resolved = voice_resolver.try_resolve(voice)
                         if resolved is not None:
-                            adapter.register_resolved_voice(resolved)
+                            registrar = cast(_ResolvedVoiceRegistrar, cast(object, adapter))
+                            registrar.register_resolved_voice(resolved)
 
     if install_job_service is None:
         install_job_service = InstallJobService(
@@ -604,7 +610,8 @@ def create_app(
             if hasattr(adapter, "register_resolved_voice"):
                 resolved = voice_resolver.try_resolve(voice)
                 if resolved is not None:
-                    adapter.register_resolved_voice(resolved)
+                    registrar = cast(_ResolvedVoiceRegistrar, cast(object, adapter))
+                    registrar.register_resolved_voice(resolved)
 
     app = FastAPI(title="Mery TTS Server", version=__version__)
 
@@ -890,7 +897,7 @@ def create_app(
     )
     def storage() -> StorageResponse:
         stats = model_store.disk_usage()
-        breakdown = {
+        breakdown: dict[Literal["models", "cache", "logs", "diagnostics"], int] = {
             "models": _directory_size(paths.models_dir),
             "cache": _directory_size(paths.cache_dir),
             "logs": _directory_size(paths.logs_dir),

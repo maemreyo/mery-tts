@@ -49,6 +49,7 @@ These ADRs distill the 27 design decisions from
 | Dependable appliance roadmap grill | ADR-0048 | P1 dependable local TTS appliance milestone |
 | Local-modern provider admission grill | ADR-0049 | P2 provider admission gates, tiers, scorecards, and governance boundary |
 | Guided next-command suggestions grill | ADR-0050 | CLI/launcher state-aware suggestions for setup/onboarding DevExp |
+| Doctor DevEx hardening | ADR-0051 | Diagnose-only doctor repair-plan contract and explicit safe repair policy |
 | Grill 04, Q41–Q46 | ADR-0018 | Provider rollout strategy |
 | Grill 06 | ADR-0019 | Provider adapter taxonomy |
 | Grill 05, Q47–Q55 | ADR-0020 | Web console architecture |
@@ -119,6 +120,7 @@ These ADRs distill the 27 design decisions from
 | [ADR-0048](ADR-0048-dependable-local-tts-appliance.md) | Dependable Local TTS Appliance Milestone | ⏳ Proposed |
 | [ADR-0049](ADR-0049-local-modern-provider-admission-policy.md) | Local-Modern Provider Admission Policy | ⏳ Proposed |
 | [ADR-0050](ADR-0050-guided-next-command-suggestions.md) | Guided Next-Command Suggestions | ✅ Accepted |
+| [ADR-0051](ADR-0051-doctor-repair-plan-contract.md) | Doctor Repair Plan Contract | ✅ Accepted |
 
 ---
 

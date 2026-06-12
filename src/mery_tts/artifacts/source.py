@@ -164,16 +164,16 @@ class HttpArtifactSource:
         catalog_files = self._catalog_files(artifact.artifact_id)
         if not catalog_files:
             raise ArtifactFetchError(f"no catalog files for artifact '{artifact.artifact_id}'")
-        downloadable = [f for f in catalog_files if f.download_url]
+        downloadable = [(f, f.download_url) for f in catalog_files if f.download_url is not None]
         if not downloadable:
             raise ArtifactFetchError(
                 f"no download_url on any file for artifact '{artifact.artifact_id}'"
             )
-        for file in downloadable:
-            self._validate_url(file.download_url)  # type: ignore[arg-type]
+        for _, download_url in downloadable:
+            self._validate_url(download_url)
 
         target_dir.mkdir(parents=True, exist_ok=True)
-        total_expected = sum(f.size_bytes for f in downloadable)
+        total_expected = sum(f.size_bytes for f, _ in downloadable)
         bytes_done = 0
         copied_files: list[Path] = []
         total_size = 0
@@ -183,9 +183,9 @@ class HttpArtifactSource:
             follow_redirects=True,
             timeout=httpx.Timeout(connect=30.0, read=300.0, write=30.0, pool=30.0),
         ) as client:
-            for file in downloadable:
+            for file, download_url in downloadable:
                 chunks: list[bytes] = []
-                async with client.stream("GET", file.download_url) as response:  # type: ignore[arg-type]
+                async with client.stream("GET", download_url) as response:
                     response.raise_for_status()
                     async for chunk in response.aiter_bytes(chunk_size=65536):
                         chunks.append(chunk)

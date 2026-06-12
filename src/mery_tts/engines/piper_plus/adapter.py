@@ -13,6 +13,7 @@ when the config is absent or unparseable.
 from __future__ import annotations
 
 import asyncio
+import importlib
 import importlib.util
 from collections.abc import AsyncIterator, Callable, Iterable
 from dataclasses import replace
@@ -47,6 +48,14 @@ class _PiperRawStreamVoice(Protocol):
     """Compatibility shape exposed by older Piper runtimes and test fakes."""
 
     def synthesize_stream_raw(self, text: str) -> Iterable[bytes]: ...
+
+
+class _PiperVoiceFactory(Protocol):
+    def load(self, model_path: str, config_path: str | None = None) -> _PiperVoice: ...
+
+
+class _PiperModule(Protocol):
+    PiperVoice: _PiperVoiceFactory
 
 
 class PiperRuntimeError(Exception):
@@ -102,15 +111,14 @@ class PiperRuntimeCache:
         if importlib.util.find_spec("piper") is None:
             raise PiperRuntimeError("dependency_missing", "piper-plus package is not installed")
         try:
-            import piper  # type: ignore[import-not-found]
-
+            piper = cast(_PiperModule, cast(object, importlib.import_module("piper")))
             model_path = str(resolved.payload.model_path)
             config_path = (
                 str(resolved.payload.config_path) if resolved.payload.config_path else None
             )
             if config_path is not None:
-                return piper.PiperVoice.load(model_path, config_path)  # type: ignore[no-any-return]  # pyright: ignore[reportAttributeAccessIssue]
-            return piper.PiperVoice.load(model_path)  # type: ignore[no-any-return]  # pyright: ignore[reportAttributeAccessIssue]
+                return piper.PiperVoice.load(model_path, config_path)
+            return piper.PiperVoice.load(model_path)
         except ImportError as exc:
             raise PiperRuntimeError(
                 "dependency_missing", "piper-plus package is not installed"

@@ -7,6 +7,7 @@ voice/artifact. It accepts resolved preset voices and emits normalized PCMChunk 
 from __future__ import annotations
 
 import asyncio
+import importlib
 import importlib.util
 from collections.abc import AsyncIterator, Callable, Iterable
 from typing import Any, Protocol, cast
@@ -25,6 +26,14 @@ class _KokoroRuntime(Protocol):
     """Structural type for the optional kokoro / kokoro_onnx runtime objects."""
 
     def synthesize(self, text: str, /, *args: object, **kwargs: object) -> object: ...
+
+
+class _KokoroFactory(Protocol):
+    def __call__(self, *args: object) -> _KokoroRuntime: ...
+
+
+class _KokoroModule(Protocol):
+    Kokoro: _KokoroFactory
 
 
 class KokoroRuntimeError(Exception):
@@ -77,16 +86,14 @@ class KokoroRuntimeCache:
             raise KokoroRuntimeError("dependency_missing", "kokoro package is not installed")
         try:
             if has_kokoro_onnx:
-                from kokoro_onnx import Kokoro  # type: ignore  # pyright: ignore
-
+                kokoro_onnx = cast(
+                    _KokoroModule, cast(object, importlib.import_module("kokoro_onnx"))
+                )
                 model_path = str(resolved.payload.artifact_dir / "model.onnx")
                 voices_path = str(resolved.payload.artifact_dir / "voices.bin")
-                runtime = Kokoro(model_path, voices_path)
-            else:
-                import kokoro  # type: ignore  # pyright: ignore
-
-                runtime = kokoro.Kokoro(str(resolved.payload.artifact_dir))
-            return runtime  # type: ignore[no-any-return]
+                return kokoro_onnx.Kokoro(model_path, voices_path)
+            kokoro = cast(_KokoroModule, cast(object, importlib.import_module("kokoro")))
+            return kokoro.Kokoro(str(resolved.payload.artifact_dir))
         except KokoroRuntimeError:
             raise
         except ImportError as exc:
