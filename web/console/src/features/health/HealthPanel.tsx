@@ -2,13 +2,13 @@ import { createMeryApiClient } from "@shared/api/meryApi";
 import { Skeleton } from "@shared/ui/Skeleton";
 import { StatusDot } from "@shared/ui/StatusDot";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 
 interface HealthPanelProps {
   token: string;
 }
 
-export function HealthPanel({ token }: HealthPanelProps) {
+function HealthPanelBase({ token }: HealthPanelProps) {
   const api = useMemo(() => createMeryApiClient({ token }), [token]);
   const query = useQuery({
     queryKey: ["health", token],
@@ -93,3 +93,5 @@ export function HealthPanel({ token }: HealthPanelProps) {
     </section>
   );
 }
+
+export const HealthPanel = memo(HealthPanelBase);

@@ -3,7 +3,7 @@ import { createMeryApiClient } from "@shared/api/meryApi";
 import { Button } from "@shared/ui/Button";
 import { FormField } from "@shared/ui/FormField";
 import { useMutation } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -23,7 +23,7 @@ function statusVariant(ok?: boolean, error?: boolean): string {
   return "";
 }
 
-export function PlaygroundPanel({ token }: PlaygroundPanelProps) {
+function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
   const api = useMemo(() => createMeryApiClient({ token }), [token]);
   const form = useForm<PlaygroundFormValues>({
     defaultValues: { voice: "" },
@@ -75,3 +75,5 @@ export function PlaygroundPanel({ token }: PlaygroundPanelProps) {
     </section>
   );
 }
+
+export const PlaygroundPanel = memo(PlaygroundPanelBase);

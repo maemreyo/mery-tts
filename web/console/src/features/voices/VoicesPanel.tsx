@@ -14,7 +14,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import type { VoiceViewModel } from "./voicesApi";
 import {
   loadVoiceViewModels,
@@ -33,6 +33,10 @@ const sortOptions = [
   { label: "Engine", value: "engine" },
   { label: "Locale", value: "locale" },
 ] as const;
+
+// Stable row model factories — created once at module load, not per render.
+const coreRowModel = getCoreRowModel();
+const sortedRowModel = getSortedRowModel();
 
 const columnHelper = createColumnHelper<VoiceViewModel>();
 
@@ -85,7 +89,7 @@ function sortingForMode(sortMode: SortMode): SortingState {
   return [{ id: "title", desc: false }];
 }
 
-export function VoicesPanel({ token }: VoicesPanelProps) {
+function VoicesPanelBase({ token }: VoicesPanelProps) {
   const [localeFilter, setLocaleFilter] = useState("");
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("name");
@@ -127,21 +131,24 @@ export function VoicesPanel({ token }: VoicesPanelProps) {
   }, [installStatus, queryClient, token]);
 
   const voices = voicesQuery.data ?? [];
-  const visibleVoices = voices.filter((voice) => {
-    const query =
-      `${voice.title} ${voice.engine} ${voice.locales} ${voice.governanceLabel}`.toLowerCase();
-    return (
-      query.includes(search.toLowerCase()) &&
-      voice.locales.toLowerCase().includes(localeFilter.toLowerCase())
-    );
-  });
+  const visibleVoices = useMemo(() => {
+    const searchLower = search.toLowerCase();
+    const localeLower = localeFilter.toLowerCase();
+    return voices.filter((voice) => {
+      const text =
+        `${voice.title} ${voice.engine} ${voice.locales} ${voice.governanceLabel}`.toLowerCase();
+      return text.includes(searchLower) && voice.locales.toLowerCase().includes(localeLower);
+    });
+  }, [voices, search, localeFilter]);
+
+  const sorting = useMemo(() => sortingForMode(sortMode), [sortMode]);
 
   const table = useReactTable({
     data: visibleVoices,
     columns,
-    state: { sorting: sortingForMode(sortMode) },
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    state: { sorting },
+    getCoreRowModel: coreRowModel,
+    getSortedRowModel: sortedRowModel,
   });
 
   let status = t("enterToken");
@@ -253,3 +260,5 @@ export function VoicesPanel({ token }: VoicesPanelProps) {
     </section>
   );
 }
+
+export const VoicesPanel = memo(VoicesPanelBase);

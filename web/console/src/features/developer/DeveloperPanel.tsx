@@ -1,6 +1,6 @@
 import { Button } from "@shared/ui/Button";
 import { ConfirmDialog } from "@shared/ui/ConfirmDialog";
-import { useState } from "react";
+import { memo, useState } from "react";
 
 const sanitizedExample = {
   route: "/v1/health",
@@ -14,7 +14,7 @@ const sanitizedExample = {
   ],
 };
 
-export function DeveloperPanel() {
+function DeveloperPanelBase() {
   const [enabled, setEnabled] = useState(false);
 
   return (
@@ -50,3 +50,5 @@ export function DeveloperPanel() {
     </section>
   );
 }
+
+export const DeveloperPanel = memo(DeveloperPanelBase);
