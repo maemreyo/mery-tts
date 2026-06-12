@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from mery_tts.cli.launcher.actions import build_default_registry
+from mery_tts.cli.launcher.actions import build_default_registry, readiness_action
 from mery_tts.cli.launcher.context import build_launcher_context
 from mery_tts.cli.launcher.prompts import (
     PromptAdapter,
@@ -62,13 +62,10 @@ def run_launcher(
             else "optional interactive dependency missing"
         )
         if json_output:
-            print_json(
-                {
-                    "status": "ok",
-                    "reason": reason,
-                    "available_actions": [item.to_json() for item in actions],
-                }
-            )
+            readiness = readiness_action(context).to_json()
+            readiness["reason"] = reason
+            readiness["available_actions"] = [item.to_json() for item in actions]
+            print_json(readiness)
         else:
             render_static_guidance(context, reason=reason)
         return 0

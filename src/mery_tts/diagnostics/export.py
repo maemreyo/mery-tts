@@ -9,6 +9,7 @@ from typing import Any
 from mery_tts import __version__
 from mery_tts.catalog import load_bundled_catalog
 from mery_tts.diagnostics.history import DiagnosticsEventStore
+from mery_tts.diagnostics.recovery import recovery_contract_manifest
 from mery_tts.errors import sanitize_diagnostic
 from mery_tts.smoke.record import SmokeRecordStore
 
@@ -37,6 +38,21 @@ class DiagnosticsExportBuilder:
                 "machine": platform.machine(),
                 "python": platform.python_version(),
             },
+            "privacy": {
+                "local_only": True,
+                "offline": True,
+                "outbound_telemetry": False,
+                "metrics_default": "disabled",
+                "manual_share_only": True,
+                "excluded_material": [
+                    "raw input text",
+                    "tokens and API keys",
+                    "pairing codes",
+                    "reference audio and audio payloads",
+                    "private filesystem paths and URLs",
+                    "model binaries",
+                ],
+            },
             "engine_provider_health": {
                 "doctor_checks": doctor_checks,
             },
@@ -49,6 +65,7 @@ class DiagnosticsExportBuilder:
             "readiness_smoke": {
                 "records": [record.to_dict() for record in smoke_records.values()],
             },
+            "recovery_action_contract": recovery_contract_manifest(),
             "recent_diagnostics": [event.to_dict() for event in events],
             "audit_summary": {
                 "event_count": len(events),

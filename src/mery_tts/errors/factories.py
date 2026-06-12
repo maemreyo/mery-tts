@@ -17,11 +17,27 @@ ScalarDiagnostic = str | int | float | bool
 
 FORBIDDEN_DIAGNOSTIC_KEYS = frozenset(
     {
+        "access_token",
         "api_key",
         "article_content",
+        "audio_b64",
+        "auth_token",
+        "authorization",
+        "credential",
+        "credentials",
+        "download_url",
+        "model_binary",
+        "model_path",
         "page_url",
+        "pairing_code",
+        "private_path",
+        "private_url",
         "raw_engine_message",
         "raw_text",
+        "reference_audio",
+        "secret",
+        "secret_key",
+        "s3_url",
         "text",
         "token",
         "url",
@@ -189,17 +205,46 @@ POLICIES: dict[ErrorCode, ErrorPolicy] = {
 }
 
 
+def _contains_posix_segment(value: str, segment: str) -> bool:
+    return f"/{segment}/" in value
+
+
 def _is_suspicious_diagnostic_string(value: str) -> bool:
     lowered = value.lower()
-    if any(marker in lowered for marker in ("http://", "https://", "file://")):
+    url_markers = ("://",)
+    if any(marker in lowered for marker in url_markers):
         return True
     if "traceback (most recent call last)" in lowered:
         return True
     if lowered.startswith("file ") and ", line " in lowered:
         return True
-    if "bearer " in lowered or "api_key" in lowered or "token=" in lowered:
+    secret_markers = (
+        "access_token",
+        "api_key",
+        "auth_token",
+        "authorization:",
+        "authorization=",
+        "bearer ",
+        "credential",
+        "pairing_code",
+        "secret",
+        "token=",
+        "token:",
+    )
+    if any(marker in lowered for marker in secret_markers):
         return True
-    if "/users/" in lowered or "\\users\\" in lowered:
+    private_path_markers = (
+        "/home/",
+        "/private/",
+        "/users/",
+        "/var/folders/",
+        "/volumes/",
+        "\\temp\\",
+        "\\users\\",
+    )
+    if _contains_posix_segment(lowered, "tmp") or any(
+        marker in lowered for marker in private_path_markers
+    ):
         return True
     return PurePosixPath(value).is_absolute() or PureWindowsPath(value).is_absolute()
 

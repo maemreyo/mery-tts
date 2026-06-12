@@ -1,0 +1,141 @@
+{
+  "artifact_dir": "<artifact-dir>",
+  "commands": [
+    {
+      "argv": [
+        "<python-executable>",
+        "-m",
+        "venv",
+        "<venv-dir>"
+      ],
+      "dry_run": true,
+      "finished_at": "1970-01-01T00:00:00+00:00",
+      "name": "create-venv",
+      "returncode": 0,
+      "started_at": "1970-01-01T00:00:00+00:00",
+      "stderr": "",
+      "stdout": "dry-run <python-executable> -m venv <venv-dir>"
+    },
+    {
+      "argv": [
+        "<venv-dir>/bin/python",
+        "-m",
+        "pip",
+        "install",
+        "--upgrade",
+        "pip"
+      ],
+      "dry_run": true,
+      "finished_at": "1970-01-01T00:00:00+00:00",
+      "name": "upgrade-pip",
+      "returncode": 0,
+      "started_at": "1970-01-01T00:00:00+00:00",
+      "stderr": "",
+      "stdout": "dry-run <venv-dir>/bin/python -m pip install --upgrade pip"
+    },
+    {
+      "argv": [
+        "<venv-dir>/bin/python",
+        "-m",
+        "pip",
+        "install",
+        "."
+      ],
+      "dry_run": true,
+      "finished_at": "1970-01-01T00:00:00+00:00",
+      "name": "install-package",
+      "returncode": 0,
+      "started_at": "1970-01-01T00:00:00+00:00",
+      "stderr": "",
+      "stdout": "dry-run <venv-dir>/bin/python -m pip install ."
+    },
+    {
+      "argv": [
+        "<venv-dir>/bin/mery",
+        "--help"
+      ],
+      "dry_run": true,
+      "finished_at": "1970-01-01T00:00:00+00:00",
+      "name": "help",
+      "returncode": 0,
+      "started_at": "1970-01-01T00:00:00+00:00",
+      "stderr": "",
+      "stdout": "dry-run <venv-dir>/bin/mery --help"
+    },
+    {
+      "argv": [
+        "<venv-dir>/bin/mery",
+        "--version"
+      ],
+      "dry_run": true,
+      "finished_at": "1970-01-01T00:00:00+00:00",
+      "name": "version",
+      "returncode": 0,
+      "started_at": "1970-01-01T00:00:00+00:00",
+      "stderr": "",
+      "stdout": "dry-run <venv-dir>/bin/mery --version"
+    },
+    {
+      "argv": [
+        "<venv-dir>/bin/mery",
+        "engines"
+      ],
+      "dry_run": true,
+      "finished_at": "1970-01-01T00:00:00+00:00",
+      "name": "engines",
+      "returncode": 0,
+      "started_at": "1970-01-01T00:00:00+00:00",
+      "stderr": "",
+      "stdout": "dry-run <venv-dir>/bin/mery engines"
+    },
+    {
+      "argv": [
+        "<venv-dir>/bin/mery",
+        "catalog"
+      ],
+      "dry_run": true,
+      "finished_at": "1970-01-01T00:00:00+00:00",
+      "name": "catalog",
+      "returncode": 0,
+      "started_at": "1970-01-01T00:00:00+00:00",
+      "stderr": "",
+      "stdout": "dry-run <venv-dir>/bin/mery catalog"
+    },
+    {
+      "argv": [
+        "<venv-dir>/bin/mery",
+        "doctor"
+      ],
+      "dry_run": true,
+      "finished_at": "1970-01-01T00:00:00+00:00",
+      "name": "doctor",
+      "returncode": 0,
+      "started_at": "1970-01-01T00:00:00+00:00",
+      "stderr": "",
+      "stdout": "dry-run <venv-dir>/bin/mery doctor"
+    },
+    {
+      "argv": [
+        "<venv-dir>/bin/mery",
+        "launch",
+        "--action",
+        "readiness",
+        "--json"
+      ],
+      "dry_run": true,
+      "finished_at": "1970-01-01T00:00:00+00:00",
+      "name": "launcher-readiness",
+      "returncode": 0,
+      "started_at": "1970-01-01T00:00:00+00:00",
+      "stderr": "",
+      "stdout": "dry-run <venv-dir>/bin/mery launch --action readiness --json"
+    }
+  ],
+  "data_dir": "<data-dir>",
+  "dry_run": true,
+  "generated_at": "1970-01-01T00:00:00+00:00",
+  "harness": "package-install-appliance-smoke",
+  "repo_root": "<repo-root>",
+  "schema_version": "v1",
+  "temp_dir": "<temp-dir>"
+}

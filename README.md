@@ -54,8 +54,9 @@ mery serve
 # 4. Pair your client — prints a 6-char code for the client to claim
 mery pair
 
-# 5. Install English voices (ships with none by default)
-mery voice-packs install pack.en-us
+# 5. Review and install English voices (ships with none by default)
+mery launch --action install-baseline-voice --json
+mery launch --action install-baseline-voice --yes --json
 
 # 6. Synthesize
 mery speak --text "Hello from Mery"
@@ -68,10 +69,10 @@ For a guided terminal experience, install the optional interactive extra and run
 uv tool install "mery-tts-server[interactive]"
 mery launch
 mery launch --list-actions
-mery launch --action status --json
+mery launch --action readiness --json
 ```
 
-The launcher keeps `mery` scriptable: bare `mery` still shows CLI help, while `mery launch` provides a user-first menu for status, Console, pairing, setup URLs, local help, and developer checks when running from a repo checkout.
+The launcher keeps `mery` scriptable: bare `mery` still shows CLI help, while `mery launch` provides a user-first readiness summary plus a menu for status, Console, pairing, setup URLs, local help, and developer checks when running from a repo checkout. The P1 setup path uses the packaged bundled catalog by default: `mery launch --action install-baseline-voice --json` displays the baseline pack/model id, provider, locale, source kind, approximate size, license/provenance, and capability impact without downloading anything; add `--yes` only after reviewing that metadata to start the durable install job.
 
 For the full AI-agent install contract (one link, hand it to an agent, it self-installs), see [`INSTALL_FOR_AGENTS.md`](INSTALL_FOR_AGENTS.md).
 
@@ -91,7 +92,7 @@ If Mery is already running, the extension detects it automatically. Voice instal
 
 ## Status
 
-Phase 1 early access runtime. Core CLI/API, pairing, security, catalog, durable install lifecycle, OpenAI-compatible speech, WAV export, and `make check` are implemented and tested. The package serves `/v1` plus the local web console at `/console` without optional engine downloads because the bundled catalog and console assets are Python package resources. Explicit model installation and remote catalog refresh remain separate user-triggered network actions; real Piper-plus or Kokoro audio requires installing the matching optional engine extra and remains gated by real-runtime validation. Signed app packaging remains future hardening work.
+Phase 1 early access runtime. Core CLI/API, pairing, security, catalog, durable install lifecycle, OpenAI-compatible speech, WAV export, launcher readiness, sanitized support bundles, stable recovery actions, package-manager-owned upgrades, safe repair policy, and `make check` are implemented and tested. P1 ships as a budget-limited Python tool install through `uv tool` or `pipx` on one package release channel; native signed installers, OS services/autostart, release channels, and built-in self-update are deferred. The package serves `/v1` plus the local web console at `/console` without optional engine downloads because the bundled catalog and console assets are Python package resources. Explicit model installation and remote catalog refresh remain separate user-triggered network actions; real Piper-plus or Kokoro audio requires installing the matching optional engine extra and remains gated by real-runtime validation. Language support is model-dependent and exposed through installed/catalog voice locale metadata, not a universal runtime claim.
 
 ---
 
@@ -103,7 +104,7 @@ Phase 1 early access runtime. Core CLI/API, pairing, security, catalog, durable 
 | [`docs/integration/api-reference.md`](docs/integration/api-reference.md) | Full HTTP and WebSocket reference |
 | [`docs/integration/integration-testing-guide.md`](docs/integration/integration-testing-guide.md) | Verified end-to-end guide with test coverage |
 | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) | System design, SoC, layer map |
-| [`docs/adr/INDEX.md`](docs/adr/INDEX.md) | 35 Architecture Decision Records |
+| [`docs/adr/INDEX.md`](docs/adr/INDEX.md) | Architecture Decision Records through ADR-0049 |
 | [`docs/codebase/FOLDER_STRUCTURE.md`](docs/codebase/FOLDER_STRUCTURE.md) | Repo and package layout |
 
 ---

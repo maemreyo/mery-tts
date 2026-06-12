@@ -26,9 +26,12 @@ def test_sanitizer_drops_forbidden_and_nested_metadata() -> None:
     assert (
         sanitize_diagnostic(
             {
+                "auth_token": "secret-token",
                 "token": "secret",
                 "raw_text": "private article",
                 "page_url": "https://example.com/article",
+                "download_url": "s3://private-bucket/model.onnx",
+                "private_path": "/var/folders/private/model.onnx",
                 "nested": {"engine": "raw"},
             }
         )
@@ -41,11 +44,14 @@ def test_sanitizer_drops_suspicious_scalar_values() -> None:
         {
             "engine": "kokoro",
             "path_hint": "/Users/me/.mery/model.onnx",
+            "temp_path_hint": "failed to open /var/folders/c_/private/model.onnx",
             "download_hint": "https://example.com/model.onnx",
+            "private_scheme_hint": "failed to fetch s3://private-bucket/model.onnx",
             "error_hint": "Traceback (most recent call last): secret",
             "frame_hint": 'File "/app/engine.py", line 42, in synthesize',
             "exception_hint": "RuntimeError: failed to load /Users/me/model.onnx",
             "token_hint": "bearer abc123",
+            "auth_token_hint": "auth_token: secret-token",
         }
     ) == {"engine": "kokoro"}
 

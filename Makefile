@@ -1,4 +1,4 @@
-.PHONY: check format-check lint typecheck typecheck-strict test smoke
+.PHONY: check format-check lint typecheck typecheck-strict test smoke package-smoke piper-real-voice-smoke
 
 check: format-check lint typecheck typecheck-strict test smoke
 
@@ -28,3 +28,9 @@ smoke:
 	uv run mery --help >/dev/null
 	uv run mery --version >/dev/null
 	uv run mery engines >/dev/null
+
+package-smoke:
+	uv run python tools/package_smoke/run.py --repo-root . --artifact-dir .scratch/package-smoke
+
+piper-real-voice-smoke:
+	uv run python tools/real_voice_smoke/run.py --repo-root . --artifact-dir .scratch/piper-real-voice-smoke

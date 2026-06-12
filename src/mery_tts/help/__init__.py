@@ -14,6 +14,9 @@ REQUIRED_HELP_TOPIC_IDS = frozenset(
         "catalog-invalid",
         "local-only-air-gapped",
         "diagnostics-export",
+        "package-upgrade",
+        "readiness-recovery-contract",
+        "runtime-safety-policy",
         "unsupported-format-locale",
         "provider-unavailable",
     }

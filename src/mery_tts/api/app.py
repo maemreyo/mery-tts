@@ -52,6 +52,7 @@ from mery_tts.schemas.v1 import (
     EngineSummary,
     HealthResponse,
     InstalledVoicesResponse,
+    LanguageSupportVo,
     ModelDeleteResponse,
     ModelInstallRequest,
     ModelInstallResponse,
@@ -505,6 +506,10 @@ def create_app(
                 engine_id=voice.engine_id,
                 display_name=_display_name(voice.voice_id),
                 supported_locales=voice.supported_locales,
+                language_support=LanguageSupportVo(
+                    supported_locales=voice.supported_locales,
+                    p1_audio_gate=voice.voice_id == "piper-plus.en-us.lessac-low",
+                ),
                 streaming=_voice_streaming_capability_vo(
                     adapter=engine_registry.adapters[voice.engine_id],
                     voice=voice,

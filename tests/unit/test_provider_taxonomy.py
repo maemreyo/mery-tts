@@ -3,8 +3,13 @@ from pathlib import Path
 import pytest
 
 from mery_tts.providers.taxonomy import (
+    CatalogVisibility,
+    ProviderAdmissionGate,
+    ProviderAdmissionTier,
+    ProviderCandidateAdmission,
     ProviderFamily,
     assert_provider_payload_allowed,
+    provider_admission_checklist,
     provider_family_for_payload_kind,
     provider_family_names,
 )
@@ -53,5 +58,78 @@ def test_provider_taxonomy_document_exists() -> None:
     doc = Path("docs/providers/adapter-taxonomy.md")
 
     assert doc.exists()
-    assert "preset/shared-artifact" in doc.read_text()
-    assert "gated/deferred" in doc.read_text()
+    text = doc.read_text()
+    assert "preset/shared-artifact" in text
+    assert "gated/deferred" in text
+    assert "Tier B" in text
+    assert "package-install provider e2e" in text
+
+
+def test_provider_admission_checklist_contains_fit_gates() -> None:
+    assert provider_admission_checklist() == (
+        ProviderAdmissionGate.LOCAL_FIT,
+        ProviderAdmissionGate.APPLIANCE_FIT,
+        ProviderAdmissionGate.QUALITY_FIT,
+        ProviderAdmissionGate.MODERN_FIT,
+    )
+
+
+def test_tier_b_candidate_can_be_first_class_after_all_evidence_passes() -> None:
+    admission = ProviderCandidateAdmission(
+        provider_id="modern-local",
+        tier=ProviderAdmissionTier.MODERN_HIGH_QUALITY_LOCAL,
+        passed_gates=frozenset(provider_admission_checklist()),
+        package_e2e_passed=True,
+        scorecard_complete=True,
+        support_bundle_evidence=True,
+    )
+
+    assert admission.catalog_visibility is CatalogVisibility.USER_MODE
+    assert admission.can_enter_default_catalog is True
+    assert admission.required_badges == frozenset()
+
+
+@pytest.mark.parametrize(
+    "tier",
+    [
+        ProviderAdmissionTier.SPECIALIST_GOVERNANCE_GATED,
+        ProviderAdmissionTier.RESEARCH_UNSUPPORTED,
+    ],
+)
+def test_tier_c_and_d_candidates_stay_out_of_user_mode(tier: ProviderAdmissionTier) -> None:
+    admission = ProviderCandidateAdmission(
+        provider_id="risky-provider",
+        tier=tier,
+        passed_gates=frozenset(provider_admission_checklist()),
+        package_e2e_passed=True,
+        scorecard_complete=True,
+        support_bundle_evidence=True,
+    )
+
+    assert admission.catalog_visibility is CatalogVisibility.DEVELOPER_MODE
+    assert admission.can_enter_default_catalog is False
+    assert "not appliance-ready" in admission.required_badges
+
+
+def test_experimental_candidate_gets_warning_badges_and_no_wizard_exposure() -> None:
+    admission = ProviderCandidateAdmission(
+        provider_id="manual-research",
+        tier=ProviderAdmissionTier.MODERN_HIGH_QUALITY_LOCAL,
+        passed_gates=frozenset(),
+        package_e2e_passed=False,
+        scorecard_complete=False,
+        support_bundle_evidence=False,
+        experimental=True,
+    )
+
+    assert admission.catalog_visibility is CatalogVisibility.DEVELOPER_MODE
+    assert admission.can_enter_default_catalog is False
+    assert admission.required_badges == frozenset(
+        {
+            "experimental",
+            "manual setup",
+            "not appliance-ready",
+            "not supported by wizard",
+            "package e2e may fail",
+        }
+    )

@@ -14,10 +14,11 @@ This docs tree is the canonical home for the Mery TTS Server design.
 - [`codebase/FOLDER_STRUCTURE.md`](codebase/FOLDER_STRUCTURE.md) — annotated repo + package layout.
 - [`codebase/TECH_STACK.md`](codebase/TECH_STACK.md) — packages, logging strategy, DevEX, UX patterns.
 - [`console/DESIGN.md`](console/DESIGN.md) — Console product, visual, architecture, generated API, packaging, dependency, and quality-gate contract.
+- [`providers/admission-policy.md`](providers/admission-policy.md) — ADR-0049 provider scorecard, tiering, visibility, governance, and P2 release checklist.
 
 ## ADRs
 
-- [`adr/INDEX.md`](adr/INDEX.md) — all 35 Architecture Decision Records (ADR-0001–0035), with design decision coverage map.
+- [`adr/INDEX.md`](adr/INDEX.md) — Architecture Decision Records through ADR-0049, with design decision coverage map.
 
 ## Reports
 
@@ -25,6 +26,9 @@ This docs tree is the canonical home for the Mery TTS Server design.
 - [`reports/local-tts-solutions-research.md`](reports/local-tts-solutions-research.md) — engine and local TTS solution research.
 - [`reports/zam-reader-tts-feature-exploration.md`](reports/zam-reader-tts-feature-exploration.md) — context on Zam Reader's current Web Speech TTS feature.
 - [`reports/zam-reader-audio-grill-followup-decisions.md`](reports/zam-reader-audio-grill-followup-decisions.md) — context on Zam Reader audio-session contracts.
+- [`reports/capability-readiness-contract.md`](reports/capability-readiness-contract.md) — P1 capability readiness summary and stable recovery action vocabulary.
+- [`reports/appliance-runtime-safety-policy.md`](reports/appliance-runtime-safety-policy.md) — safe repair, bounded concurrency, cancellation, install retry, and CPU-first UX policy.
+- [`reports/adr-0048-p1-release-gate.md`](reports/adr-0048-p1-release-gate.md) — final P1 release checklist, evidence commands, and deferred P2 scope.
 
 ## Integration
 

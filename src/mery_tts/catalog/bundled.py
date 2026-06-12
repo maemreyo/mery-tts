@@ -1,7 +1,7 @@
 from importlib.resources import files
 
-from mery_tts.catalog.schema import Catalog
-from mery_tts.schemas.v1 import VoiceSummary
+from mery_tts.catalog.schema import Catalog, CatalogModel
+from mery_tts.schemas.v1 import LanguageSupportVo, VoiceSummary
 
 BUNDLED_CATALOG_RESOURCE = "bundled-v1.json"
 
@@ -19,6 +19,7 @@ def bundled_catalog_voice_summaries(catalog: Catalog | None = None) -> list[Voic
             engine_id=model.engine_id,
             display_name=_display_name(model.model_id),
             supported_locales=model.supported_locales or [model.locale],
+            language_support=_language_support_for_model(model),
             risk_class=model.risk_class,
             license_id=model.license_id,
             license_scope=model.license_scope,
@@ -33,6 +34,14 @@ def bundled_catalog_voice_summaries(catalog: Catalog | None = None) -> list[Voic
 
 def _display_name(model_id: str) -> str:
     return model_id.replace(".", " ").replace("-", " ").title()
+
+
+def _language_support_for_model(model: CatalogModel) -> LanguageSupportVo:
+    locales = model.supported_locales or [model.locale]
+    return LanguageSupportVo(
+        supported_locales=locales,
+        p1_audio_gate=model.model_id == "piper-plus.en-us.lessac-low",
+    )
 
 
 __all__ = ["BUNDLED_CATALOG_RESOURCE", "bundled_catalog_voice_summaries", "load_bundled_catalog"]

@@ -12,6 +12,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from mery_tts.errors.factories import sanitize_diagnostic
+
 
 class SmokeStatus(StrEnum):
     PASSED = "passed"
@@ -65,14 +67,12 @@ class SmokeRecord:
 
 def _sanitize_failure(detail: str) -> str:
     """Sanitize failure details to remove paths, tokens, and sensitive data."""
-    sanitized = detail
-    for marker in ("Traceback", "traceback", "File ", "/Users/", "/home/"):
-        if marker in sanitized:
-            sanitized = "diagnostic omitted"
-            break
-    if len(sanitized) > 200:
-        sanitized = sanitized[:200] + "..."
-    return sanitized
+    sanitized = sanitize_diagnostic({"failure_detail": detail}).get("failure_detail")
+    if sanitized is None:
+        return "diagnostic omitted"
+    if len(str(sanitized)) > 200:
+        return str(sanitized)[:200] + "..."
+    return str(sanitized)
 
 
 class SmokeRecordStore:

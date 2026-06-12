@@ -10,6 +10,7 @@ from mery_tts.schemas.v1 import (
     HelperStatusChangedEvent,
     InstalledVoicesResponse,
     InstallEvent,
+    LanguageSupportVo,
     ModelDeleteResponse,
     ModelInstallRequest,
     ModelInstallResponse,
@@ -114,6 +115,29 @@ def test_backend_selection_schema_is_additive_on_engine_and_provider_summaries()
             display_name="Legacy",
         ).model_dump()
     )
+
+
+def test_voice_summary_exposes_voice_specific_language_support() -> None:
+    language_support = LanguageSupportVo(supported_locales=["vi-vn", "en-us", "vi-VN"])
+    voice = VoiceSummary(
+        voice_id="voice.vi.demo",
+        engine_id="piper-plus",
+        display_name="Vietnamese Demo",
+        supported_locales=["vi-vn", "en-us", "vi-VN"],
+        language_support=language_support,
+    )
+    legacy_voice = VoiceSummary(
+        voice_id="voice.legacy",
+        engine_id="piper-plus",
+        display_name="Legacy",
+    )
+
+    assert voice.language_support is not None
+    assert voice.language_support.scope == "voice"
+    assert voice.language_support.supported_locales == ["vi-VN", "en-US"]
+    assert "specific to this installed or catalog voice" in voice.language_support.wording
+    assert voice.language_support.p1_audio_gate is False
+    assert legacy_voice.language_support is None
 
 
 def test_voice_summary_exposes_additive_supported_locales() -> None:

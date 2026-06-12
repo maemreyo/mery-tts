@@ -2,6 +2,98 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 
+class ProviderAdmissionGate(StrEnum):
+    LOCAL_FIT = "local-fit"
+    APPLIANCE_FIT = "appliance-fit"
+    QUALITY_FIT = "quality-fit"
+    MODERN_FIT = "modern-fit"
+
+
+class ProviderAdmissionTier(StrEnum):
+    APPLIANCE_BASELINE = "tier-a-appliance-baseline"
+    MODERN_HIGH_QUALITY_LOCAL = "tier-b-modern-high-quality-local"
+    SPECIALIST_GOVERNANCE_GATED = "tier-c-specialist-governance-gated"
+    RESEARCH_UNSUPPORTED = "tier-d-research-unsupported"
+
+
+class CatalogVisibility(StrEnum):
+    USER_MODE = "user-mode"
+    DEVELOPER_MODE = "developer-mode"
+    HIDDEN = "hidden"
+
+
+_ADMISSION_CHECKLIST = (
+    ProviderAdmissionGate.LOCAL_FIT,
+    ProviderAdmissionGate.APPLIANCE_FIT,
+    ProviderAdmissionGate.QUALITY_FIT,
+    ProviderAdmissionGate.MODERN_FIT,
+)
+
+_EXPERIMENTAL_BADGES = frozenset(
+    {
+        "experimental",
+        "manual setup",
+        "not appliance-ready",
+        "not supported by wizard",
+        "package e2e may fail",
+    }
+)
+
+_GOVERNANCE_BADGES = frozenset({"not appliance-ready", "not supported by wizard"})
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderCandidateAdmission:
+    provider_id: str
+    tier: ProviderAdmissionTier
+    passed_gates: frozenset[ProviderAdmissionGate]
+    package_e2e_passed: bool
+    scorecard_complete: bool
+    support_bundle_evidence: bool
+    experimental: bool = False
+
+    @property
+    def passed_all_fit_gates(self) -> bool:
+        return all(gate in self.passed_gates for gate in _ADMISSION_CHECKLIST)
+
+    @property
+    def requires_governance(self) -> bool:
+        return self.tier is ProviderAdmissionTier.SPECIALIST_GOVERNANCE_GATED
+
+    @property
+    def is_unsupported_research(self) -> bool:
+        return self.tier is ProviderAdmissionTier.RESEARCH_UNSUPPORTED
+
+    @property
+    def can_enter_default_catalog(self) -> bool:
+        if self.experimental or self.requires_governance or self.is_unsupported_research:
+            return False
+        return (
+            self.passed_all_fit_gates
+            and self.package_e2e_passed
+            and self.scorecard_complete
+            and self.support_bundle_evidence
+        )
+
+    @property
+    def catalog_visibility(self) -> CatalogVisibility:
+        if self.can_enter_default_catalog:
+            return CatalogVisibility.USER_MODE
+        if self.experimental or self.requires_governance or self.is_unsupported_research:
+            return CatalogVisibility.DEVELOPER_MODE
+        return CatalogVisibility.HIDDEN
+
+    @property
+    def required_badges(self) -> frozenset[str]:
+        if self.experimental:
+            return _EXPERIMENTAL_BADGES
+        if self.requires_governance or self.is_unsupported_research:
+            return _GOVERNANCE_BADGES
+        if not self.can_enter_default_catalog:
+            return frozenset({"not appliance-ready", "package e2e may fail"})
+        return frozenset()
+
+
 @dataclass(frozen=True, slots=True)
 class ProviderFamilySpec:
     name: str
@@ -38,6 +130,10 @@ _PAYLOAD_KINDS: dict[ProviderFamily, frozenset[str]] = {
     ProviderFamily.DESIGNED: frozenset({"designed"}),
     ProviderFamily.DIALOGUE: frozenset({"designed", "reference"}),
 }
+
+
+def provider_admission_checklist() -> tuple[ProviderAdmissionGate, ...]:
+    return _ADMISSION_CHECKLIST
 
 
 def provider_family_names() -> set[str]:

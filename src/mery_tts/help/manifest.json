@@ -7,6 +7,9 @@
     {"topic_id": "catalog-invalid", "title": "Catalog invalid, signature, or checksum", "body_format": "markdown", "package_path": "topics/catalog-invalid.md"},
     {"topic_id": "local-only-air-gapped", "title": "Local-only and air-gapped mode", "body_format": "markdown", "package_path": "topics/local-only-air-gapped.md"},
     {"topic_id": "diagnostics-export", "title": "Diagnostics export", "body_format": "markdown", "package_path": "topics/diagnostics-export.md"},
+    {"topic_id": "package-upgrade", "title": "Package upgrade and runtime repair", "body_format": "markdown", "package_path": "topics/package-upgrade.md"},
+    {"topic_id": "readiness-recovery-contract", "title": "Readiness and recovery action contract", "body_format": "markdown", "package_path": "topics/readiness-recovery-contract.md"},
+    {"topic_id": "runtime-safety-policy", "title": "Runtime safety policy", "body_format": "markdown", "package_path": "topics/runtime-safety-policy.md"},
     {"topic_id": "unsupported-format-locale", "title": "Unsupported format or locale", "body_format": "markdown", "package_path": "topics/unsupported-format-locale.md"},
     {"topic_id": "provider-unavailable", "title": "Provider unavailable", "body_format": "markdown", "package_path": "topics/provider-unavailable.md"}
   ]

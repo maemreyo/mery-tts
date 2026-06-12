@@ -80,6 +80,22 @@ def test_packaging_metadata_declares_typed_src_package() -> None:
     assert (ROOT / "src" / "mery_tts" / "py.typed").is_file()
 
 
+def test_package_install_smoke_harness_is_documented() -> None:
+    makefile = (ROOT / "Makefile").read_text()
+    report = (ROOT / "docs" / "reports" / "package-install-appliance-smoke.md").read_text()
+
+    package_smoke_command = (
+        "uv run python tools/package_smoke/run.py "
+        "--repo-root . --artifact-dir .scratch/package-smoke"
+    )
+
+    assert "package-smoke:" in makefile
+    assert package_smoke_command in makefile
+    assert "make package-smoke" in report
+    assert "tools/package_smoke/run.py" in report
+    assert "package-smoke-result.json" in report
+
+
 def test_packaging_runtime_files_are_not_hidden_by_ignore_rules() -> None:
     gitignore = (ROOT / ".gitignore").read_text()
     pyproject = (ROOT / "pyproject.toml").read_text()
@@ -94,6 +110,32 @@ def test_packaging_runtime_files_are_not_hidden_by_ignore_rules() -> None:
     assert '"/.scratch"' in pyproject
     assert '"/models"' in pyproject
     assert '"/diagnostics"' in pyproject
+
+
+def test_adr_0048_p1_release_gate_is_documented() -> None:
+    report = (ROOT / "docs" / "reports" / "adr-0048-p1-release-gate.md").read_text()
+    readme = (ROOT / "README.md").read_text()
+    docs_index = (ROOT / "docs" / "README.md").read_text()
+
+    required_phrases = [
+        "make check",
+        "make package-smoke",
+        "make piper-real-voice-smoke",
+        "mery launch",
+        "support bundle",
+        "stable-additive",
+        "CPU is the P1 baseline",
+        "review-pass-needed",
+        "Native signed installer",
+        "One-click factory reset",
+    ]
+    for phrase in required_phrases:
+        assert phrase in report
+    assert "adr-0048-p1-release-gate.md" in docs_index
+    assert "uv tool" in readme
+    assert "pipx" in readme
+    assert "one package release channel" in readme
+    assert "Language support is model-dependent" in readme
 
 
 def test_engine_dependencies_are_optional_extras_not_default_dependencies() -> None:

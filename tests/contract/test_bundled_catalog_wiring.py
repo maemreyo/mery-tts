@@ -22,6 +22,25 @@ def _make_client() -> TestClient:
     return TestClient(app)
 
 
+def test_catalog_voices_expose_voice_specific_language_support() -> None:
+    with _make_client() as client:
+        response = client.get("/v1/catalog/voices", headers=AUTH_HEADERS)
+
+    assert response.status_code == 200
+    voices = {voice["voice_id"]: voice for voice in response.json()["voices"]}
+    baseline = voices["catalog.piper-plus.en-us.lessac-low"]
+    assert baseline["supported_locales"] == ["en-US"]
+    assert baseline["language_support"] == {
+        "scope": "voice",
+        "supported_locales": ["en-US"],
+        "wording": "Language support is specific to this installed or catalog voice.",
+        "p1_audio_gate": True,
+    }
+    vi_voice = voices["catalog.piper-plus.vi-vn.demo"]
+    assert vi_voice["language_support"]["supported_locales"] == ["vi-VN"]
+    assert vi_voice["language_support"]["p1_audio_gate"] is False
+
+
 def test_voice_packs_returns_bundled_locale_packs() -> None:
     """Bundled catalog groups voices by locale; expect en-us and vi-vn packs."""
     with _make_client() as client:

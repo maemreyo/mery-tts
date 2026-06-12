@@ -88,6 +88,12 @@ def test_installed_voices_returns_persisted_voice_manifests(tmp_path: Path) -> N
             "display_name": "Voice Kokoro Af",
             "streaming": None,
             "capabilities": {"word_marks": True},
+            "language_support": {
+                "scope": "voice",
+                "supported_locales": [],
+                "wording": "Language support is specific to this installed or catalog voice.",
+                "p1_audio_gate": False,
+            },
         }
     ]
 

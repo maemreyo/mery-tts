@@ -12,32 +12,81 @@ from mery_tts.cli.launcher.types import (
     LauncherAction,
     LauncherContext,
 )
+from mery_tts.runtime_policy import appliance_runtime_policy
 
 
 def status_action(context: LauncherContext) -> ActionResult:
     config = services.load_config(context.paths)
-    reachable = services.is_server_reachable(config.port)
-    doctor_results = services.run_doctor_summary(context.paths)
-    status: ActionStatus = "ok"
-    if any(result["status"] == "fail" for result in doctor_results):
-        status = "error"
-    elif any(result["status"] == "warn" for result in doctor_results):
-        status = "warning"
+    readiness = services.readiness_summary(context.paths)
+    action_status = _action_status_for_readiness(str(readiness["status"]))
     data = {
-        "server": "running" if reachable else "stopped",
+        **readiness,
         "console_url": services.console_url(config),
-        "auth": "configured" if config.auth_token else "missing",
         "port": config.port,
-        "installed_voice_count": services.installed_voice_count(context.paths),
-        "storage": services.storage_summary(context.paths),
-        "doctor": doctor_results,
     }
     return ActionResult(
-        status=status,
+        status=action_status,
         title="Mery status",
-        message="Server is reachable." if reachable else "Server is not running.",
+        message=_readiness_message(str(readiness["status"])),
         data=data,
     )
+
+
+def readiness_action(context: LauncherContext) -> ActionResult:
+    readiness = services.readiness_summary(context.paths)
+    return ActionResult(
+        status=_action_status_for_readiness(str(readiness["status"])),
+        title="Mery readiness",
+        message=_readiness_message(str(readiness["status"])),
+        data=readiness,
+    )
+
+
+def install_baseline_voice_action(context: LauncherContext) -> ActionResult:
+    if not context.yes:
+        metadata = services.bundled_baseline_install_metadata()
+        return ActionResult(
+            status="cancelled",
+            title="Install bundled baseline voice",
+            message="Review install metadata and re-run with --yes to start the install job.",
+            data={
+                **metadata,
+                "recovery_action": "launcher.install_baseline_voice.confirm",
+                "confirmation_required": True,
+                "job_started": False,
+            },
+        )
+
+    result = services.start_bundled_baseline_install(context.paths)
+    if not result.get("available"):
+        return ActionResult(
+            status="error",
+            title="Install bundled baseline voice",
+            message="No bundled baseline voice candidate is available.",
+            data=result,
+        )
+    return ActionResult(
+        status="ok",
+        title="Install bundled baseline voice",
+        message="Install job started. Poll the returned job id for progress.",
+        data={**result, "confirmation_required": True, "job_started": True},
+    )
+
+
+def _action_status_for_readiness(readiness_status: str) -> ActionStatus:
+    if readiness_status == "ready":
+        return "ok"
+    if readiness_status == "degraded":
+        return "warning"
+    return "error"
+
+
+def _readiness_message(readiness_status: str) -> str:
+    if readiness_status == "ready":
+        return "Mery is ready for local speech."
+    if readiness_status == "degraded":
+        return "Mery needs one or more setup steps before dependable local speech."
+    return "Mery is blocked until required setup problems are fixed."
 
 
 def open_console_action(context: LauncherContext) -> ActionResult:
@@ -52,6 +101,54 @@ def open_console_action(context: LauncherContext) -> ActionResult:
     )
 
 
+def server_status_action(context: LauncherContext) -> ActionResult:
+    status = services.server_session_status(context.paths)
+    return ActionResult(
+        status="ok" if status["reachable"] else "warning",
+        title="Server session status",
+        message=(
+            "Server is reachable."
+            if status["reachable"]
+            else "No server is reachable on the configured port."
+        ),
+        data=status,
+    )
+
+
+def start_server_action(context: LauncherContext) -> ActionResult:
+    result = services.start_session_server(context.paths)
+    if result.get("reason") == "already_reachable":
+        return ActionResult(
+            status="warning",
+            title="Start session-scoped server",
+            message="A server is already reachable; launcher did not start a duplicate.",
+            data=result,
+        )
+    return ActionResult(
+        status="ok",
+        title="Start session-scoped server",
+        message="Launcher-owned server process started for this session.",
+        data=result,
+    )
+
+
+def stop_server_action(context: LauncherContext) -> ActionResult:
+    result = services.stop_session_server(context.paths)
+    if result.get("stopped") is True:
+        return ActionResult(
+            status="ok",
+            title="Stop session-scoped server",
+            message="Stopped the launcher-owned server process.",
+            data=result,
+        )
+    return ActionResult(
+        status="warning",
+        title="Stop session-scoped server",
+        message="No launcher-owned server process was stopped.",
+        data=result,
+    )
+
+
 def serve_foreground_action(context: LauncherContext) -> ActionResult:
     config = services.load_config(context.paths)
     services.serve_foreground(context.paths)
@@ -60,6 +157,20 @@ def serve_foreground_action(context: LauncherContext) -> ActionResult:
         title="Server stopped",
         message="Foreground server exited.",
         data={"port": config.port},
+    )
+
+
+def pairing_status_action(context: LauncherContext) -> ActionResult:
+    status = services.pairing_status(context.paths)
+    return ActionResult(
+        status="ok" if status["paired"] else "warning",
+        title="Pairing status",
+        message=(
+            "Pairing token is configured."
+            if status["paired"]
+            else "Pair a client before using protected local API endpoints."
+        ),
+        data=status,
     )
 
 
@@ -93,6 +204,28 @@ def api_docs_action(context: LauncherContext) -> ActionResult:
         title="API docs",
         message=f"Docs: {docs}",
         data={"docs_url": docs, "openapi_url": openapi},
+    )
+
+
+def support_bundle_action(context: LauncherContext) -> ActionResult:
+    result = services.write_support_bundle(context.paths)
+    return ActionResult(
+        status="ok",
+        title="Sanitized support bundle",
+        message="Wrote a local diagnostics export; review it before sharing manually.",
+        data=result,
+    )
+
+
+def runtime_policy_action(context: LauncherContext) -> ActionResult:
+    _ = context
+    return ActionResult(
+        status="ok",
+        title="Appliance runtime policy",
+        message=(
+            "Safe repair, bounded local use, cancellation, install retry, and CPU-first policy."
+        ),
+        data=appliance_runtime_policy(),
     )
 
 
@@ -151,11 +284,48 @@ def build_default_registry() -> ActionRegistry:
     return ActionRegistry(
         actions=(
             LauncherAction(
+                action_id="readiness",
+                label="Readiness wizard",
+                description="Show first-run appliance readiness and recovery steps.",
+                group=ActionGroup.QUICK,
+                handler=readiness_action,
+            ),
+            LauncherAction(
                 action_id="status",
                 label="Status / Doctor summary",
                 description="Show server, auth, engine, voice, storage, and doctor status.",
                 group=ActionGroup.QUICK,
                 handler=status_action,
+            ),
+            LauncherAction(
+                action_id="install-baseline-voice",
+                label="Install bundled baseline voice",
+                description="Review and install the P1 English bundled-catalog voice candidate.",
+                group=ActionGroup.QUICK,
+                handler=install_baseline_voice_action,
+            ),
+            LauncherAction(
+                action_id="server-status",
+                label="Server session status",
+                description="Show local reachability and launcher-owned process status.",
+                group=ActionGroup.QUICK,
+                handler=server_status_action,
+            ),
+            LauncherAction(
+                action_id="start-server",
+                label="Start session-scoped server",
+                description="Start a launcher-owned server process without OS service setup.",
+                group=ActionGroup.QUICK,
+                handler=start_server_action,
+                confirm_before_run=True,
+            ),
+            LauncherAction(
+                action_id="stop-server",
+                label="Stop session-scoped server",
+                description="Stop only the server process this launcher started.",
+                group=ActionGroup.QUICK,
+                handler=stop_server_action,
+                confirm_before_run=True,
             ),
             LauncherAction(
                 action_id="open-console",
@@ -172,6 +342,13 @@ def build_default_registry() -> ActionRegistry:
                 handler=serve_foreground_action,
                 confirm_before_run=True,
                 blocks_process=True,
+            ),
+            LauncherAction(
+                action_id="pairing-status",
+                label="Pairing status",
+                description="Show token presence and setup URL without revealing secrets.",
+                group=ActionGroup.QUICK,
+                handler=pairing_status_action,
             ),
             LauncherAction(
                 action_id="pair",
@@ -193,6 +370,22 @@ def build_default_registry() -> ActionRegistry:
                 description="Show local FastAPI docs and OpenAPI URLs.",
                 group=ActionGroup.DEVELOPER,
                 handler=api_docs_action,
+            ),
+            LauncherAction(
+                action_id="support-bundle",
+                label="Export sanitized support bundle",
+                description="Write a local diagnostics bundle for manual review and sharing.",
+                group=ActionGroup.DEVELOPER,
+                handler=support_bundle_action,
+            ),
+            LauncherAction(
+                action_id="runtime-policy",
+                label="Runtime safety policy",
+                description=(
+                    "Show safe repair, bounded concurrency, cancellation, and CPU-first policy."
+                ),
+                group=ActionGroup.DEVELOPER,
+                handler=runtime_policy_action,
             ),
             LauncherAction(
                 action_id="paths",

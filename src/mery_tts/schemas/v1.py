@@ -102,6 +102,20 @@ class VoiceCapabilitiesVo(BaseModel):
     word_marks: bool = False
 
 
+class LanguageSupportVo(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    scope: Literal["voice"] = "voice"
+    supported_locales: list[Bcp47Locale] = Field(default_factory=list)
+    wording: str = "Language support is specific to this installed or catalog voice."
+    p1_audio_gate: bool = False
+
+    @field_validator("supported_locales")
+    @classmethod
+    def normalize_supported_locales(cls, value: list[str]) -> list[str]:
+        return normalize_bcp47_locales(value)
+
+
 class SpeechMarkVo(BaseModel):
     model_config = ConfigDict(frozen=True)
     word: str
@@ -133,6 +147,7 @@ class VoiceSummary(BaseModel):
     trust_tier: CatalogTrustTier = "bundled_curated"
     streaming: StreamingCapabilityInfoVo | None = None
     capabilities: VoiceCapabilitiesVo | None = None
+    language_support: LanguageSupportVo | None = None
 
     @field_validator("supported_locales")
     @classmethod
