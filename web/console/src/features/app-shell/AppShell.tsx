@@ -13,7 +13,7 @@ import { FieldGroup, FormField } from "@shared/ui/FormField";
 import { Panel } from "@shared/ui/Panel";
 import { SwitchField } from "@shared/ui/SwitchField";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { SectionTabs } from "./SectionTabs";
 
@@ -59,10 +59,16 @@ export function AppShell() {
               error={form.formState.errors.token?.message}
               {...form.register("token")}
             />
-            <SwitchField
-              checked={form.watch("remember")}
-              label="Remember on this device"
-              onCheckedChange={(checked) => form.setValue("remember", checked)}
+            <Controller
+              control={form.control}
+              name="remember"
+              render={({ field }) => (
+                <SwitchField
+                  checked={field.value}
+                  label="Remember on this device"
+                  onCheckedChange={field.onChange}
+                />
+              )}
             />
             <Button type="submit" variant="primary">
               Use token

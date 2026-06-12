@@ -13,7 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { VoiceViewModel } from "./voicesApi";
 import {
   loadVoiceViewModels,
@@ -115,13 +115,15 @@ export function VoicesPanel({ token }: VoicesPanelProps) {
   });
 
   const installStatus = installJobQuery.data?.status;
-  if (
-    installStatus === "succeeded" ||
-    installStatus === "failed" ||
-    installStatus === "cancelled"
-  ) {
-    void queryClient.invalidateQueries({ queryKey: ["voices", token] });
-  }
+  useEffect(() => {
+    if (
+      installStatus === "succeeded" ||
+      installStatus === "failed" ||
+      installStatus === "cancelled"
+    ) {
+      void queryClient.invalidateQueries({ queryKey: ["voices", token] });
+    }
+  }, [installStatus, queryClient, token]);
 
   const voices = voicesQuery.data ?? [];
   const visibleVoices = voices.filter((voice) => {

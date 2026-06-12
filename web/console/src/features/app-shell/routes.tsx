@@ -1,6 +1,3 @@
-import { createRootRoute, createRoute } from "@tanstack/react-router";
-import type { ReactNode } from "react";
-
 export type ConsoleSection = "voices" | "playground" | "health" | "developer";
 
 export const consoleSections = [
@@ -13,15 +10,3 @@ export const consoleSections = [
   label: string;
   hash: `#${ConsoleSection}`;
 }>;
-
-export function createConsoleRouteTree(AppComponent: () => ReactNode) {
-  const rootRoute = createRootRoute({ component: AppComponent });
-  const sectionRoutes = consoleSections.map((section) =>
-    createRoute({
-      getParentRoute: () => rootRoute,
-      path: section.id,
-      component: AppComponent,
-    }),
-  );
-  return rootRoute.addChildren(sectionRoutes);
-}

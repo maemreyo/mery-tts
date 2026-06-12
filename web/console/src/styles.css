@@ -148,7 +148,7 @@ a:visited {
   text-decoration: none;
 }
 
-.tab-trigger[data-status="active"] {
+.tab-trigger[data-state="active"] {
   color: #101827;
   background: #bae6fd;
   font-weight: 800;
