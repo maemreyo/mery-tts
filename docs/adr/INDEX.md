@@ -48,6 +48,7 @@ These ADRs distill the 27 design decisions from
 | Interactive CLI launcher grill | ADR-0047 | Guided launcher architecture and automation surfaces |
 | Dependable appliance roadmap grill | ADR-0048 | P1 dependable local TTS appliance milestone |
 | Local-modern provider admission grill | ADR-0049 | P2 provider admission gates, tiers, scorecards, and governance boundary |
+| Guided next-command suggestions grill | ADR-0050 | CLI/launcher state-aware suggestions for setup/onboarding DevExp |
 | Grill 04, Q41–Q46 | ADR-0018 | Provider rollout strategy |
 | Grill 06 | ADR-0019 | Provider adapter taxonomy |
 | Grill 05, Q47–Q55 | ADR-0020 | Web console architecture |
@@ -117,6 +118,7 @@ These ADRs distill the 27 design decisions from
 | [ADR-0047](ADR-0047-interactive-cli-launcher-architecture.md) | Interactive CLI Launcher Architecture | ⏳ Proposed |
 | [ADR-0048](ADR-0048-dependable-local-tts-appliance.md) | Dependable Local TTS Appliance Milestone | ⏳ Proposed |
 | [ADR-0049](ADR-0049-local-modern-provider-admission-policy.md) | Local-Modern Provider Admission Policy | ⏳ Proposed |
+| [ADR-0050](ADR-0050-guided-next-command-suggestions.md) | Guided Next-Command Suggestions | ✅ Accepted |
 
 ---
 
