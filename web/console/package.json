@@ -18,7 +18,9 @@
     "generate:api": "node scripts/generate-openapi-client.mjs",
     "check:api": "node scripts/check-generated-api-fresh.mjs",
     "check:fresh": "node scripts/check-build-fresh.mjs",
-    "console-check": "pnpm lint && pnpm typecheck && pnpm test && pnpm boundary && pnpm unused && pnpm check:api && pnpm check:fresh && pnpm e2e"
+    "generate:design": "node scripts/generate-design-tokens.mjs",
+    "check:design": "node scripts/check-design-fresh.mjs",
+    "console-check": "pnpm lint && pnpm typecheck && pnpm test && pnpm boundary && pnpm unused && pnpm check:api && pnpm check:design && pnpm check:fresh && pnpm e2e"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -43,6 +45,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.10.1",
     "@biomejs/biome": "^1.9.4",
+    "@google/design.md": "^0.2.0",
     "@playwright/test": "^1.49.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",

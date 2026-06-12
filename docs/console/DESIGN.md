@@ -3,65 +3,99 @@ version: alpha
 name: Mery Console
 description: Offline-first local TTS control plane with calm User Mode and explicit Developer Mode diagnostics.
 colors:
-  primary: "#101827"
-  surface: "rgba(255, 255, 255, 0.08)"
-  surface-subtle: "rgba(255, 255, 255, 0.06)"
-  text: "#eef4ff"
-  muted: "#cbd5e1"
+  bg-base: "#0a111e"
+  bg-surface: "#0f1b2d"
+  bg-raised: "#172035"
+  bg-hover: "rgba(186, 230, 253, 0.06)"
+  bg-active: "rgba(186, 230, 253, 0.12)"
+  border: "rgba(186, 230, 253, 0.10)"
+  border-strong: "rgba(186, 230, 253, 0.24)"
+  text-primary: "#e2e8f0"
+  text-secondary: "#94a3b8"
+  text-muted: "#64748b"
+  text-inverse: "#0a111e"
   accent: "#bae6fd"
-  success: "#bbf7d0"
-  warning: "#fde68a"
-  danger: "#fecaca"
+  accent-dim: "rgba(186, 230, 253, 0.15)"
+  accent-hover: "#93c5fd"
+  success: "#4ade80"
+  success-bg: "rgba(74, 222, 128, 0.12)"
+  warning: "#fbbf24"
+  warning-bg: "rgba(251, 191, 36, 0.12)"
+  error: "#f87171"
+  error-bg: "rgba(248, 113, 113, 0.12)"
+  muted: "#94a3b8"
+  muted-bg: "rgba(148, 163, 184, 0.10)"
+layout:
+  sidebar-w: 220px
+  topbar-h: 56px
 typography:
   heading-lg:
-    fontFamily: Inter, ui-sans-serif, system-ui, sans-serif
-    fontSize: 1.875rem
-    fontWeight: 800
-    lineHeight: 1.2
-  heading-md:
     fontFamily: Inter, ui-sans-serif, system-ui, sans-serif
     fontSize: 1.25rem
     fontWeight: 800
     lineHeight: 1.3
+  heading-md:
+    fontFamily: Inter, ui-sans-serif, system-ui, sans-serif
+    fontSize: 0.9375rem
+    fontWeight: 700
+    lineHeight: 1.4
   body-md:
     fontFamily: Inter, ui-sans-serif, system-ui, sans-serif
-    fontSize: 1rem
+    fontSize: 0.875rem
     fontWeight: 400
     lineHeight: 1.5
   label-strong:
     fontFamily: Inter, ui-sans-serif, system-ui, sans-serif
-    fontSize: 0.875rem
-    fontWeight: 800
+    fontSize: 0.75rem
+    fontWeight: 700
+    lineHeight: 1.4
+  label-xs:
+    fontFamily: Inter, ui-sans-serif, system-ui, sans-serif
+    fontSize: 0.625rem
+    fontWeight: 700
     lineHeight: 1.4
 rounded:
-  sm: 8px
-  md: 12px
-  lg: 14px
+  sm: 6px
+  md: 8px
+  lg: 12px
+  xl: 16px
+  full: 9999px
 spacing:
   xs: 4px
   sm: 8px
   md: 12px
   lg: 16px
   xl: 20px
+  xxl: 24px
+  xxxl: 32px
+shadow:
+  sm: 0 1px 3px rgba(0, 0, 0, 0.4)
+  md: 0 4px 16px rgba(0, 0, 0, 0.5)
 components:
   panel:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.text}"
-    rounded: "{rounded.md}"
+    backgroundColor: "{colors.bg-raised}"
+    borderColor: "{colors.border}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
     padding: 20px
   button-primary:
     backgroundColor: "{colors.accent}"
-    textColor: "{colors.primary}"
-    rounded: "{rounded.sm}"
-    padding: 10px 14px
-  diagnostic-row:
-    backgroundColor: "{colors.surface-subtle}"
-    textColor: "{colors.text}"
+    textColor: "{colors.text-inverse}"
     rounded: "{rounded.md}"
+    padding: 7px 12px
+  button-secondary:
+    backgroundColor: "transparent"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.md}"
+    padding: 7px 12px
+  diagnostic-row:
+    backgroundColor: "{colors.bg-hover}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
     padding: 10px
   developer-panel:
-    backgroundColor: "transparent"
-    textColor: "{colors.text}"
+    backgroundColor: "{colors.bg-hover}"
+    textColor: "{colors.text-primary}"
     rounded: "{rounded.lg}"
     padding: 12px
 ---
@@ -78,12 +112,12 @@ Mery-specific engineering constraints are extensions below the visual design sys
 
 The palette is optimized for local diagnostics sessions where users may spend time reading status detail.
 
-- **Primary (`#101827`)** is the app background: dark blue-gray, lower glare than pure black.
-- **Text (`#eef4ff`)** is the default foreground for readable long-form diagnostic copy.
-- **Muted (`#cbd5e1`)** is for helper text, retention notes, and secondary metadata.
-- **Accent (`#bae6fd`)** labels diagnostic keys, Developer Mode borders, and primary local actions.
-- **Surface tokens** use translucent white so panels remain visually grouped without looking like modal chrome.
-- **Success/warning/danger** are reserved for state badges and must be paired with text labels, never color alone.
+- **bg-base (`#0a111e`)** is the app background: dark blue-gray, lower glare than pure black.
+- **text-primary (`#e2e8f0`)** is the default foreground for readable long-form diagnostic copy.
+- **text-muted (`#64748b`)** is for helper text, retention notes, and secondary metadata.
+- **accent (`#bae6fd`)** labels diagnostic keys, Developer Mode borders, and primary local actions.
+- **bg-surface tokens** use dark translucent panels so surfaces remain visually grouped without looking like modal chrome.
+- **success/warning/error** are reserved for state badges and must be paired with text labels, never color alone.
 
 ## Typography
 
@@ -120,9 +154,9 @@ Mery Console uses restrained depth. Avoid heavy shadows and floating glassmorphi
 
 Shapes are practical and consistent.
 
-- Small controls use 8px radius.
-- Cards and diagnostic rows use 12px radius.
-- Developer Mode containers use 14px radius with dashed accent borders.
+- Small controls use 6px radius.
+- Cards and diagnostic rows use 8px radius.
+- Developer Mode containers use 12px radius with dashed accent borders.
 - Avoid pill overuse; reserve badges for machine states such as `ready`, `degraded`, `missing-extra`, `cpu-only`, and `accelerated`.
 
 ## Components

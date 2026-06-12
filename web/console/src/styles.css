@@ -1,62 +1,51 @@
 @import "tailwindcss";
+@import "./theme.css";
 
-/* ─── Design tokens ─────────────────────────────────────────────────────── */
+/* ─── Token aliases for backward compatibility ───────────────────────────────
+   Old token names map to the @theme tokens defined in theme.css.
+   These preserve existing component and layout styles without changes.
+   ────────────────────────────────────────────────────────────────────────── */
 :root {
-  /* Background layers */
-  --bg-base:     #0a111e;
-  --bg-surface:  #0f1b2d;
-  --bg-raised:   #172035;
-  --bg-hover:    rgba(186, 230, 253, 0.06);
-  --bg-active:   rgba(186, 230, 253, 0.12);
-
-  /* Border */
-  --border:        rgba(186, 230, 253, 0.10);
-  --border-strong: rgba(186, 230, 253, 0.24);
-
-  /* Text */
-  --text-primary:   #e2e8f0;
-  --text-secondary: #94a3b8;
-  --text-muted:     #64748b;
-  --text-inverse:   #0a111e;
-
-  /* Accent (sky-blue family) */
-  --accent:       #bae6fd;
-  --accent-dim:   rgba(186, 230, 253, 0.15);
-  --accent-hover: #93c5fd;
-
-  /* Semantic colours */
-  --success:    #4ade80;
-  --success-bg: rgba(74, 222, 128, 0.12);
-  --warning:    #fbbf24;
-  --warning-bg: rgba(251, 191, 36, 0.12);
-  --error:      #f87171;
-  --error-bg:   rgba(248, 113, 113, 0.12);
-  --muted:      #94a3b8;
-  --muted-bg:   rgba(148, 163, 184, 0.10);
-
-  /* Layout */
-  --sidebar-w:  220px;
-  --topbar-h:   56px;
-
-  /* Spacing scale */
-  --sp-1: 4px;   --sp-2: 8px;   --sp-3: 12px;
-  --sp-4: 16px;  --sp-5: 20px;  --sp-6: 24px;
-  --sp-8: 32px;
-
-  /* Radius */
-  --r-sm:  6px;
-  --r-md:  8px;
-  --r-lg:  12px;
-  --r-xl:  16px;
-  --r-full: 9999px;
-
-  /* Font */
-  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, "Cascadia Code", "Fira Code", monospace;
-
-  /* Shadow */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.4);
-  --shadow-md: 0 4px 16px rgba(0,0,0,.5);
+  --bg-base: var(--color-bg-base);
+  --bg-surface: var(--color-bg-surface);
+  --bg-raised: var(--color-bg-raised);
+  --bg-hover: var(--color-bg-hover);
+  --bg-active: var(--color-bg-active);
+  --border: var(--color-border);
+  --border-strong: var(--color-border-strong);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --text-inverse: var(--color-text-inverse);
+  --accent: var(--color-accent);
+  --accent-dim: var(--color-accent-dim);
+  --accent-hover: var(--color-accent-hover);
+  --success: var(--color-success);
+  --success-bg: var(--color-success-bg);
+  --warning: var(--color-warning);
+  --warning-bg: var(--color-warning-bg);
+  --error: var(--color-error);
+  --error-bg: var(--color-error-bg);
+  --muted: var(--color-muted);
+  --muted-bg: var(--color-muted-bg);
+  --sidebar-w: var(--layout-sidebar-w);
+  --topbar-h: var(--layout-topbar-h);
+  --sp-1: var(--spacing-xs);
+  --sp-2: var(--spacing-sm);
+  --sp-3: var(--spacing-md);
+  --sp-4: var(--spacing-lg);
+  --sp-5: var(--spacing-xl);
+  --sp-6: var(--spacing-xxl);
+  --sp-8: var(--spacing-xxxl);
+  --r-sm: var(--radius-sm);
+  --r-md: var(--radius-md);
+  --r-lg: var(--radius-lg);
+  --r-xl: var(--radius-xl);
+  --r-full: var(--radius-full);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
 }
 
 /* ─── Base reset ────────────────────────────────────────────────────────── */
@@ -87,9 +76,7 @@ button, input, select { font: inherit; }
   display: grid;
   grid-template-columns: var(--sidebar-w) 1fr;
   grid-template-rows: var(--topbar-h) 1fr;
-  grid-template-areas:
-    "sidebar topbar"
-    "sidebar content";
+  grid-template-areas: "sidebar topbar" "sidebar content";
   min-height: 100vh;
 }
 
@@ -716,9 +703,7 @@ output[role="status"] {
   .app-layout {
     grid-template-columns: 1fr;
     grid-template-rows: var(--topbar-h) 1fr;
-    grid-template-areas:
-      "topbar"
-      "content";
+    grid-template-areas: "topbar" "content";
   }
 
   .sidebar {
@@ -738,7 +723,6 @@ output[role="status"] {
   .topbar-auth { display: none; }
   .topbar-auth--open { display: flex; }
 
-  /* Legacy responsive table */
   thead { display: none; }
   tr, td { display: block; }
   tr {
