@@ -299,14 +299,24 @@ def _run_deep_smoke(paths: "RuntimePaths", providers: list[str]) -> None:
     from mery_tts.smoke.service import SmokeService
     from mery_tts.synthesis import SpeechSynthesisService
     from mery_tts.voice import VoiceRegistry
+    from mery_tts.voice.resolver import InstalledVoiceResolver
 
     registry = discover_engine_registry()
     voice_registry = VoiceRegistry(registry.adapters)
     store = StorageIdentityStore(paths.models_dir)
     descriptors = store.hydrate_installed_voice_descriptors()
+    voice_resolver = InstalledVoiceResolver(artifacts_dir=paths.models_dir / "artifacts")
     for desc in descriptors:
         with contextlib.suppress(ValueError, KeyError):
             voice_registry.register(desc)
+        # Mirror the server's _refresh_voice_registry: resolve and register
+        # the model-file payload so adapters can load the ONNX at synthesis time.
+        adapter = registry.adapters.get(desc.engine_id)
+        if adapter is not None and hasattr(adapter, "register_resolved_voice"):
+            resolved = voice_resolver.try_resolve(desc)
+            if resolved is not None:
+                with contextlib.suppress(Exception):
+                    adapter.register_resolved_voice(resolved)
 
     synthesis_service = SpeechSynthesisService(
         voice_registry=voice_registry,
@@ -317,7 +327,30 @@ def _run_deep_smoke(paths: "RuntimePaths", providers: list[str]) -> None:
         synthesis_service=synthesis_service,
         record_store=smoke_store,
     )
-    results = asyncio.run(smoke_service.smoke_providers(providers=providers))
+    # Build smoke targets: for each requested provider pick the first installed
+    # voice that resolves to a real artifact (not a 1-byte fixture stub).
+    resolvable_by_engine: dict[str, str] = {}
+    for desc in descriptors:
+        if desc.engine_id in resolvable_by_engine:
+            continue
+        try:
+            resolved = voice_resolver.try_resolve(desc)
+            if resolved is not None:
+                resolvable_by_engine[desc.engine_id] = desc.voice_id
+        except Exception:  # noqa: BLE001
+            pass
+
+    target_voice_ids = [
+        resolvable_by_engine[p]
+        for p in providers
+        if p in resolvable_by_engine
+    ]
+
+    if target_voice_ids:
+        results = asyncio.run(smoke_service.smoke_providers(voice_ids=target_voice_ids))
+    else:
+        # Fallback: let smoke_providers infer from hardcoded defaults
+        results = asyncio.run(smoke_service.smoke_providers(providers=providers))
     for result in results:
         status_detail = ""
         if result.sample_rate_hz is not None:

@@ -77,6 +77,25 @@ def _default_piper_synthesizer(text: str, voice: VoiceDescriptor) -> Iterable[by
     )
 
 
+def _patch_espeak_phoneme_type() -> None:
+    """Register 'espeak' as a MULTILINGUAL alias in piper-plus PhonemeType.
+
+    piper-plus ≥ 1.12 removed PhonemeType.ESPEAK.  Voice models trained with
+    the original rhasspy piper use ``"phoneme_type": "espeak"`` in their config
+    JSON.  The underlying phoneme_id_map in those models is IPA — identical to
+    what piper-plus 1.12's MULTILINGUAL phonemizer produces — so loading the
+    ONNX with MULTILINGUAL semantics is safe and produces correct output.
+
+    This patch is idempotent: calling it multiple times is harmless.
+    """
+    try:
+        from piper.config import PhonemeType  # noqa: PLC0415 (local import)
+        if "espeak" not in PhonemeType._value2member_map_:
+            PhonemeType._value2member_map_["espeak"] = PhonemeType.MULTILINGUAL
+    except Exception:  # noqa: BLE001 (best-effort patch, never crash)
+        pass
+
+
 class PiperRuntimeCache:
     """Lazy-loading runtime cache for Piper voice instances.
 
@@ -111,6 +130,12 @@ class PiperRuntimeCache:
         if importlib.util.find_spec("piper") is None:
             raise PiperRuntimeError("dependency_missing", "piper-plus package is not installed")
         try:
+            # piper-plus ≥ 1.12 dropped PhonemeType.espeak (models trained with the
+            # original rhasspy piper use espeak IPA phoneme IDs which are identical
+            # to the multilingual IPA IDs used by piper-plus 1.12).  Register
+            # "espeak" as an alias for MULTILINGUAL so legacy voice configs load.
+            _patch_espeak_phoneme_type()
+
             piper = cast(_PiperModule, cast(object, importlib.import_module("piper")))
             model_path = str(resolved.payload.model_path)
             config_path = (

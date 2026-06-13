@@ -105,6 +105,11 @@ export function useVoices({ token }: { token: string }): UseVoicesResult {
     statusText = t("loadVoicesError");
   } else if (token && voices.length === 0) {
     statusText = t("noVoices");
+  } else if (token && (search || localeFilter)) {
+    statusText =
+      visibleVoices.length === 0
+        ? "No voices match the current filter."
+        : `${visibleVoices.length} of ${voices.length} voices match filter.`;
   } else if (token) {
     statusText = `${voices.length} voice options loaded.`;
   }

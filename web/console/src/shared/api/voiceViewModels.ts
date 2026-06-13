@@ -42,7 +42,17 @@ export async function loadVoiceViewModels(
     api.listVoices(),
     api.listInstalledVoices(),
   ]);
-  const installedIds = new Set(installed.map((v) => v.voice_id));
+  // Build a normalized set so we match regardless of "catalog." prefix.
+  // The backend may return catalog IDs as "catalog.engine.voice" while
+  // installed IDs for the same voice use the bare "engine.voice" form.
+  const rawIds = installed.map((v) => v.voice_id);
+  const installedIds = new Set([
+    ...rawIds,
+    ...rawIds.map((id) => `catalog.${id}`),   // handle bare → catalog prefix
+    ...rawIds.map((id) =>                       // handle catalog prefix → bare
+      id.startsWith("catalog.") ? id.slice("catalog.".length) : id,
+    ),
+  ]);
   return catalog.map((v) => toVoiceViewModel(v, installedIds));
 }
 
@@ -66,9 +76,16 @@ function toVoiceViewModel(
 ): VoiceViewModel {
   const installed = installedIds.has(voice.voice_id);
   const govStatus = consentLabel(voice.consent_status);
+  // The backend's /v1/audio/speech and /v1/models/install accept bare IDs
+  // (e.g. "piper-plus.en-us.lessac-low"), not catalog-prefixed ones
+  // (e.g. "catalog.piper-plus.en-us.lessac-low").  Strip the prefix so
+  // synthesis and install requests reach the correct backend handler.
+  const modelId = voice.voice_id.startsWith("catalog.")
+    ? voice.voice_id.slice("catalog.".length)
+    : voice.voice_id;
   return {
     id: voice.voice_id,
-    modelId: voice.voice_id,
+    modelId,
     title: voice.display_name,
     engine: voice.engine_id,
     locales:
