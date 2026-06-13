@@ -95,6 +95,9 @@ const stubClient: MeryApiClient = {
       marks_available: false,
     };
   },
+  async synthesize() {
+    return { audioUrl: "", mimeType: "audio/wav" as const };
+  },
 };
 
 describe("loadVoiceViewModels", () => {

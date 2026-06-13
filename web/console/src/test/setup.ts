@@ -2,6 +2,11 @@ import "@testing-library/jest-dom/vitest";
 import { afterAll, afterEach, beforeAll } from "vitest";
 import { server } from "./handlers";
 
+if (!globalThis.URL.createObjectURL) {
+  globalThis.URL.createObjectURL = () => "blob:mock-object-url";
+  globalThis.URL.revokeObjectURL = () => undefined;
+}
+
 if (!Element.prototype.hasPointerCapture) {
   Element.prototype.hasPointerCapture = () => false;
 }

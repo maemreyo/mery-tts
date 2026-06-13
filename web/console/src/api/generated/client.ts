@@ -370,3 +370,37 @@ export function getAnnotatedSpeech(
     },
   );
 }
+
+export interface SpeechSynthesisResult {
+  audioUrl: string;
+  mimeType: "audio/wav";
+}
+
+export async function synthesizeSpeech(
+  options: GeneratedClientOptions,
+  request: SpeechSmokeRequest,
+): Promise<SpeechSynthesisResult> {
+  const response = await fetch(`${options.basePath ?? "/v1"}/audio/speech`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${options.token}`,
+      Accept: "audio/wav",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const err = (await response.clone().json()) as {
+        sanitized_diagnostic?: string;
+        detail?: string;
+      };
+      detail = err.sanitized_diagnostic ?? err.detail ?? detail;
+    } catch {}
+    throw new Error(`synthesis.failed: ${detail}`);
+  }
+  const buf = await response.arrayBuffer();
+  const blob = new Blob([buf], { type: "audio/wav" });
+  return { audioUrl: URL.createObjectURL(blob), mimeType: "audio/wav" };
+}

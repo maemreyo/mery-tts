@@ -2,14 +2,21 @@ import type { VoiceViewModel } from "@shared/api/voiceViewModels";
 import { t } from "@shared/i18n/messages";
 import { Button } from "@shared/ui/Button";
 import { ConfirmDialog } from "@shared/ui/ConfirmDialog";
+import { VoicePreview } from "./VoicePreview";
 
 interface VoiceCardProps {
   voice: VoiceViewModel;
+  token: string;
   onInstall: (v: VoiceViewModel) => void;
   onUninstall?: (v: VoiceViewModel) => void;
 }
 
-export function VoiceCard({ voice, onInstall, onUninstall }: VoiceCardProps) {
+export function VoiceCard({
+  voice,
+  token,
+  onInstall,
+  onUninstall,
+}: VoiceCardProps) {
   return (
     <article
       className="voice-card"
@@ -53,6 +60,7 @@ export function VoiceCard({ voice, onInstall, onUninstall }: VoiceCardProps) {
           </ConfirmDialog>
         )}
       </div>
+      {voice.installed && <VoicePreview token={token} voice={voice} />}
     </article>
   );
 }

@@ -24,12 +24,6 @@ const playgroundSchema = z.object({
 
 type PlaygroundFormValues = z.infer<typeof playgroundSchema>;
 
-function statusVariant(ok?: boolean, error?: boolean): string {
-  if (ok) return "badge badge--success";
-  if (error) return "badge badge--error";
-  return "";
-}
-
 function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
   const api = useMemo(() => createMeryApiClient({ token }), [token]);
   const { navigate } = useNavigation();
@@ -46,9 +40,21 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showWordTimings, setShowWordTimings] = useState(false);
   const [validationError, setValidationError] = useState<string | undefined>();
+  const [synthText, setSynthText] = useState(
+    "The quick brown fox jumps over the lazy dog.",
+  );
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
-  // Auto-select the first installed voice when the list loads so the user
-  // can immediately click "Run smoke test" without an extra interaction.
+  // Revoke object URL on cleanup to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
+
+  // Auto-select the first installed voice when the list loads
   useEffect(() => {
     if (!selectedVoiceId && installedVoices.length > 0) {
       setSelectedVoiceId(installedVoices[0].modelId);
@@ -64,14 +70,33 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
   const activeModelId =
     showAdvanced && rawOverride.trim() ? rawOverride.trim() : selectedVoiceId;
 
-  const smokeMutation = useMutation({
-    mutationFn: (modelId: string) => api.runSpeechSmoke(modelId),
-    onSettled: (data, _error, modelId) => {
+  const synthMutation = useMutation({
+    mutationFn: (modelId: string) =>
+      api.synthesize({
+        model: "tts-1",
+        voice: modelId,
+        input: synthText,
+        response_format: "wav",
+      }),
+    onSuccess: (result, modelId) => {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+      setAudioUrl(result.audioUrl);
       const voice = installedVoices.find((v) => v.modelId === modelId);
       recordSmoke({
         voiceId: modelId,
         voiceLabel: voice?.displayLabel ?? voice?.title ?? modelId,
-        ok: data?.ok === true,
+        ok: true,
+        timestamp: new Date().toISOString(),
+      });
+    },
+    onError: (_error, modelId) => {
+      const voice = installedVoices.find((v) => v.modelId === modelId);
+      recordSmoke({
+        voiceId: modelId,
+        voiceLabel: voice?.displayLabel ?? voice?.title ?? modelId,
+        ok: false,
         timestamp: new Date().toISOString(),
       });
     },
@@ -82,51 +107,39 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
       api.getAnnotatedSpeech({
         model: "tts-1",
         voice: modelId,
-        input: "Console smoke",
+        input: synthText,
       }),
-    onSettled: (data, _error, modelId) => {
-      const voice = installedVoices.find((v) => v.modelId === modelId);
-      recordSmoke({
-        voiceId: modelId,
-        voiceLabel: voice?.displayLabel ?? voice?.title ?? modelId,
-        ok: data?.marks_available === true,
-        timestamp: new Date().toISOString(),
-      });
+    onSuccess: (result) => {
+      const bytes = Uint8Array.from(atob(result.audio_b64), (c) =>
+        c.charCodeAt(0),
+      );
+      const blob = new Blob([bytes], { type: "audio/wav" });
+      const newUrl = URL.createObjectURL(blob);
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+      setAudioUrl(newUrl);
     },
   });
 
-  const activeMutation = showWordTimings ? annotatedMutation : smokeMutation;
-
-  const isSuccess = showWordTimings
-    ? annotatedMutation.isSuccess
-    : smokeMutation.data?.ok === true;
-  const isFailure = showWordTimings
-    ? annotatedMutation.isError
-    : smokeMutation.isError || smokeMutation.data?.ok === false;
-
-  let statusText = "Ready for backend speech smoke.";
-  if (activeMutation.isPending) statusText = "Requesting speech from backend…";
-  else if (isSuccess) statusText = "Speech smoke succeeded.";
-  else if (isFailure)
-    statusText =
-      "Speech smoke failed. The voice may not be ready — check Health for engine status.";
+  const activeMutation = showWordTimings ? annotatedMutation : synthMutation;
 
   const wordMarks: SpeechMark[] =
     showWordTimings && annotatedMutation.isSuccess
       ? (annotatedMutation.data?.marks ?? [])
       : [];
-  const marksAvailable =
-    showWordTimings && annotatedMutation.isSuccess
-      ? annotatedMutation.data?.marks_available
-      : undefined;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!synthText.trim()) {
+      setValidationError("Enter some text to synthesize.");
+      return;
+    }
     if (!activeModelId) {
       setValidationError(
         showAdvanced
           ? "Enter an override model ID or select a voice above."
-          : "Choose a voice before running smoke.",
+          : "Choose a voice before synthesizing.",
       );
       return;
     }
@@ -134,7 +147,7 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
     if (showWordTimings) {
       annotatedMutation.mutate(activeModelId);
     } else {
-      smokeMutation.mutate(activeModelId);
+      synthMutation.mutate(activeModelId);
     }
   }
 
@@ -143,10 +156,8 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
     return (
       <section aria-label="Playground">
         <div className="page-header">
-          <h2>Playground</h2>
-          <p>
-            Run a backend speech smoke to confirm end-to-end TTS is working.
-          </p>
+          <h2>TTS Workbench</h2>
+          <p>Synthesize speech and preview voice output.</p>
         </div>
         <div className="panel">
           <p>Enter a bearer token to use the Playground.</p>
@@ -160,10 +171,8 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
     return (
       <section aria-label="Playground">
         <div className="page-header">
-          <h2>Playground</h2>
-          <p>
-            Run a backend speech smoke to confirm end-to-end TTS is working.
-          </p>
+          <h2>TTS Workbench</h2>
+          <p>Synthesize speech and preview voice output.</p>
         </div>
         <div className="panel">
           <p>No installed voices found.</p>
@@ -179,15 +188,17 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
     );
   }
 
+  const showOutput = Boolean(audioUrl) || activeMutation.isError;
+
   return (
     <section aria-label="Playground">
       <div className="page-header">
-        <h2>Playground</h2>
-        <p>Run a backend speech smoke to confirm end-to-end TTS is working.</p>
+        <h2>TTS Workbench</h2>
+        <p>Synthesize speech and preview voice output.</p>
       </div>
 
-      <div className="panel">
-        <form className="playground-form" onSubmit={handleSubmit}>
+      <div className="panel workbench-panel">
+        <form className="workbench-input" onSubmit={handleSubmit}>
           {voicesQuery.isLoading ? (
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
               Loading voices…
@@ -205,34 +216,34 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
             />
           )}
 
-          {installedVoices.length > 0 && (
-            <SwitchField
-              checked={showWordTimings}
-              label="Show word timings"
-              onCheckedChange={setShowWordTimings}
+          <div className="form-field">
+            <label htmlFor="synth-text">Text to synthesize</label>
+            <textarea
+              id="synth-text"
+              className="synth-textarea"
+              rows={4}
+              value={synthText}
+              onChange={(e) => setSynthText(e.target.value)}
             />
-          )}
+          </div>
 
-          <div className="advanced-disclosure">
-            <button
-              type="button"
-              aria-expanded={showAdvanced}
-              onClick={() => setShowAdvanced((prev) => !prev)}
-              className="disclosure-toggle"
+          <div className="workbench-controls">
+            <Button
+              type="submit"
+              disabled={
+                activeMutation.isPending || !activeModelId || !synthText.trim()
+              }
+              variant="primary"
             >
-              Advanced options
-            </button>
-            {showAdvanced && (
-              <div className="advanced-content">
-                <FormField
-                  label="Override model ID"
-                  id="voice-override"
-                  placeholder="pack.en-us-libritts-high"
-                  error={undefined}
-                  {...form.register("voiceOverride")}
-                />
-                <p className="field-hint">Overrides the selected voice above</p>
-              </div>
+              {activeMutation.isPending ? "Synthesizing…" : "▶  Synthesize"}
+            </Button>
+
+            {installedVoices.length > 0 && (
+              <SwitchField
+                checked={showWordTimings}
+                label="Word timings"
+                onCheckedChange={setShowWordTimings}
+              />
             )}
           </div>
 
@@ -241,50 +252,64 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
               {validationError}
             </p>
           )}
-
-          <Button
-            type="submit"
-            disabled={activeMutation.isPending}
-            variant="primary"
-          >
-            {activeMutation.isPending ? "Running…" : "Run speech smoke"}
-          </Button>
         </form>
 
-        <output
-          aria-live="polite"
-          style={{ marginTop: 12, display: "block", fontSize: 13 }}
-          className={
-            activeMutation.status !== "idle"
-              ? statusVariant(isSuccess, isFailure)
-              : ""
-          }
-        >
-          {statusText}
-        </output>
+        {showOutput && (
+          <div className="workbench-output">
+            <span className="workbench-output-label">Output</span>
 
-        {showWordTimings && annotatedMutation.isSuccess && (
-          <>
-            {marksAvailable === false && (
-              <p className="word-marks-unavailable">
-                This voice does not support word timings.
+            {audioUrl && (
+              // biome-ignore lint/a11y/useMediaCaption: dynamically synthesized speech has no caption track
+              <audio controls autoPlay src={audioUrl} className="synth-audio" />
+            )}
+
+            {showWordTimings &&
+              annotatedMutation.isSuccess &&
+              wordMarks.length > 0 && (
+                <div className="word-marks" aria-label="Word timings">
+                  {wordMarks.map((mark, i) => (
+                    <span
+                      key={`${mark.start_ms}-${mark.end_ms}-${i}`}
+                      className="word-mark"
+                      title={`${mark.start_ms}–${mark.end_ms}ms`}
+                    >
+                      {mark.word}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+            {activeMutation.isError && (
+              <p className="workbench-error">
+                Synthesis failed. Check that the voice is installed and the
+                backend is reachable.
               </p>
             )}
-            {wordMarks.length > 0 && (
-              <div className="word-marks" aria-label="Word timings">
-                {wordMarks.map((mark, i) => (
-                  <span
-                    key={`${mark.start_ms}-${mark.end_ms}-${i}`}
-                    className="word-mark"
-                    title={`${mark.start_ms}–${mark.end_ms}ms`}
-                  >
-                    {mark.word}
-                  </span>
-                ))}
-              </div>
-            )}
-          </>
+          </div>
         )}
+
+        <div className="advanced-disclosure">
+          <button
+            type="button"
+            aria-expanded={showAdvanced}
+            onClick={() => setShowAdvanced((prev) => !prev)}
+            className="disclosure-toggle"
+          >
+            Advanced
+          </button>
+          {showAdvanced && (
+            <div className="advanced-content">
+              <FormField
+                label="Override model ID"
+                id="voice-override"
+                placeholder="pack.en-us-libritts-high"
+                error={undefined}
+                {...form.register("voiceOverride")}
+              />
+              <p className="field-hint">Overrides the selected voice above</p>
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );

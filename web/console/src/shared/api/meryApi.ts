@@ -7,7 +7,9 @@ import {
   type HealthResponseV2,
   type InstallJobResponse,
   type ModelDeleteResponse,
+  type SpeechSmokeRequest,
   type SpeechSmokeResponse,
+  type SpeechSynthesisResult,
   type StorageCleanupResponse,
   type StorageCleanupTarget,
   type StorageResponse,
@@ -29,6 +31,7 @@ import {
   runDiagnostics,
   runSpeechSmoke,
   startVoiceInstall,
+  synthesizeSpeech,
 } from "@api/generated/client";
 
 export interface MeryApiClient {
@@ -49,6 +52,7 @@ export interface MeryApiClient {
   getAnnotatedSpeech(
     request: AnnotatedSpeechRequest,
   ): Promise<AnnotatedSpeechResponse>;
+  synthesize(req: SpeechSmokeRequest): Promise<SpeechSynthesisResult>;
 }
 
 export function createMeryApiClient(
@@ -111,6 +115,9 @@ export function createMeryApiClient(
     },
     getAnnotatedSpeech(request) {
       return getAnnotatedSpeech(options, request);
+    },
+    synthesize(req) {
+      return synthesizeSpeech(options, req);
     },
   };
 }

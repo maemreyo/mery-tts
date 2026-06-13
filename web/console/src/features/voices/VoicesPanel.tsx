@@ -14,6 +14,7 @@ import {
 import { memo, useMemo } from "react";
 import { VoiceCard } from "./VoiceCard";
 import { VoicePacksSection } from "./VoicePacksSection";
+import { VoicePreview } from "./VoicePreview";
 import { VoicesToolbar } from "./VoicesToolbar";
 import { useVoices } from "./useVoices";
 
@@ -184,13 +185,19 @@ function VoicesPanelBase({ token }: VoicesPanelProps) {
                         ))}
                         <td data-label="Action">
                           {row.original.installed ? (
-                            <ConfirmDialog
-                              title="Confirm voice uninstall"
-                              description={`Uninstall ${row.original.title}? This removes the model files from disk.`}
-                              onConfirm={() => uninstallVoice(row.original)}
-                            >
-                              <Button type="button">Uninstall</Button>
-                            </ConfirmDialog>
+                            <>
+                              <ConfirmDialog
+                                title="Confirm voice uninstall"
+                                description={`Uninstall ${row.original.title}? This removes the model files from disk.`}
+                                onConfirm={() => uninstallVoice(row.original)}
+                              >
+                                <Button type="button">Uninstall</Button>
+                              </ConfirmDialog>
+                              <VoicePreview
+                                token={token}
+                                voice={row.original}
+                              />
+                            </>
                           ) : row.original.installable ? (
                             <ConfirmDialog
                               title="Confirm voice install"
@@ -219,6 +226,7 @@ function VoicesPanelBase({ token }: VoicesPanelProps) {
                 <VoiceCard
                   key={voice.id}
                   voice={voice}
+                  token={token}
                   onInstall={installVoice}
                   onUninstall={uninstallVoice}
                 />

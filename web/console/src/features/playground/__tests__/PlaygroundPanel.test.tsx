@@ -58,7 +58,19 @@ describe("PlaygroundPanel", () => {
     );
   });
 
-  it("auto-selects the first installed voice so Run smoke fires immediately", async () => {
+  it("renders text input textarea", async () => {
+    renderWithProviders(<PlaygroundPanel token="test-token" />);
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Voice")).toBeInTheDocument(),
+    );
+
+    expect(
+      screen.getByRole("textbox", { name: "Text to synthesize" }),
+    ).toBeInTheDocument();
+  });
+
+  it("auto-selects the first installed voice so Synthesize fires immediately", async () => {
     renderWithProviders(<PlaygroundPanel token="test-token" />);
 
     // Wait for the voice picker to appear with the auto-selected voice
@@ -68,19 +80,17 @@ describe("PlaygroundPanel", () => {
       ).toBeInTheDocument(),
     );
 
-    // Auto-select means clicking Run immediately should NOT show a validation error
-    await userEvent.click(
-      screen.getByRole("button", { name: "Run speech smoke" }),
-    );
+    // Auto-select means clicking Synthesize immediately should NOT show a validation error
+    await userEvent.click(screen.getByRole("button", { name: /Synthesize/ }));
 
     await waitFor(() =>
       expect(
-        screen.queryByText("Choose a voice before running smoke."),
+        screen.queryByText("Choose a voice before synthesizing."),
       ).not.toBeInTheDocument(),
     );
   });
 
-  it("runs speech smoke using the selected installed voice", async () => {
+  it("synthesizes speech using the selected installed voice", async () => {
     renderWithProviders(<PlaygroundPanel token="test-token" />);
 
     await waitFor(() =>
@@ -94,12 +104,62 @@ describe("PlaygroundPanel", () => {
       "piper-plus.en-us.demo",
     );
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Run speech smoke" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /Synthesize/ }));
 
     await waitFor(() =>
-      expect(screen.getByText("Speech smoke succeeded.")).toBeInTheDocument(),
+      expect(screen.getByRole("heading", { level: 2 })).toBeInTheDocument(),
+    );
+    // On success the audio element is rendered
+    await waitFor(() => expect(document.querySelector("audio")).not.toBeNull());
+  });
+
+  it("smoke is recorded via onSuccess when synthesis succeeds", async () => {
+    renderWithProviders(<PlaygroundPanel token="test-token" />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("option", { name: "Demo (en-US)" }),
+      ).toBeInTheDocument(),
+    );
+
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Voice" }),
+      "piper-plus.en-us.demo",
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: /Synthesize/ }));
+
+    // No error message means onSuccess path was taken
+    await waitFor(() =>
+      expect(screen.queryByText(/Synthesis failed/)).not.toBeInTheDocument(),
+    );
+  });
+
+  it("smoke is recorded via onError when backend returns error", async () => {
+    server.use(
+      http.post(
+        "/v1/audio/speech",
+        () => new HttpResponse(null, { status: 500 }),
+      ),
+    );
+
+    renderWithProviders(<PlaygroundPanel token="test-token" />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("option", { name: "Demo (en-US)" }),
+      ).toBeInTheDocument(),
+    );
+
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Voice" }),
+      "piper-plus.en-us.demo",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Synthesize/ }));
+
+    // onError path: error message is shown
+    await waitFor(() =>
+      expect(screen.getByText(/Synthesis failed/)).toBeInTheDocument(),
     );
   });
 
@@ -108,11 +168,11 @@ describe("PlaygroundPanel", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Advanced options" }),
+        screen.getByRole("button", { name: "Advanced" }),
       ).toBeInTheDocument(),
     );
 
-    const toggle = screen.getByRole("button", { name: "Advanced options" });
+    const toggle = screen.getByRole("button", { name: "Advanced" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(
       screen.queryByLabelText("Override model ID"),
@@ -138,46 +198,36 @@ describe("PlaygroundPanel", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Advanced options" }),
+        screen.getByRole("button", { name: "Advanced" }),
       ).toBeInTheDocument(),
     );
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Advanced options" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Advanced" }));
 
     await userEvent.type(
       screen.getByLabelText("Override model ID"),
       "pack.en-us-libritts-high",
     );
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Run speech smoke" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /Synthesize/ }));
 
-    await waitFor(() =>
-      expect(screen.getByText("Speech smoke succeeded.")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(document.querySelector("audio")).not.toBeNull());
   });
 
   it("advanced override empty falls back to picker voice — no validation error", async () => {
     // When Advanced is open but override is empty, activeModelId = selectedVoiceId
-    // (auto-selected), so Run smoke should fire without a validation error.
+    // (auto-selected), so Synthesize should fire without a validation error.
     renderWithProviders(<PlaygroundPanel token="test-token" />);
 
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Advanced options" }),
+        screen.getByRole("button", { name: "Advanced" }),
       ).toBeInTheDocument(),
     );
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Advanced options" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Advanced" }));
     // Override input is empty — fall through to selected voice
-    await userEvent.click(
-      screen.getByRole("button", { name: "Run speech smoke" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /Synthesize/ }));
 
     await waitFor(() =>
       expect(
@@ -188,35 +238,7 @@ describe("PlaygroundPanel", () => {
     );
   });
 
-  it("output has role=status and reflects pending/success/failure states", async () => {
-    renderWithProviders(<PlaygroundPanel token="test-token" />);
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole("option", { name: "Demo (en-US)" }),
-      ).toBeInTheDocument(),
-    );
-
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Ready for backend speech smoke.",
-    );
-
-    await userEvent.selectOptions(
-      screen.getByRole("combobox", { name: "Voice" }),
-      "piper-plus.en-us.demo",
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: "Run speech smoke" }),
-    );
-
-    await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(
-        "Speech smoke succeeded.",
-      ),
-    );
-  });
-
-  it("shows speech smoke failed when backend returns error", async () => {
+  it("shows synthesis error when backend returns error", async () => {
     server.use(
       http.post(
         "/v1/audio/speech",
@@ -236,18 +258,14 @@ describe("PlaygroundPanel", () => {
       screen.getByRole("combobox", { name: "Voice" }),
       "piper-plus.en-us.demo",
     );
-    await userEvent.click(
-      screen.getByRole("button", { name: "Run speech smoke" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /Synthesize/ }));
 
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(
-        "Speech smoke failed. The voice may not be ready — check Health for engine status.",
-      ),
+      expect(screen.getByText(/Synthesis failed/)).toBeInTheDocument(),
     );
   });
 
-  it("Show word timings toggle renders when voices are available", async () => {
+  it("Word timings toggle renders when voices are available", async () => {
     renderWithProviders(<PlaygroundPanel token="test-token" />);
 
     await waitFor(() =>
@@ -255,11 +273,11 @@ describe("PlaygroundPanel", () => {
     );
 
     expect(
-      screen.getByRole("switch", { name: "Show word timings" }),
+      screen.getByRole("switch", { name: "Word timings" }),
     ).toBeInTheDocument();
   });
 
-  it("Result output shows Speech smoke succeeded in normal mode", async () => {
+  it("audio element is rendered after successful synthesis", async () => {
     renderWithProviders(<PlaygroundPanel token="test-token" />);
 
     await waitFor(() =>
@@ -272,14 +290,8 @@ describe("PlaygroundPanel", () => {
       screen.getByRole("combobox", { name: "Voice" }),
       "piper-plus.en-us.demo",
     );
-    await userEvent.click(
-      screen.getByRole("button", { name: "Run speech smoke" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /Synthesize/ }));
 
-    await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(
-        "Speech smoke succeeded.",
-      ),
-    );
+    await waitFor(() => expect(document.querySelector("audio")).not.toBeNull());
   });
 });
