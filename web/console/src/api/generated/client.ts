@@ -5,19 +5,33 @@ export type InstallJobStatus =
   | "succeeded"
   | "failed"
   | "cancelled";
+export type ConsentStatus =
+  | "not_required"
+  | "required"
+  | "granted"
+  | "revoked"
+  | "expired";
 
+// Real backend field names from Python schema VoiceSummary.
+// Fields: voice_id, display_name, engine_id (not id/name/engine/model_id/installed).
+// `installed` is derived by cross-referencing GET /v1/voices/installed.
 export interface VoiceSummary {
-  id: string;
-  name: string;
-  engine: string;
-  model_id: string;
+  voice_id: string;
+  display_name: string;
+  engine_id: string;
   supported_locales: string[];
-  installed: boolean;
   risk_class: VoiceRiskClass;
-  governance_status: string;
+  consent_required: boolean;
+  consent_status: ConsentStatus;
+  trust_tier?: string;
 }
 
 export interface VoicesResponse {
+  schema_version: "v1";
+  voices: VoiceSummary[];
+}
+
+export interface InstalledVoicesResponse {
   schema_version: "v1";
   voices: VoiceSummary[];
 }
@@ -100,6 +114,12 @@ export function getVoices(
   options: GeneratedClientOptions,
 ): Promise<VoicesResponse> {
   return requestJson<VoicesResponse>("/catalog/voices", options);
+}
+
+export function getInstalledVoices(
+  options: GeneratedClientOptions,
+): Promise<InstalledVoicesResponse> {
+  return requestJson<InstalledVoicesResponse>("/voices/installed", options);
 }
 
 export function startVoiceInstall(

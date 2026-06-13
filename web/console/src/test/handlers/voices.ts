@@ -1,9 +1,13 @@
 import { http, HttpResponse } from "msw";
-import { voiceCatalog } from "../fixtures/voices";
+import {
+  installedVoicesResponse,
+  voiceCatalogResponse,
+} from "../fixtures/voices";
 
 export const voicesHandlers = [
-  http.get("/v1/catalog/voices", () =>
-    HttpResponse.json({ schema_version: "v1", voices: voiceCatalog }),
+  http.get("/v1/catalog/voices", () => HttpResponse.json(voiceCatalogResponse)),
+  http.get("/v1/voices/installed", () =>
+    HttpResponse.json(installedVoicesResponse),
   ),
   http.delete("/v1/models/:modelId", ({ params }) =>
     HttpResponse.json({

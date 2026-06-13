@@ -21,17 +21,20 @@ describe("PlaygroundPanel", () => {
           schema_version: "v1",
           voices: [
             {
-              id: "voice.fr-fr",
-              model_id: "pack.fr-fr",
-              name: "French Demo",
-              engine: "piper-plus",
+              voice_id: "voice.fr-fr",
+              display_name: "French Demo",
+              engine_id: "piper-plus",
               supported_locales: ["fr-FR"],
-              installed: false,
               risk_class: "stock",
-              governance_status: "allowed",
+              consent_required: false,
+              consent_status: "not_required",
             },
           ],
         }),
+      ),
+      // No installed voices — French Demo is not installed
+      http.get("/v1/voices/installed", () =>
+        HttpResponse.json({ schema_version: "v1", voices: [] }),
       ),
     );
 
@@ -86,7 +89,7 @@ describe("PlaygroundPanel", () => {
 
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Voice" }),
-      "pack.en-us",
+      "voice.en-us",
     );
 
     await userEvent.click(
@@ -193,7 +196,7 @@ describe("PlaygroundPanel", () => {
 
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Voice" }),
-      "pack.en-us",
+      "voice.en-us",
     );
     await userEvent.click(
       screen.getByRole("button", { name: "Run speech smoke" }),
@@ -224,7 +227,7 @@ describe("PlaygroundPanel", () => {
 
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Voice" }),
-      "pack.en-us",
+      "voice.en-us",
     );
     await userEvent.click(
       screen.getByRole("button", { name: "Run speech smoke" }),
@@ -260,7 +263,7 @@ describe("PlaygroundPanel", () => {
 
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Voice" }),
-      "pack.en-us",
+      "voice.en-us",
     );
     await userEvent.click(
       screen.getByRole("button", { name: "Run speech smoke" }),

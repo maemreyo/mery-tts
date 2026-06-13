@@ -57,7 +57,15 @@ export function deriveOverviewViewModel(params: {
   const serverTile: StatusTile = {
     label: "Server",
     value: health?.health_status ?? "Unknown",
-    level: health?.ready ? "ok" : healthError ? "error" : "warn",
+    // ok only when ready AND health_status is explicitly "ok"; degraded = warn
+    level:
+      health?.ready && health.health_status === "ok"
+        ? "ok"
+        : healthError
+          ? "error"
+          : health
+            ? "warn"
+            : "neutral",
   };
 
   const voicesTile: StatusTile = {

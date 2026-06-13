@@ -21,6 +21,7 @@ import {
   getHealth,
   getHealthV2,
   getInstallJob,
+  getInstalledVoices,
   getStorage,
   getVoicePacks,
   getVoices,
@@ -32,6 +33,7 @@ import {
 
 export interface MeryApiClient {
   listVoices(): Promise<VoiceSummary[]>;
+  listInstalledVoices(): Promise<VoiceSummary[]>;
   startInstall(modelId: string): Promise<InstallJobResponse>;
   getInstallJob(jobId: string): Promise<InstallJobResponse>;
   getHealth(): Promise<HealthResponse>;
@@ -53,6 +55,10 @@ export function createMeryApiClient(
   options: GeneratedClientOptions,
 ): MeryApiClient {
   return {
+    async listInstalledVoices() {
+      const response = await getInstalledVoices(options);
+      return response.voices;
+    },
     async listVoices() {
       const response = await getVoices(options);
       return response.voices;
