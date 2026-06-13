@@ -1,5 +1,6 @@
 import type { SpeechMark } from "@api/generated/client";
 import { useNavigation } from "@features/app-shell/NavigationContext";
+import { useSessionActivity } from "@features/session/SessionActivity";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createMeryApiClient } from "@shared/api/meryApi";
 import { QUERY_KEYS } from "@shared/api/queryKeys";
@@ -32,6 +33,7 @@ function statusVariant(ok?: boolean, error?: boolean): string {
 function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
   const api = useMemo(() => createMeryApiClient({ token }), [token]);
   const { navigate } = useNavigation();
+  const { recordSmoke } = useSessionActivity();
 
   const voicesQuery = useQuery({
     queryKey: QUERY_KEYS.voices(token),
@@ -64,11 +66,33 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
 
   const smokeMutation = useMutation({
     mutationFn: (modelId: string) => api.runSpeechSmoke(modelId),
+    onSettled: (data, _error, modelId) => {
+      const voice = installedVoices.find((v) => v.modelId === modelId);
+      recordSmoke({
+        voiceId: modelId,
+        voiceLabel: voice?.displayLabel ?? voice?.title ?? modelId,
+        ok: data?.ok === true,
+        timestamp: new Date().toISOString(),
+      });
+    },
   });
 
   const annotatedMutation = useMutation({
     mutationFn: (modelId: string) =>
-      api.getAnnotatedSpeech({ model: "tts-1", voice: modelId, input: "Console smoke" }),
+      api.getAnnotatedSpeech({
+        model: "tts-1",
+        voice: modelId,
+        input: "Console smoke",
+      }),
+    onSettled: (data, _error, modelId) => {
+      const voice = installedVoices.find((v) => v.modelId === modelId);
+      recordSmoke({
+        voiceId: modelId,
+        voiceLabel: voice?.displayLabel ?? voice?.title ?? modelId,
+        ok: data?.marks_available === true,
+        timestamp: new Date().toISOString(),
+      });
+    },
   });
 
   const activeMutation = showWordTimings ? annotatedMutation : smokeMutation;
@@ -176,7 +200,7 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
               onValueChange={setSelectedVoiceId}
               options={installedVoices.map((v) => ({
                 value: v.modelId,
-                label: v.title,
+                label: v.displayLabel ?? v.title,
               }))}
             />
           )}

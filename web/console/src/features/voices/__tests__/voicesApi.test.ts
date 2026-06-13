@@ -6,7 +6,7 @@ const stubClient: MeryApiClient = {
   async listVoices() {
     return [
       {
-        voice_id: "voice.en-us",
+        voice_id: "piper-plus.en-us.demo",
         display_name: "English Demo",
         engine_id: "piper-plus",
         supported_locales: ["en-US"],
@@ -101,9 +101,10 @@ describe("loadVoiceViewModels", () => {
   it("maps API voices to safe locale and governance labels", async () => {
     await expect(loadVoiceViewModels(stubClient)).resolves.toEqual([
       {
-        id: "voice.en-us",
-        modelId: "voice.en-us", // voice_id is used as modelId
-        title: "English Demo",
+        id: "piper-plus.en-us.demo",
+        modelId: "piper-plus.en-us.demo", // voice_id is used as modelId
+        title: "Demo (en-US)",
+        displayLabel: "Demo (en-US)",
         engine: "piper-plus",
         locales: "en-US",
         installed: false, // not in installedVoices above
@@ -121,7 +122,7 @@ describe("loadVoiceViewModels", () => {
       async listInstalledVoices() {
         return [
           {
-            voice_id: "voice.en-us",
+            voice_id: "piper-plus.en-us.demo",
             display_name: "English Demo",
             engine_id: "piper-plus",
             supported_locales: ["en-US"],

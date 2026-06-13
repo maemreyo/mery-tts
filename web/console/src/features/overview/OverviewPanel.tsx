@@ -2,12 +2,20 @@ import { useNavigation } from "@features/app-shell/NavigationContext";
 import type { ConsoleSection } from "@features/app-shell/routes";
 import { ConnectionCard } from "@features/connection";
 import type { ConnectionStatus } from "@features/connection/types";
+import { useSessionActivity } from "@features/session/SessionActivity";
 import { createMeryApiClient } from "@shared/api/meryApi";
 import { QUERY_KEYS } from "@shared/api/queryKeys";
 import { loadVoiceViewModels } from "@shared/api/voiceViewModels";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { deriveOverviewViewModel } from "./overviewViewModel";
+
+function formatRelativeTime(isoStr: string): string {
+  const elapsed = (Date.now() - new Date(isoStr).getTime()) / 1000;
+  if (elapsed < 60) return "just now";
+  if (elapsed < 3600) return `${Math.floor(elapsed / 60)}m ago`;
+  return `${Math.floor(elapsed / 3600)}h ago`;
+}
 
 interface OverviewPanelProps {
   token: string;
@@ -25,6 +33,7 @@ export function OverviewPanel({
   onLogout,
 }: OverviewPanelProps) {
   const { navigate } = useNavigation();
+  const { lastSmoke, lastInstall } = useSessionActivity();
   const connected = status === "connected";
 
   const api = useMemo(
@@ -57,6 +66,11 @@ export function OverviewPanel({
     voices: voicesQuery.data ?? null,
     isHealthLoading: healthQuery.isLoading,
     isVoicesLoading: voicesQuery.isLoading,
+    engines: ((
+      healthQuery.data as
+        | { engines?: { engine_id: string; status: string }[] }
+        | undefined
+    )?.engines ?? []) as ReadonlyArray<{ engine_id: string; status: string }>,
   });
 
   return (
@@ -123,6 +137,42 @@ export function OverviewPanel({
           </div>
         ))}
       </output>
+
+      {(lastSmoke || lastInstall) && (
+        <div className="overview-last-actions" aria-label="Recent activity">
+          <span className="overview-last-actions-label">Recent</span>
+          {lastSmoke && (
+            <div
+              className={`overview-last-action overview-last-action--${lastSmoke.ok ? "ok" : "error"}`}
+            >
+              <span className="last-action-icon">
+                {lastSmoke.ok ? "✓" : "✗"}
+              </span>
+              <span className="last-action-text">
+                Smoke — {lastSmoke.voiceLabel}
+              </span>
+              <span className="last-action-time">
+                {formatRelativeTime(lastSmoke.timestamp)}
+              </span>
+            </div>
+          )}
+          {lastInstall && (
+            <div
+              className={`overview-last-action overview-last-action--${lastInstall.status === "succeeded" ? "ok" : "error"}`}
+            >
+              <span className="last-action-icon">
+                {lastInstall.status === "succeeded" ? "✓" : "✗"}
+              </span>
+              <span className="last-action-text">
+                Install — {lastInstall.voiceLabel}
+              </span>
+              <span className="last-action-time">
+                {formatRelativeTime(lastInstall.timestamp)}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }

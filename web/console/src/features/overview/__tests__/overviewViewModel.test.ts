@@ -7,6 +7,7 @@ const baseVoice: VoiceViewModel = {
   id: "v1",
   modelId: "model-1",
   title: "Voice 1",
+  displayLabel: "Voice 1",
   engine: "vits",
   locales: "en-US",
   installed: true,

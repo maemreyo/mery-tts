@@ -21,7 +21,7 @@ describe("PlaygroundPanel", () => {
           schema_version: "v1",
           voices: [
             {
-              voice_id: "voice.fr-fr",
+              voice_id: "piper-plus.fr-fr.demo",
               display_name: "French Demo",
               engine_id: "piper-plus",
               supported_locales: ["fr-FR"],
@@ -85,13 +85,13 @@ describe("PlaygroundPanel", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole("option", { name: "English Demo" }),
+        screen.getByRole("option", { name: "Demo (en-US)" }),
       ).toBeInTheDocument(),
     );
 
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Voice" }),
-      "voice.en-us",
+      "piper-plus.en-us.demo",
     );
 
     await userEvent.click(
@@ -193,7 +193,7 @@ describe("PlaygroundPanel", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole("option", { name: "English Demo" }),
+        screen.getByRole("option", { name: "Demo (en-US)" }),
       ).toBeInTheDocument(),
     );
 
@@ -203,7 +203,7 @@ describe("PlaygroundPanel", () => {
 
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Voice" }),
-      "voice.en-us",
+      "piper-plus.en-us.demo",
     );
     await userEvent.click(
       screen.getByRole("button", { name: "Run speech smoke" }),
@@ -228,13 +228,13 @@ describe("PlaygroundPanel", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole("option", { name: "English Demo" }),
+        screen.getByRole("option", { name: "Demo (en-US)" }),
       ).toBeInTheDocument(),
     );
 
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Voice" }),
-      "voice.en-us",
+      "piper-plus.en-us.demo",
     );
     await userEvent.click(
       screen.getByRole("button", { name: "Run speech smoke" }),
@@ -264,13 +264,13 @@ describe("PlaygroundPanel", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole("option", { name: "English Demo" }),
+        screen.getByRole("option", { name: "Demo (en-US)" }),
       ).toBeInTheDocument(),
     );
 
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Voice" }),
-      "voice.en-us",
+      "piper-plus.en-us.demo",
     );
     await userEvent.click(
       screen.getByRole("button", { name: "Run speech smoke" }),

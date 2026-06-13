@@ -3,6 +3,7 @@ import { DeveloperPanel } from "@features/developer/DeveloperPanel";
 import { HealthPanel } from "@features/health/HealthPanel";
 import { OverviewPanel } from "@features/overview/OverviewPanel";
 import { PlaygroundPanel } from "@features/playground/PlaygroundPanel";
+import { SessionActivityProvider } from "@features/session/SessionActivity";
 import { VoicesPanel } from "@features/voices/VoicesPanel";
 import { TokenProvider } from "@shared/auth/TokenContext";
 import { useState } from "react";
@@ -17,42 +18,44 @@ export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <TokenProvider value={token}>
-      <NavigationProvider>
-        <AppLayout
-          sidebar={
-            <Sidebar
-              isOpen={sidebarOpen}
-              onClose={() => setSidebarOpen(false)}
+    <SessionActivityProvider>
+      <TokenProvider value={token}>
+        <NavigationProvider>
+          <AppLayout
+            sidebar={
+              <Sidebar
+                isOpen={sidebarOpen}
+                onClose={() => setSidebarOpen(false)}
+              />
+            }
+            topbar={
+              <TopBar
+                status={status}
+                onLogout={logout}
+                onMenuOpen={() => setSidebarOpen(true)}
+              />
+            }
+          >
+            <ContentArea
+              panels={{
+                overview: (
+                  <OverviewPanel
+                    token={token}
+                    remember={remember}
+                    status={status}
+                    onApplyToken={applyToken}
+                    onLogout={logout}
+                  />
+                ),
+                voices: <VoicesPanel token={token} />,
+                playground: <PlaygroundPanel token={token} />,
+                health: <HealthPanel token={token} />,
+                developer: <DeveloperPanel />,
+              }}
             />
-          }
-          topbar={
-            <TopBar
-              status={status}
-              onLogout={logout}
-              onMenuOpen={() => setSidebarOpen(true)}
-            />
-          }
-        >
-          <ContentArea
-            panels={{
-              overview: (
-                <OverviewPanel
-                  token={token}
-                  remember={remember}
-                  status={status}
-                  onApplyToken={applyToken}
-                  onLogout={logout}
-                />
-              ),
-              voices: <VoicesPanel token={token} />,
-              playground: <PlaygroundPanel token={token} />,
-              health: <HealthPanel token={token} />,
-              developer: <DeveloperPanel />,
-            }}
-          />
-        </AppLayout>
-      </NavigationProvider>
-    </TokenProvider>
+          </AppLayout>
+        </NavigationProvider>
+      </TokenProvider>
+    </SessionActivityProvider>
   );
 }

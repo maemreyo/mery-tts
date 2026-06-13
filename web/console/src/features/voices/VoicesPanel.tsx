@@ -30,7 +30,7 @@ const columnHelper = createColumnHelper<VoiceViewModel>();
 const columns = [
   columnHelper.accessor("title", {
     header: "Voice",
-    cell: (info) => info.getValue(),
+    cell: (info) => info.row.original.displayLabel ?? info.getValue(),
   }),
   columnHelper.accessor("engine", {
     header: "Engine",

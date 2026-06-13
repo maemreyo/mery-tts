@@ -9,16 +9,16 @@ describe("VoicesPanel", () => {
     renderWithProviders(<VoicesPanel token="test-token" />);
 
     await waitFor(() =>
-      expect(screen.getAllByText("English Demo").length).toBeGreaterThan(0),
+      expect(screen.getAllByText("Demo (en-US)").length).toBeGreaterThan(0),
     );
-    expect(screen.getAllByText("Vietnamese Demo").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("French Demo").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Demo (vi-VN)").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Demo (fr-FR)").length).toBeGreaterThan(0);
     expect(screen.getAllByText("gated (reference)").length).toBeGreaterThan(0);
 
     await userEvent.type(screen.getByLabelText("Locale filter"), "vi-VN");
 
-    expect(screen.queryAllByText("English Demo")).toHaveLength(0);
-    expect(screen.getAllByText("Vietnamese Demo").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("Demo (en-US)")).toHaveLength(0);
+    expect(screen.getAllByText("Demo (vi-VN)").length).toBeGreaterThan(0);
     expect(screen.getAllByText("gated").length).toBeGreaterThan(0);
     expect(
       screen.queryByRole("button", { name: "Install voice" }),
@@ -29,15 +29,15 @@ describe("VoicesPanel", () => {
     renderWithProviders(<VoicesPanel token="test-token" />);
 
     await waitFor(() =>
-      expect(screen.getAllByText("Vietnamese Demo").length).toBeGreaterThan(0),
+      expect(screen.getAllByText("Demo (vi-VN)").length).toBeGreaterThan(0),
     );
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Sort voices" }),
       "engine",
     );
-    await userEvent.type(screen.getByLabelText("Search voices"), "French");
-    expect(screen.queryAllByText("English Demo")).toHaveLength(0);
-    expect(screen.queryAllByText("Vietnamese Demo")).toHaveLength(0);
+    await userEvent.type(screen.getByLabelText("Search voices"), "fr-FR");
+    expect(screen.queryAllByText("Demo (en-US)")).toHaveLength(0);
+    expect(screen.queryAllByText("Demo (vi-VN)")).toHaveLength(0);
 
     // Both desktop table and mobile card render the button — click the first one.
     const installButtons = screen.getAllByRole("button", {
@@ -58,6 +58,6 @@ describe("VoicesPanel", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "Enter a token to load voices.",
     );
-    expect(screen.queryAllByText("English Demo")).toHaveLength(0);
+    expect(screen.queryAllByText("Demo (en-US)")).toHaveLength(0);
   });
 });

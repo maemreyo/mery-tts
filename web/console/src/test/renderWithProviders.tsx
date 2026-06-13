@@ -1,4 +1,5 @@
 import { NavigationProvider } from "@features/app-shell/NavigationContext";
+import { SessionActivityProvider } from "@features/session/SessionActivity";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type RenderOptions, render } from "@testing-library/react";
 import type { RequestHandler } from "msw";
@@ -27,7 +28,9 @@ export function renderWithProviders(
   return render(ui, {
     wrapper: ({ children }) => (
       <QueryClientProvider client={client}>
-        <NavigationProvider>{children}</NavigationProvider>
+        <SessionActivityProvider>
+          <NavigationProvider>{children}</NavigationProvider>
+        </SessionActivityProvider>
       </QueryClientProvider>
     ),
     ...renderOptions,

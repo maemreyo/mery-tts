@@ -1,3 +1,4 @@
+import { useSessionActivity } from "@features/session/SessionActivity";
 import { createMeryApiClient } from "@shared/api/meryApi";
 import { QUERY_KEYS } from "@shared/api/queryKeys";
 import {
@@ -35,8 +36,10 @@ export function useVoices({ token }: { token: string }): UseVoicesResult {
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("name");
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [activeVoice, setActiveVoice] = useState<VoiceViewModel | null>(null);
   const queryClient = useQueryClient();
   const api = useMemo(() => createMeryApiClient({ token }), [token]);
+  const { recordInstall } = useSessionActivity();
 
   const voicesQuery = useQuery({
     queryKey: QUERY_KEYS.voices(token),
@@ -47,7 +50,10 @@ export function useVoices({ token }: { token: string }): UseVoicesResult {
   const installMutation = useMutation({
     mutationFn: (voice: VoiceViewModel) =>
       startVoiceInstall(api, voice.modelId),
-    onSuccess: (job) => setActiveJobId(job.job_id),
+    onSuccess: (job, voice) => {
+      setActiveJobId(job.job_id);
+      setActiveVoice(voice);
+    },
   });
 
   const uninstallMutation = useMutation({
@@ -80,8 +86,16 @@ export function useVoices({ token }: { token: string }): UseVoicesResult {
       void queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.voices(token),
       });
+      if (activeVoice) {
+        recordInstall({
+          voiceId: activeVoice.modelId,
+          voiceLabel: activeVoice.displayLabel ?? activeVoice.title,
+          status: installStatus,
+          timestamp: new Date().toISOString(),
+        });
+      }
     }
-  }, [installStatus, queryClient, token]);
+  }, [installStatus, queryClient, token, activeVoice, recordInstall]);
 
   const voices = voicesQuery.data ?? [];
 

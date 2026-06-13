@@ -33,6 +33,7 @@ export function deriveOverviewViewModel(params: {
   voices: VoiceViewModel[] | null;
   isHealthLoading: boolean;
   isVoicesLoading: boolean;
+  engines?: ReadonlyArray<{ engine_id: string; status: string }>;
 }): OverviewViewModel {
   const {
     connectionStatus,
@@ -143,9 +144,16 @@ export function deriveOverviewViewModel(params: {
   }
 
   // connected + ready + voices available
+  const deg = (params.engines ?? []).filter(
+    (e) => e.status !== "available",
+  ).length;
+  const description =
+    deg > 0
+      ? `Synthesis working. ${deg} engine${deg > 1 ? "s" : ""} degraded — check Health for details.`
+      : "Everything looks good. Run a smoke test or browse voices.";
   return {
     headline: "Mery is ready",
-    description: "Everything looks good. Run a smoke test or browse voices.",
+    description,
     primaryAction: { label: "Run smoke test", target: "playground" },
     secondaryActions: [
       { label: "Browse Voices", target: "voices" },

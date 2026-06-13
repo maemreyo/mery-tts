@@ -1325,3 +1325,41 @@ output[role="status"] {
   gap: var(--sp-2);
   flex-wrap: wrap;
 }
+
+/* ─── Overview last-actions strip ───────────────────────────────────────── */
+.overview-last-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border);
+}
+.overview-last-actions-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.overview-last-action {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.overview-last-action--ok .last-action-icon {
+  color: var(--success);
+}
+.overview-last-action--error .last-action-icon {
+  color: var(--error);
+}
+.last-action-text {
+  flex: 1;
+}
+.last-action-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}

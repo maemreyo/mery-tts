@@ -5,6 +5,7 @@ export interface VoiceViewModel {
   id: string;
   modelId: string;
   title: string;
+  displayLabel: string;
   engine: string;
   locales: string;
   installed: boolean;
@@ -12,6 +13,24 @@ export interface VoiceViewModel {
   governanceLabel: string;
   governanceStatus: string;
   installable: boolean;
+}
+
+function parseVoiceLabel(voiceId: string): string {
+  const bare = voiceId.startsWith("catalog.")
+    ? voiceId.slice("catalog.".length)
+    : voiceId;
+  const parts = bare.split(".");
+  if (parts.length < 3) return bare;
+  const [, locale, ...nameParts] = parts;
+  const localeFmt = locale.replace(
+    /^([a-z]{2})-([a-z]{2})$/,
+    (_: string, l: string, c: string) => `${l}-${c.toUpperCase()}`,
+  );
+  const nameFmt = nameParts
+    .flatMap((p: string) => p.split("-"))
+    .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+  return nameFmt ? `${nameFmt} (${localeFmt})` : localeFmt;
 }
 
 // Map backend consent_status to user-facing label, preserving existing UI text
@@ -48,9 +67,11 @@ export async function loadVoiceViewModels(
   const rawIds = installed.map((v) => v.voice_id);
   const installedIds = new Set([
     ...rawIds,
-    ...rawIds.map((id) => `catalog.${id}`),   // handle bare → catalog prefix
-    ...rawIds.map((id) =>                       // handle catalog prefix → bare
-      id.startsWith("catalog.") ? id.slice("catalog.".length) : id,
+    ...rawIds.map((id) => `catalog.${id}`), // handle bare → catalog prefix
+    ...rawIds.map(
+      (
+        id, // handle catalog prefix → bare
+      ) => (id.startsWith("catalog.") ? id.slice("catalog.".length) : id),
     ),
   ]);
   return catalog.map((v) => toVoiceViewModel(v, installedIds));
@@ -86,7 +107,8 @@ function toVoiceViewModel(
   return {
     id: voice.voice_id,
     modelId,
-    title: voice.display_name,
+    title: parseVoiceLabel(voice.voice_id),
+    displayLabel: parseVoiceLabel(voice.voice_id),
     engine: voice.engine_id,
     locales:
       voice.supported_locales.length > 0

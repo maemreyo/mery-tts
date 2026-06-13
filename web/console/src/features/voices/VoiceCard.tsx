@@ -11,8 +11,11 @@ interface VoiceCardProps {
 
 export function VoiceCard({ voice, onInstall, onUninstall }: VoiceCardProps) {
   return (
-    <article className="voice-card" aria-label={voice.title}>
-      <div className="voice-card-name">{voice.title}</div>
+    <article
+      className="voice-card"
+      aria-label={voice.displayLabel ?? voice.title}
+    >
+      <div className="voice-card-name">{voice.displayLabel ?? voice.title}</div>
       <div className="voice-card-meta">
         {voice.engine} &middot; {voice.locales}
       </div>

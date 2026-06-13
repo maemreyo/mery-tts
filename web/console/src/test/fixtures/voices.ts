@@ -14,7 +14,7 @@ import type {
  */
 export const voiceCatalogVoices: VoiceSummary[] = [
   {
-    voice_id: "voice.en-us",
+    voice_id: "piper-plus.en-us.demo",
     display_name: "English Demo",
     engine_id: "piper-plus",
     supported_locales: ["en-US"],
@@ -23,7 +23,7 @@ export const voiceCatalogVoices: VoiceSummary[] = [
     consent_status: "not_required",
   },
   {
-    voice_id: "voice.vi-vn",
+    voice_id: "kokoro.vi-vn.demo",
     display_name: "Vietnamese Demo",
     engine_id: "kokoro",
     supported_locales: ["vi-VN"],
@@ -32,7 +32,7 @@ export const voiceCatalogVoices: VoiceSummary[] = [
     consent_status: "required",
   },
   {
-    voice_id: "voice.fr-fr",
+    voice_id: "piper-plus.fr-fr.demo",
     display_name: "French Demo",
     engine_id: "piper-plus",
     supported_locales: ["fr-FR"],
