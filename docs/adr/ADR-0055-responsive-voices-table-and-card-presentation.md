@@ -1,6 +1,6 @@
 # ADR-0055 — Responsive Voices Table and Card Presentation
 
-**Status:** Proposed  
+**Status:** Accepted
 **Date:** 2026-06-12  
 **Source:** Web Console Runtime Control Plane grill — Voices UI decisions
 

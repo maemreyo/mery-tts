@@ -1,60 +1,49 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { PropsWithChildren } from "react";
 import { describe, expect, it } from "vitest";
+import { renderWithProviders } from "../../../test/renderWithProviders";
 import { VoicesPanel } from "../VoicesPanel";
-
-function renderWithQuery(ui: React.ReactElement) {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  function Wrapper({ children }: PropsWithChildren) {
-    return (
-      <QueryClientProvider client={client}>{children}</QueryClientProvider>
-    );
-  }
-  return render(ui, { wrapper: Wrapper });
-}
 
 describe("VoicesPanel", () => {
   it("loads voices through MSW and filters them by locale", async () => {
-    renderWithQuery(<VoicesPanel token="test-token" />);
+    renderWithProviders(<VoicesPanel token="test-token" />);
 
     await waitFor(() =>
-      expect(screen.getByText("English Demo")).toBeInTheDocument(),
+      expect(screen.getAllByText("English Demo").length).toBeGreaterThan(0),
     );
-    expect(screen.getByText("Vietnamese Demo")).toBeInTheDocument();
-    expect(screen.getByText("French Demo")).toBeInTheDocument();
-    expect(screen.getByText("gated (reference)")).toBeInTheDocument();
+    expect(screen.getAllByText("Vietnamese Demo").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("French Demo").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("gated (reference)").length).toBeGreaterThan(0);
 
     await userEvent.type(screen.getByLabelText("Locale filter"), "vi-VN");
 
-    expect(screen.queryByText("English Demo")).not.toBeInTheDocument();
-    expect(screen.getByText("Vietnamese Demo")).toBeInTheDocument();
-    expect(screen.getByText("gated")).toBeInTheDocument();
+    expect(screen.queryAllByText("English Demo")).toHaveLength(0);
+    expect(screen.getAllByText("Vietnamese Demo").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("gated").length).toBeGreaterThan(0);
     expect(
       screen.queryByRole("button", { name: "Install voice" }),
     ).not.toBeInTheDocument();
   });
 
   it("supports search, sort, and install polling states", async () => {
-    renderWithQuery(<VoicesPanel token="test-token" />);
+    renderWithProviders(<VoicesPanel token="test-token" />);
 
     await waitFor(() =>
-      expect(screen.getByText("Vietnamese Demo")).toBeInTheDocument(),
+      expect(screen.getAllByText("Vietnamese Demo").length).toBeGreaterThan(0),
     );
-    await userEvent.click(
+    await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Sort voices" }),
+      "engine",
     );
-    await userEvent.click(screen.getByRole("option", { name: "Engine" }));
     await userEvent.type(screen.getByLabelText("Search voices"), "French");
-    expect(screen.queryByText("English Demo")).not.toBeInTheDocument();
-    expect(screen.queryByText("Vietnamese Demo")).not.toBeInTheDocument();
+    expect(screen.queryAllByText("English Demo")).toHaveLength(0);
+    expect(screen.queryAllByText("Vietnamese Demo")).toHaveLength(0);
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Install voice" }),
-    );
+    // Both desktop table and mobile card render the button — click the first one.
+    const installButtons = screen.getAllByRole("button", {
+      name: "Install voice",
+    });
+    await userEvent.click(installButtons[0]);
     expect(screen.getByText("Confirm voice install")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Confirm" }));
 
@@ -64,11 +53,11 @@ describe("VoicesPanel", () => {
   });
 
   it("does not load voices without a token", () => {
-    renderWithQuery(<VoicesPanel token="" />);
+    renderWithProviders(<VoicesPanel token="" />);
 
     expect(screen.getByRole("status")).toHaveTextContent(
       "Enter a token to load voices.",
     );
-    expect(screen.queryByText("English Demo")).not.toBeInTheDocument();
+    expect(screen.queryAllByText("English Demo")).toHaveLength(0);
   });
 });

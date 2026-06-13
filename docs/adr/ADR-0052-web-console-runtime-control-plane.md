@@ -1,6 +1,6 @@
 # ADR-0052 — Web Console Runtime Control Plane
 
-**Status:** Proposed  
+**Status:** Accepted
 **Date:** 2026-06-12  
 **Source:** Web Console Runtime Control Plane grill — Overview, Connection, Voices, Playground, Health, Developer, and QA scope
 

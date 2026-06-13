@@ -32,7 +32,10 @@ module.exports = {
       name: "runtime-does-not-import-test-support",
       comment: "Production code must not depend on MSW, Vitest setup, or test-only helpers.",
       severity: "error",
-      from: { path: "^src/(api|features|shared|main\\.tsx|styles\\.css)" },
+      from: {
+        path: "^src/(api|features|shared|main\\.tsx|styles\\.css)",
+        pathNot: "/__tests__/"
+      },
       to: { path: "^src/test/|/__tests__/" }
     },
     {

@@ -1,6 +1,6 @@
 import type { MeryApiClient } from "@shared/api/meryApi";
+import { loadVoiceViewModels } from "@shared/api/voiceViewModels";
 import { describe, expect, it } from "vitest";
-import { loadVoiceViewModels } from "../voicesApi";
 
 describe("loadVoiceViewModels", () => {
   it("maps API voices to safe locale and governance labels", async () => {

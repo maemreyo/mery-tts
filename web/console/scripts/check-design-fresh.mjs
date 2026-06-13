@@ -1,63 +1,64 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../../..");
+const consoleRoot = resolve(__dirname, "..");
 const designFile = resolve(repoRoot, "docs/console/DESIGN.md");
-const themeFile = resolve(__dirname, "../src/theme.css");
+const themeFile = resolve(consoleRoot, "src/theme.css");
 
-const designContent = readFileSync(designFile, "utf-8");
-const themeContent = readFileSync(themeFile, "utf-8");
+function buildThemeCss(tailwindOutput) {
+  return `@import "tailwindcss";
 
-// Verify theme.css contains required token categories
-const requiredTokens = [
-  "--color-bg-base",
-  "--color-bg-surface",
-  "--color-bg-raised",
-  "--color-accent",
-  "--color-success",
-  "--color-warning",
-  "--color-error",
-  "--spacing-md",
-  "--radius-md",
-  "--font-sans",
-];
+/* ─── Generated from docs/console/DESIGN.md ──────────────────────────────────
+   This file is authoritative for design tokens.
+   Run: pnpm generate:design
+   Do not hand-edit — edit DESIGN.md instead.
+   ─────────────────────────────────────────────────────────────────────── */
 
-const missing = requiredTokens.filter((token) => !themeContent.includes(token));
-if (missing.length > 0) {
-  console.error(`theme.css is missing tokens for: ${missing.join(", ")}`);
+${tailwindOutput}
+
+/* Compatibility aliases for Console runtime CSS. */
+@theme {
+  --layout-sidebar-w: 220px;
+  --layout-topbar-h: 56px;
+  --font-sans: var(--font-body-md);
+  --font-mono: ui-monospace, "Cascadia Code", "Fira Code", monospace;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+`;
+}
+
+const result = spawnSync(
+  "pnpm",
+  ["exec", "design.md", "export", designFile, "--format", "css-tailwind"],
+  { cwd: consoleRoot, encoding: "utf-8" },
+);
+
+if (result.error || result.status !== 0) {
+  console.error(
+    "Failed to export DESIGN.md tokens:",
+    result.stderr || result.error?.message,
+  );
   process.exit(1);
 }
 
-// Verify theme.css references DESIGN.md
-if (!themeContent.includes("Generated from docs/console/DESIGN.md")) {
-  console.error("theme.css header is missing DESIGN.md reference; regenerate with pnpm generate:design");
+const tailwindOutput = result.stdout.trim();
+if (!tailwindOutput.startsWith("@theme {")) {
+  console.error("Unexpected output from design.md export:\n", tailwindOutput);
   process.exit(1);
 }
 
-// Verify DESIGN.md colors match theme.css (basic consistency check)
-const designColors = [
-  ["bg-base", /bg-base:\s*"([^"]+)"/, "--color-bg-base:\\s*([^;]+)"],
-  ["accent", /accent:\s*"([^"]+)"/, "--color-accent:\\s*([^;]+)"],
-  ["success", /success:\s*"([^"]+)"/, "--color-success:\\s*([^;]+)"],
-];
+const expectedTheme = buildThemeCss(tailwindOutput);
+const actualTheme = readFileSync(themeFile, "utf-8");
 
-const mismatches = [];
-for (const [name, designRegex, themeRegex] of designColors) {
-  const designMatch = designContent.match(designRegex);
-  const themeMatch = themeContent.match(new RegExp(themeRegex));
-  if (!designMatch || !themeMatch) {
-    mismatches.push(`${name}: missing from DESIGN.md or theme.css`);
-    continue;
-  }
-  if (designMatch[1] !== themeMatch[1]) {
-    mismatches.push(`${name}: DESIGN.md has ${designMatch[1]}, theme.css has ${themeMatch[1]}`);
-  }
-}
-
-if (mismatches.length > 0) {
-  console.error(`theme.css is stale or inconsistent with DESIGN.md:\n  - ${mismatches.join("\n  - ")}`);
+if (actualTheme !== expectedTheme) {
+  console.error(
+    "theme.css is stale or inconsistent with DESIGN.md. Run: pnpm generate:design",
+  );
   process.exit(1);
 }
 

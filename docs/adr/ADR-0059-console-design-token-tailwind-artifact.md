@@ -1,6 +1,6 @@
 # ADR-0059 — Console DESIGN.md Tailwind Theme Artifact
 
-**Status:** Proposed  
+**Status:** Accepted
 **Date:** 2026-06-12  
 **Source:** Web Console design-token grill — Google Labs `design.md`, Tailwind v4, and generated artifact strategy
 

@@ -16,7 +16,7 @@
   --color-border-strong: #bae6fd3d;
   --color-text-primary: #e2e8f0;
   --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
+  --color-text-muted: #94a3b8;
   --color-text-inverse: #0a111e;
   --color-accent: #bae6fd;
   --color-accent-dim: #bae6fd26;
@@ -34,8 +34,6 @@
   --font-body-md: "Inter, ui-sans-serif, system-ui, sans-serif";
   --font-label-strong: "Inter, ui-sans-serif, system-ui, sans-serif";
   --font-label-xs: "Inter, ui-sans-serif, system-ui, sans-serif";
-  --font-sans: "Inter, ui-sans-serif, system-ui, sans-serif";
-  --font-mono: ui-monospace, "Cascadia Code", "Fira Code", monospace;
   --text-heading-lg: 1.25rem;
   --text-heading-md: 0.9375rem;
   --text-body-md: 0.875rem;
@@ -58,9 +56,14 @@
   --spacing-xl: 20px;
   --spacing-xxl: 24px;
   --spacing-xxxl: 32px;
+}
+
+/* Compatibility aliases for Console runtime CSS. */
+@theme {
   --layout-sidebar-w: 220px;
   --layout-topbar-h: 56px;
+  --font-sans: var(--font-body-md);
+  --font-mono: ui-monospace, "Cascadia Code", "Fira Code", monospace;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
-

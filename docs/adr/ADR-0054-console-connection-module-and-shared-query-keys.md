@@ -1,6 +1,6 @@
 # ADR-0054 — Console Connection Module and Shared Query Keys
 
-**Status:** Proposed  
+**Status:** Accepted
 **Date:** 2026-06-12  
 **Source:** Web Console Runtime Control Plane grill — connection and cache decisions
 

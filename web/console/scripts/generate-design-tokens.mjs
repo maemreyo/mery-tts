@@ -35,6 +35,15 @@ const css = `@import "tailwindcss";
 
 ${tailwindOutput}
 
+/* Compatibility aliases for Console runtime CSS. */
+@theme {
+  --layout-sidebar-w: 220px;
+  --layout-topbar-h: 56px;
+  --font-sans: var(--font-body-md);
+  --font-mono: ui-monospace, "Cascadia Code", "Fira Code", monospace;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
 `;
 
 mkdirSync(dirname(outFile), { recursive: true });

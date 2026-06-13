@@ -1,11 +1,8 @@
-import { createMeryApiClient } from "@shared/api/meryApi";
+import type { VoiceViewModel } from "@shared/api/voiceViewModels";
 import { t } from "@shared/i18n/messages";
 import { Button } from "@shared/ui/Button";
 import { ConfirmDialog } from "@shared/ui/ConfirmDialog";
-import { FieldGroup, FormField } from "@shared/ui/FormField";
-import { SelectField } from "@shared/ui/SelectField";
 import { SkeletonTable } from "@shared/ui/Skeleton";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type SortingState,
   createColumnHelper,
@@ -14,25 +11,14 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { memo, useEffect, useMemo, useState } from "react";
-import type { VoiceViewModel } from "./voicesApi";
-import {
-  loadVoiceViewModels,
-  pollVoiceInstall,
-  startVoiceInstall,
-} from "./voicesApi";
+import { memo, useMemo } from "react";
+import { VoiceCard } from "./VoiceCard";
+import { VoicesToolbar } from "./VoicesToolbar";
+import { useVoices } from "./useVoices";
 
 interface VoicesPanelProps {
   token: string;
 }
-
-type SortMode = "name" | "engine" | "locale";
-
-const sortOptions = [
-  { label: "Name", value: "name" },
-  { label: "Engine", value: "engine" },
-  { label: "Locale", value: "locale" },
-] as const;
 
 // Stable row model factories — created once at module load, not per render.
 const coreRowModel = getCoreRowModel();
@@ -63,6 +49,16 @@ const columns = [
   }),
 ];
 
+function sortingForMode(sortMode: "name" | "engine" | "locale"): SortingState {
+  if (sortMode === "engine") {
+    return [{ id: "engine", desc: false }];
+  }
+  if (sortMode === "locale") {
+    return [{ id: "locales", desc: false }];
+  }
+  return [{ id: "title", desc: false }];
+}
+
 function installStatusLabel(status: string): string {
   switch (status) {
     case "queued":
@@ -79,67 +75,20 @@ function installStatusLabel(status: string): string {
   }
 }
 
-function sortingForMode(sortMode: SortMode): SortingState {
-  if (sortMode === "engine") {
-    return [{ id: "engine", desc: false }];
-  }
-  if (sortMode === "locale") {
-    return [{ id: "locales", desc: false }];
-  }
-  return [{ id: "title", desc: false }];
-}
-
 function VoicesPanelBase({ token }: VoicesPanelProps) {
-  const [localeFilter, setLocaleFilter] = useState("");
-  const [search, setSearch] = useState("");
-  const [sortMode, setSortMode] = useState<SortMode>("name");
-  const [activeJobId, setActiveJobId] = useState<string | null>(null);
-  const queryClient = useQueryClient();
-  const api = useMemo(() => createMeryApiClient({ token }), [token]);
-
-  const voicesQuery = useQuery({
-    queryKey: ["voices", token],
-    queryFn: () => loadVoiceViewModels(api),
-    enabled: token.length > 0,
-  });
-
-  const installMutation = useMutation({
-    mutationFn: (voice: VoiceViewModel) =>
-      startVoiceInstall(api, voice.modelId),
-    onSuccess: (job) => setActiveJobId(job.job_id),
-  });
-
-  const installJobQuery = useQuery({
-    queryKey: ["install-job", activeJobId, token],
-    queryFn: () => pollVoiceInstall(api, activeJobId ?? ""),
-    enabled: Boolean(activeJobId && token),
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return status === "queued" || status === "running" ? 1000 : false;
-    },
-  });
-
-  const installStatus = installJobQuery.data?.status;
-  useEffect(() => {
-    if (
-      installStatus === "succeeded" ||
-      installStatus === "failed" ||
-      installStatus === "cancelled"
-    ) {
-      void queryClient.invalidateQueries({ queryKey: ["voices", token] });
-    }
-  }, [installStatus, queryClient, token]);
-
-  const voices = voicesQuery.data ?? [];
-  const visibleVoices = useMemo(() => {
-    const searchLower = search.toLowerCase();
-    const localeLower = localeFilter.toLowerCase();
-    return voices.filter((voice) => {
-      const text =
-        `${voice.title} ${voice.engine} ${voice.locales} ${voice.governanceLabel}`.toLowerCase();
-      return text.includes(searchLower) && voice.locales.toLowerCase().includes(localeLower);
-    });
-  }, [voices, search, localeFilter]);
+  const {
+    visibleVoices,
+    isLoading,
+    search,
+    setSearch,
+    localeFilter,
+    setLocaleFilter,
+    sortMode,
+    setSortMode,
+    installVoice,
+    installJobStatus,
+    statusText,
+  } = useVoices({ token });
 
   const sorting = useMemo(() => sortingForMode(sortMode), [sortMode]);
 
@@ -151,17 +100,6 @@ function VoicesPanelBase({ token }: VoicesPanelProps) {
     getSortedRowModel: sortedRowModel,
   });
 
-  let status = t("enterToken");
-  if (token && voicesQuery.isLoading) {
-    status = t("loadingVoices");
-  } else if (voicesQuery.isError) {
-    status = t("loadVoicesError");
-  } else if (token && voices.length === 0) {
-    status = t("noVoices");
-  } else if (token) {
-    status = `${voices.length} voice options loaded.`;
-  }
-
   return (
     <section aria-labelledby="voices-heading">
       <div className="page-header">
@@ -170,91 +108,105 @@ function VoicesPanelBase({ token }: VoicesPanelProps) {
       </div>
 
       <div className="panel voice-grid">
-        <FieldGroup>
-          <FormField
-            label={t("searchVoices")}
-            value={search}
-            onChange={(event) => setSearch(event.currentTarget.value)}
-            placeholder="English Demo"
-          />
-          <FormField
-            label={t("localeFilter")}
-            value={localeFilter}
-            onChange={(event) => setLocaleFilter(event.currentTarget.value)}
-            placeholder="en-US, vi-VN"
-          />
-          <SelectField
-            label={t("sortVoices")}
-            options={[...sortOptions]}
-            value={sortMode}
-            onValueChange={setSortMode}
-          />
-        </FieldGroup>
+        <VoicesToolbar
+          search={search}
+          onSearchChange={setSearch}
+          localeFilter={localeFilter}
+          onLocaleFilterChange={setLocaleFilter}
+          sortMode={sortMode}
+          onSortModeChange={setSortMode}
+        />
 
-        {installJobQuery.data && (
+        {installJobStatus && (
           <div>
-            <span className={`badge ${installJobQuery.data.status === "succeeded" ? "badge--success" : installJobQuery.data.status === "failed" ? "badge--error" : "badge--neutral"}`}>
-              {installStatusLabel(installJobQuery.data.status)}
+            <span
+              className={`badge ${
+                installJobStatus === "succeeded"
+                  ? "badge--success"
+                  : installJobStatus === "failed"
+                    ? "badge--error"
+                    : "badge--neutral"
+              }`}
+            >
+              {installStatusLabel(installJobStatus)}
             </span>
           </div>
         )}
 
-        <output role="status" style={{ fontSize: 13, color: "var(--text-muted)" }}>
-          {status}
+        <output className="voices-status" aria-live="polite">
+          {statusText}
         </output>
-        {voicesQuery.isLoading ? (
+
+        {isLoading ? (
           <SkeletonTable rows={6} />
         ) : (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <th key={header.id} scope="col">
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                      </th>
+          <>
+            <div className="voices-desktop">
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <tr key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <th key={header.id} scope="col">
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext(),
+                            )}
+                          </th>
+                        ))}
+                        <th scope="col">Action</th>
+                      </tr>
                     ))}
-                    <th scope="col">Action</th>
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {table.getRowModel().rows.map((row) => (
-                  <tr key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <td
-                        key={cell.id}
-                        data-label={String(cell.column.columnDef.header)}
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
+                  </thead>
+                  <tbody>
+                    {table.getRowModel().rows.map((row) => (
+                      <tr key={row.id}>
+                        {row.getVisibleCells().map((cell) => (
+                          <td
+                            key={cell.id}
+                            data-label={String(cell.column.columnDef.header)}
+                          >
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
+                          </td>
+                        ))}
+                        <td data-label="Action">
+                          {row.original.installable ? (
+                            <ConfirmDialog
+                              title="Confirm voice install"
+                              description={`Install ${row.original.title} using backend model id ${row.original.modelId}.`}
+                              onConfirm={() => installVoice(row.original)}
+                            >
+                              <Button type="button" variant="primary">
+                                {t("installVoice")}
+                              </Button>
+                            </ConfirmDialog>
+                          ) : (
+                            <span className="badge badge--neutral">
+                              {row.original.governanceStatus}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
                     ))}
-                    <td data-label="Action">
-                      {row.original.installable ? (
-                        <ConfirmDialog
-                          title="Confirm voice install"
-                          description={`Install ${row.original.title} using backend model id ${row.original.modelId}.`}
-                          onConfirm={() => installMutation.mutate(row.original)}
-                        >
-                          <Button type="button" variant="primary">
-                            {t("installVoice")}
-                          </Button>
-                        </ConfirmDialog>
-                      ) : (
-                        <span className="badge badge--neutral">
-                          {row.original.governanceStatus}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="voices-mobile">
+              {visibleVoices.map((voice) => (
+                <VoiceCard
+                  key={voice.id}
+                  voice={voice}
+                  onInstall={installVoice}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </section>

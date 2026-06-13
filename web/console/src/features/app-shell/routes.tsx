@@ -1,6 +1,12 @@
-export type ConsoleSection = "voices" | "playground" | "health" | "developer";
+export type ConsoleSection =
+  | "overview"
+  | "voices"
+  | "playground"
+  | "health"
+  | "developer";
 
 export const consoleSections = [
+  { id: "overview", label: "Overview", hash: "#overview" },
   { id: "voices", label: "Voices", hash: "#voices" },
   { id: "playground", label: "Playground", hash: "#playground" },
   { id: "health", label: "Health", hash: "#health" },

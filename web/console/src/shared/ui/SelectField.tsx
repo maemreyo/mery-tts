@@ -1,6 +1,3 @@
-import * as Label from "@radix-ui/react-label";
-import * as Select from "@radix-ui/react-select";
-
 export interface SelectOption<TValue extends string> {
   label: string;
   value: TValue;
@@ -22,30 +19,20 @@ export function SelectField<TValue extends string>({
   const id = label.toLowerCase().replaceAll(" ", "-");
   return (
     <div className="form-field">
-      <Label.Root htmlFor={id}>{label}</Label.Root>
-      <Select.Root
+      <label htmlFor={id}>{label}</label>
+      <select
+        aria-label={label}
+        className="select-trigger"
+        id={id}
         value={value}
-        onValueChange={(next) => onValueChange(next as TValue)}
+        onChange={(event) => onValueChange(event.currentTarget.value as TValue)}
       >
-        <Select.Trigger aria-label={label} className="select-trigger" id={id}>
-          <Select.Value />
-        </Select.Trigger>
-        <Select.Portal>
-          <Select.Content className="select-content" position="popper">
-            <Select.Viewport>
-              {options.map((option) => (
-                <Select.Item
-                  className="select-item"
-                  key={option.value}
-                  value={option.value}
-                >
-                  <Select.ItemText>{option.label}</Select.ItemText>
-                </Select.Item>
-              ))}
-            </Select.Viewport>
-          </Select.Content>
-        </Select.Portal>
-      </Select.Root>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

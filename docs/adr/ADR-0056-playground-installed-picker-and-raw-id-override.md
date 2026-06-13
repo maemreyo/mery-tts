@@ -1,6 +1,6 @@
 # ADR-0056 — Playground Installed Voice Picker and Raw ID Override
 
-**Status:** Proposed  
+**Status:** Accepted
 **Date:** 2026-06-12  
 **Source:** Web Console Runtime Control Plane grill — Playground voice-selection decisions
 

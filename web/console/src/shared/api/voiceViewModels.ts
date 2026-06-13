@@ -2,7 +2,7 @@ import type {
   InstallJobResponse,
   MeryApiClient,
   VoiceSummary,
-} from "@shared/api/meryApi";
+} from "./meryApi";
 
 export interface VoiceViewModel {
   id: string;

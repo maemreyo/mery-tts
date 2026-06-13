@@ -1,6 +1,6 @@
 # ADR-0057 — Diagnostics-Ready Health and Developer Schema Preview
 
-**Status:** Proposed  
+**Status:** Accepted
 **Date:** 2026-06-12  
 **Source:** Web Console Runtime Control Plane grill — Health and Developer decisions
 

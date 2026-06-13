@@ -1,12 +1,13 @@
-import { consoleSections, type ConsoleSection } from "./routes";
 import { useNavigation } from "./NavigationContext";
+import { PanelErrorBoundary } from "./PanelErrorBoundary";
+import { type ConsoleSection, consoleSections } from "./routes";
 
 interface ContentAreaProps {
   panels: Record<ConsoleSection, React.ReactNode>;
 }
 
 export function ContentArea({ panels }: ContentAreaProps) {
-  const { activeSection, visited } = useNavigation();
+  const { activeSection, visited, navigate } = useNavigation();
 
   return (
     <>
@@ -18,7 +19,13 @@ export function ContentArea({ panels }: ContentAreaProps) {
             hidden={activeSection !== section.id}
             className="page-section"
           >
-            {panels[section.id]}
+            <PanelErrorBoundary
+              key={`${section.id}-eb`}
+              sectionName={section.label}
+              onGoToOverview={() => navigate("overview")}
+            >
+              {panels[section.id]}
+            </PanelErrorBoundary>
           </div>
         );
       })}

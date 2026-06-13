@@ -1,3 +1,4 @@
+import { useNavigation } from "@features/app-shell/NavigationContext";
 import { Button } from "@shared/ui/Button";
 import { ConfirmDialog } from "@shared/ui/ConfirmDialog";
 import { memo, useState } from "react";
@@ -16,27 +17,28 @@ const sanitizedExample = {
 
 function DeveloperPanelBase() {
   const [enabled, setEnabled] = useState(false);
+  const { navigate } = useNavigation();
 
   return (
-    <section aria-label="Developer Mode">
-      <h2>Developer Mode</h2>
+    <section aria-label="Developer">
+      <div className="page-header">
+        <h2>Developer</h2>
+        <p>Advanced diagnostics for Mery.</p>
+      </div>
       <Button
         type="button"
         aria-pressed={enabled}
+        aria-label={enabled ? "Hide developer tools" : "Developer tools"}
         onClick={() => setEnabled((value) => !value)}
       >
-        {enabled ? "Hide Developer Mode" : "Show Developer Mode"}
+        {enabled ? "Hide developer tools" : "Developer tools"}
       </Button>
       {enabled ? (
         <div className="developer-panel">
-          <p>
-            Pull-based diagnostics only. Live event streams remain a later
-            enhancement.
-          </p>
-          <p>
-            Raw private text, bearer tokens, reference audio, and private
-            filesystem paths must stay redacted.
-          </p>
+          <div className="developer-notice" role="note">
+            <strong>Preview only</strong> — this shows the shape of a sanitized
+            diagnostic payload. Live diagnostics are not connected in v1.
+          </div>
           <ConfirmDialog
             title="Sanitized Developer Mode payload"
             description="Inspect a schema-shaped example without secrets or private user data."
@@ -44,7 +46,16 @@ function DeveloperPanelBase() {
           >
             <Button type="button">Inspect schema example</Button>
           </ConfirmDialog>
-          <pre>{JSON.stringify(sanitizedExample, null, 2)}</pre>
+          <pre aria-label="Sanitized diagnostic payload example">
+            {JSON.stringify(sanitizedExample, null, 2)}
+          </pre>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => navigate("overview")}
+          >
+            ← Overview
+          </button>
         </div>
       ) : null}
     </section>

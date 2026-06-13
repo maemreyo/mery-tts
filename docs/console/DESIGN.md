@@ -12,7 +12,7 @@ colors:
   border-strong: "rgba(186, 230, 253, 0.24)"
   text-primary: "#e2e8f0"
   text-secondary: "#94a3b8"
-  text-muted: "#64748b"
+  text-muted: "#94a3b8"
   text-inverse: "#0a111e"
   accent: "#bae6fd"
   accent-dim: "rgba(186, 230, 253, 0.15)"
@@ -114,7 +114,7 @@ The palette is optimized for local diagnostics sessions where users may spend ti
 
 - **bg-base (`#0a111e`)** is the app background: dark blue-gray, lower glare than pure black.
 - **text-primary (`#e2e8f0`)** is the default foreground for readable long-form diagnostic copy.
-- **text-muted (`#64748b`)** is for helper text, retention notes, and secondary metadata.
+- **text-muted (`#94a3b8`)** is for helper text, retention notes, and secondary metadata; it must remain AA-readable on dark panels.
 - **accent (`#bae6fd`)** labels diagnostic keys, Developer Mode borders, and primary local actions.
 - **bg-surface tokens** use dark translucent panels so surfaces remain visually grouped without looking like modal chrome.
 - **success/warning/error** are reserved for state badges and must be paired with text labels, never color alone.

@@ -1,6 +1,6 @@
 # ADR-0058 — Console Test, Accessibility, and Visual QA Gates
 
-**Status:** Proposed  
+**Status:** Accepted
 **Date:** 2026-06-12  
 **Source:** Web Console Runtime Control Plane grill — testability and UI quality decisions
 

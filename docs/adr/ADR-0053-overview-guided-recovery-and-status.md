@@ -1,6 +1,6 @@
 # ADR-0053 — Overview Guided Recovery and Status
 
-**Status:** Proposed  
+**Status:** Accepted
 **Date:** 2026-06-12  
 **Source:** Web Console Runtime Control Plane grill — Overview landing decisions
 

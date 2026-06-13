@@ -1,5 +1,6 @@
 {
   "entry": ["index.html", "src/styles.css"],
-  "project": ["src/**/*.{ts,tsx,css}", "*.{ts,js}"],
+  "project": ["src/**/*.{ts,tsx,css}", "*.{ts,js}", "scripts/*.mjs"],
+  "ignoreDependencies": ["@google/design.md"],
   "ignoreExportsUsedInFile": true
 }

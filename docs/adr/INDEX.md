@@ -129,14 +129,14 @@ These ADRs distill the 27 design decisions from
 | [ADR-0049](ADR-0049-local-modern-provider-admission-policy.md) | Local-Modern Provider Admission Policy | ⏳ Proposed |
 | [ADR-0050](ADR-0050-guided-next-command-suggestions.md) | Guided Next-Command Suggestions | ✅ Accepted |
 | [ADR-0051](ADR-0051-doctor-repair-plan-contract.md) | Doctor Repair Plan Contract | ✅ Accepted |
-| [ADR-0052](ADR-0052-web-console-runtime-control-plane.md) | Web Console Runtime Control Plane | ⏳ Proposed |
-| [ADR-0053](ADR-0053-overview-guided-recovery-and-status.md) | Overview Guided Recovery and Status | ⏳ Proposed |
-| [ADR-0054](ADR-0054-console-connection-module-and-shared-query-keys.md) | Console Connection Module and Shared Query Keys | ⏳ Proposed |
-| [ADR-0055](ADR-0055-responsive-voices-table-and-card-presentation.md) | Responsive Voices Table and Card Presentation | ⏳ Proposed |
-| [ADR-0056](ADR-0056-playground-installed-picker-and-raw-id-override.md) | Playground Installed Voice Picker and Raw ID Override | ⏳ Proposed |
-| [ADR-0057](ADR-0057-diagnostics-ready-health-and-developer-schema-preview.md) | Diagnostics-Ready Health and Developer Schema Preview | ⏳ Proposed |
-| [ADR-0058](ADR-0058-console-test-accessibility-and-visual-qa-gates.md) | Console Test, Accessibility, and Visual QA Gates | ⏳ Proposed |
-| [ADR-0059](ADR-0059-console-design-token-tailwind-artifact.md) | Console DESIGN.md Tailwind Theme Artifact | ⏳ Proposed |
+| [ADR-0052](ADR-0052-web-console-runtime-control-plane.md) | Web Console Runtime Control Plane | ✅ Accepted |
+| [ADR-0053](ADR-0053-overview-guided-recovery-and-status.md) | Overview Guided Recovery and Status | ✅ Accepted |
+| [ADR-0054](ADR-0054-console-connection-module-and-shared-query-keys.md) | Console Connection Module and Shared Query Keys | ✅ Accepted |
+| [ADR-0055](ADR-0055-responsive-voices-table-and-card-presentation.md) | Responsive Voices Table and Card Presentation | ✅ Accepted |
+| [ADR-0056](ADR-0056-playground-installed-picker-and-raw-id-override.md) | Playground Installed Voice Picker and Raw ID Override | ✅ Accepted |
+| [ADR-0057](ADR-0057-diagnostics-ready-health-and-developer-schema-preview.md) | Diagnostics-Ready Health and Developer Schema Preview | ✅ Accepted |
+| [ADR-0058](ADR-0058-console-test-accessibility-and-visual-qa-gates.md) | Console Test, Accessibility, and Visual QA Gates | ✅ Accepted |
+| [ADR-0059](ADR-0059-console-design-token-tailwind-artifact.md) | Console DESIGN.md Tailwind Theme Artifact | ✅ Accepted |
 
 ---
 

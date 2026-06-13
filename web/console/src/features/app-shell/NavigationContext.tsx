@@ -9,7 +9,7 @@ export interface NavigationState {
 
 function sectionFromHash(hash: string): ConsoleSection {
   const match = consoleSections.find((s) => s.hash === hash);
-  return match?.id ?? "voices";
+  return match?.id ?? "overview";
 }
 
 function withVisited(
@@ -57,6 +57,7 @@ export function NavigationProvider({
 
 export function useNavigation(): NavigationState {
   const ctx = useContext(NavigationContext);
-  if (!ctx) throw new Error("useNavigation must be used within NavigationProvider");
+  if (!ctx)
+    throw new Error("useNavigation must be used within NavigationProvider");
   return ctx;
 }
