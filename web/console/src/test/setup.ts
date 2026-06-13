@@ -7,6 +7,17 @@ if (!globalThis.URL.createObjectURL) {
   globalThis.URL.revokeObjectURL = () => undefined;
 }
 
+// jsdom does not implement HTMLMediaElement playback — stub it out so
+// AudioPlayer tests don't throw "Not implemented" errors.
+Object.defineProperty(HTMLMediaElement.prototype, "play", {
+  configurable: true,
+  value: () => Promise.resolve(),
+});
+Object.defineProperty(HTMLMediaElement.prototype, "pause", {
+  configurable: true,
+  value: () => undefined,
+});
+
 if (!Element.prototype.hasPointerCapture) {
   Element.prototype.hasPointerCapture = () => false;
 }

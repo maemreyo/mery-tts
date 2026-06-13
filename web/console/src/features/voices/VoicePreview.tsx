@@ -1,5 +1,6 @@
 import { synthesizeSpeech } from "@api/generated/client";
 import type { VoiceViewModel } from "@shared/api/voiceViewModels";
+import { AudioPlayer } from "@shared/ui/AudioPlayer";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
@@ -45,8 +46,13 @@ export function VoicePreview({ token, voice }: VoicePreviewProps) {
   }
 
   if (audioUrl) {
-    // biome-ignore lint/a11y/useMediaCaption: dynamically synthesized speech preview has no caption track
-    return <audio className="preview-audio" controls autoPlay src={audioUrl} />;
+    return (
+      <AudioPlayer
+        src={audioUrl}
+        label={`Preview: ${voice.displayLabel ?? voice.title}`}
+        className="voice-preview-player"
+      />
+    );
   }
 
   return (

@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { createMeryApiClient } from "@shared/api/meryApi";
 import { QUERY_KEYS } from "@shared/api/queryKeys";
 import { loadVoiceViewModels } from "@shared/api/voiceViewModels";
+import { AudioPlayer } from "@shared/ui/AudioPlayer";
 import { Button } from "@shared/ui/Button";
 import { FormField } from "@shared/ui/FormField";
 import { SelectField } from "@shared/ui/SelectField";
@@ -259,8 +260,11 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
             <span className="workbench-output-label">Output</span>
 
             {audioUrl && (
-              // biome-ignore lint/a11y/useMediaCaption: dynamically synthesized speech has no caption track
-              <audio controls autoPlay src={audioUrl} className="synth-audio" />
+              <AudioPlayer
+                src={audioUrl}
+                label="Synthesized speech"
+                className="synth-audio-player"
+              />
             )}
 
             {showWordTimings &&
