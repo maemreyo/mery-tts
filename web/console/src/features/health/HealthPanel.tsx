@@ -31,7 +31,7 @@ function HealthPanelBase({ token }: HealthPanelProps) {
         </div>
         <button
           type="button"
-          className="btn btn-secondary"
+          className="button button-secondary"
           onClick={() => navigate("overview")}
         >
           Go to Overview
@@ -70,14 +70,14 @@ function HealthPanelBase({ token }: HealthPanelProps) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
             type="button"
-            className="btn btn-secondary"
+            className="button button-secondary"
             onClick={() => navigate("overview")}
           >
             Go to Overview
           </button>
           <button
             type="button"
-            className="btn btn-ghost"
+            className="button"
             onClick={() => navigate("developer")}
           >
             Open Developer Mode
@@ -100,7 +100,7 @@ function HealthPanelBase({ token }: HealthPanelProps) {
         </div>
         <button
           type="button"
-          className="btn btn-ghost"
+          className="button"
           onClick={() => navigate("developer")}
         >
           Open Developer Mode for diagnostics

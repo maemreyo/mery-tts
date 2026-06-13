@@ -138,83 +138,106 @@ function useServerStatus(): { level: StatusLevel; label: string } {
 
 /* ── Sidebar ──────────────────────────────────────────────────────────── */
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const { activeSection, navigate } = useNavigation();
   const { level, label } = useServerStatus();
 
+  function handleNavClick(section: ConsoleSection) {
+    navigate(section);
+    onClose?.();
+  }
+
   return (
-    <nav className="sidebar" aria-label="Main navigation">
-      {/* Brand */}
-      <button
-        type="button"
-        className="sidebar-brand"
-        onClick={() => navigate("overview")}
+    <>
+      {isOpen && (
+        <div
+          className="sidebar-overlay"
+          aria-hidden="true"
+          onClick={onClose}
+          onKeyDown={onClose}
+        />
+      )}
+      <nav
+        className={`sidebar${isOpen ? " sidebar--open" : ""}`}
+        aria-label="Main navigation"
       >
-        <span className="sidebar-brand-icon" aria-hidden="true">
-          <svg
-            aria-hidden="true"
-            width="14"
-            height="14"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M10 3.5c1.5 1 2.5 2.6 2.5 4.5s-1 3.5-2.5 4.5" />
-            <rect x="1" y="5" width="5" height="6" rx="1" />
-            <path d="M6 6.5l4-3v9l-4-3" />
-          </svg>
-        </span>
-        <div>
-          <div className="sidebar-brand-name">Mery</div>
-          <div className="sidebar-brand-tag">Console</div>
-        </div>
-      </button>
-
-      {/* Navigation */}
-      <div className="sidebar-nav" aria-label="Console sections">
-        <span className="sidebar-nav-label">User Mode</span>
-
-        {consoleSections
-          .filter((s) => s.id !== "developer")
-          .map((section) => (
-            <a
-              key={section.id}
-              href={section.hash}
-              className="nav-item"
-              aria-current={activeSection === section.id ? "page" : undefined}
-              onClick={(e) => {
-                e.preventDefault();
-                navigate(section.id);
-              }}
-            >
-              {sectionIcons[section.id]}
-              {section.label}
-            </a>
-          ))}
-
-        <span className="sidebar-nav-label">Advanced</span>
-
+        {/* Brand */}
         <button
           type="button"
-          className="nav-item"
-          aria-current={activeSection === "developer" ? "page" : undefined}
-          onClick={() => navigate("developer")}
+          className="sidebar-brand"
+          onClick={() => handleNavClick("overview")}
         >
-          {sectionIcons.developer}
-          Developer
+          <span className="sidebar-brand-icon" aria-hidden="true">
+            <svg
+              aria-hidden="true"
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M10 3.5c1.5 1 2.5 2.6 2.5 4.5s-1 3.5-2.5 4.5" />
+              <rect x="1" y="5" width="5" height="6" rx="1" />
+              <path d="M6 6.5l4-3v9l-4-3" />
+            </svg>
+          </span>
+          <div>
+            <div className="sidebar-brand-name">Mery</div>
+            <div className="sidebar-brand-tag">Console</div>
+          </div>
         </button>
-      </div>
 
-      {/* Footer: server status */}
-      <div className="sidebar-footer">
-        <div className="server-status">
-          <StatusDot level={level} pulse={level === "ready"} label={label} />
-          <span>{label}</span>
+        {/* Navigation */}
+        <div className="sidebar-nav" aria-label="Console sections">
+          <span className="sidebar-nav-label">User Mode</span>
+
+          {consoleSections
+            .filter((s) => s.id !== "developer")
+            .map((section) => (
+              <a
+                key={section.id}
+                href={section.hash}
+                className="nav-item"
+                aria-current={activeSection === section.id ? "page" : undefined}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNavClick(section.id);
+                }}
+              >
+                {sectionIcons[section.id]}
+                {section.label}
+              </a>
+            ))}
+
+          <span className="sidebar-nav-label">Advanced</span>
+
+          <button
+            type="button"
+            className="nav-item"
+            aria-current={activeSection === "developer" ? "page" : undefined}
+            onClick={() => handleNavClick("developer")}
+          >
+            {sectionIcons.developer}
+            Developer
+          </button>
         </div>
-      </div>
-    </nav>
+
+        {/* Footer: server status */}
+        <div className="sidebar-footer">
+          <div className="server-status">
+            <StatusDot level={level} pulse={level === "ready"} label={label} />
+            <span>{label}</span>
+          </div>
+        </div>
+      </nav>
+    </>
   );
 }

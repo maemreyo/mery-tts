@@ -31,6 +31,7 @@ const notReadyHealth: HealthResponse = {
 };
 
 const defaults = {
+  hasToken: true,
   health: readyHealth,
   healthError: false,
   voices: [baseVoice],
@@ -39,36 +40,62 @@ const defaults = {
 };
 
 describe("deriveOverviewViewModel", () => {
-  describe("disconnected", () => {
+  describe("disconnected — no token", () => {
+    const noTokenBase = {
+      ...defaults,
+      hasToken: false,
+      connectionStatus: "disconnected" as const,
+      health: null,
+      voices: null,
+    };
+
     it("headline includes 'Connect'", () => {
-      const vm = deriveOverviewViewModel({
-        ...defaults,
-        connectionStatus: "disconnected",
-        health: null,
-        voices: null,
-      });
-      expect(vm.headline).toContain("Connect");
+      expect(deriveOverviewViewModel(noTokenBase).headline).toContain(
+        "Connect",
+      );
     });
 
-    it("primary action target is 'connect'", () => {
-      const vm = deriveOverviewViewModel({
-        ...defaults,
-        connectionStatus: "disconnected",
-        health: null,
-        voices: null,
-      });
-      expect(vm.primaryAction.target).toBe("connect");
+    it("primary action target is 'connect' (shows ConnectionCard)", () => {
+      expect(deriveOverviewViewModel(noTokenBase).primaryAction.target).toBe(
+        "connect",
+      );
     });
 
     it("connection status tile level is 'error'", () => {
-      const vm = deriveOverviewViewModel({
-        ...defaults,
-        connectionStatus: "disconnected",
-        health: null,
-        voices: null,
-      });
-      const tile = vm.statusTiles.find((t) => t.label === "Connection");
+      const tile = deriveOverviewViewModel(noTokenBase).statusTiles.find(
+        (t) => t.label === "Connection",
+      );
       expect(tile?.level).toBe("error");
+    });
+  });
+
+  describe("disconnected — has token but server unreachable", () => {
+    const unreachableBase = {
+      ...defaults,
+      hasToken: true,
+      connectionStatus: "disconnected" as const,
+      health: null,
+      healthError: false,
+      voices: null,
+    };
+
+    it("headline mentions 'Cannot reach'", () => {
+      expect(deriveOverviewViewModel(unreachableBase).headline).toContain(
+        "Cannot reach",
+      );
+    });
+
+    it("primary action target is 'health' (not 'connect')", () => {
+      expect(
+        deriveOverviewViewModel(unreachableBase).primaryAction.target,
+      ).toBe("health");
+    });
+
+    it("secondary actions include Developer Mode", () => {
+      const targets = deriveOverviewViewModel(
+        unreachableBase,
+      ).secondaryActions.map((a) => a.target);
+      expect(targets).toContain("developer");
     });
   });
 

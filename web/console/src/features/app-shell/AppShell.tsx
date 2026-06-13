@@ -5,6 +5,7 @@ import { OverviewPanel } from "@features/overview/OverviewPanel";
 import { PlaygroundPanel } from "@features/playground/PlaygroundPanel";
 import { VoicesPanel } from "@features/voices/VoicesPanel";
 import { TokenProvider } from "@shared/auth/TokenContext";
+import { useState } from "react";
 import { AppLayout } from "./AppLayout";
 import { ContentArea } from "./ContentArea";
 import { NavigationProvider } from "./NavigationContext";
@@ -13,13 +14,25 @@ import { TopBar } from "./TopBar";
 
 export function AppShell() {
   const { token, remember, status, applyToken, logout } = useConnection();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <TokenProvider value={token}>
       <NavigationProvider>
         <AppLayout
-          sidebar={<Sidebar />}
-          topbar={<TopBar status={status} onLogout={logout} />}
+          sidebar={
+            <Sidebar
+              isOpen={sidebarOpen}
+              onClose={() => setSidebarOpen(false)}
+            />
+          }
+          topbar={
+            <TopBar
+              status={status}
+              onLogout={logout}
+              onMenuOpen={() => setSidebarOpen(true)}
+            />
+          }
         >
           <ContentArea
             panels={{

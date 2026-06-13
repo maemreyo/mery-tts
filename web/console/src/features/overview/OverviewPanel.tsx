@@ -51,6 +51,7 @@ export function OverviewPanel({
 
   const viewModel = deriveOverviewViewModel({
     connectionStatus: status,
+    hasToken: Boolean(token),
     health: healthQuery.data ?? null,
     healthError: healthQuery.isError,
     voices: voicesQuery.data ?? null,

@@ -127,15 +127,21 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
 
       <div className="panel">
         <form className="playground-form" onSubmit={handleSubmit}>
-          <SelectField
-            label="Voice"
-            value={selectedVoiceId}
-            onValueChange={setSelectedVoiceId}
-            options={installedVoices.map((v) => ({
-              value: v.modelId,
-              label: v.title,
-            }))}
-          />
+          {voicesQuery.isLoading ? (
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              Loading voices…
+            </p>
+          ) : (
+            <SelectField
+              label="Voice"
+              value={selectedVoiceId}
+              onValueChange={setSelectedVoiceId}
+              options={installedVoices.map((v) => ({
+                value: v.modelId,
+                label: v.title,
+              }))}
+            />
+          )}
 
           <div className="advanced-disclosure">
             <button

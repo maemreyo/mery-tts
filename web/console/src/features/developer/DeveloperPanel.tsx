@@ -51,7 +51,7 @@ function DeveloperPanelBase() {
           </pre>
           <button
             type="button"
-            className="btn btn-ghost"
+            className="button"
             onClick={() => navigate("overview")}
           >
             ← Overview

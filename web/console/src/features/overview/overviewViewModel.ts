@@ -27,6 +27,7 @@ export interface OverviewViewModel {
 
 export function deriveOverviewViewModel(params: {
   connectionStatus: ConnectionStatus;
+  hasToken: boolean;
   health: HealthResponse | null;
   healthError: boolean;
   voices: VoiceViewModel[] | null;
@@ -35,6 +36,7 @@ export function deriveOverviewViewModel(params: {
 }): OverviewViewModel {
   const {
     connectionStatus,
+    hasToken,
     health,
     healthError,
     voices,
@@ -71,12 +73,23 @@ export function deriveOverviewViewModel(params: {
   const statusTiles: StatusTile[] = [connectionTile, serverTile, voicesTile];
 
   // Decision logic
-  if (connectionStatus === "disconnected") {
+  // "disconnected" covers two distinct states: no token at all, or token present but server unreachable.
+  if (connectionStatus === "disconnected" && !hasToken) {
     return {
       headline: "Connect to Mery",
       description: "Enter a bearer token to continue.",
       primaryAction: { label: "Connect", target: "connect" },
       secondaryActions: [],
+      statusTiles,
+    };
+  }
+
+  if (connectionStatus === "disconnected" && hasToken) {
+    return {
+      headline: "Cannot reach Mery",
+      description: "The server is not responding. Is mery serve running?",
+      primaryAction: { label: "Check Health", target: "health" },
+      secondaryActions: [{ label: "Developer Mode", target: "developer" }],
       statusTiles,
     };
   }
