@@ -6,8 +6,10 @@ export interface SelectOption<TValue extends string> {
 interface SelectFieldProps<TValue extends string> {
   label: string;
   options: SelectOption<TValue>[];
-  value: TValue;
+  value: TValue | "";
   onValueChange: (value: TValue) => void;
+  /** Shown as a disabled first option when value is empty. */
+  placeholder?: string;
 }
 
 export function SelectField<TValue extends string>({
@@ -15,8 +17,10 @@ export function SelectField<TValue extends string>({
   onValueChange,
   options,
   value,
+  placeholder,
 }: SelectFieldProps<TValue>) {
   const id = label.toLowerCase().replaceAll(" ", "-");
+  const showPlaceholder = value === "" || value === undefined;
   return (
     <div className="form-field">
       <label htmlFor={id}>{label}</label>
@@ -25,8 +29,16 @@ export function SelectField<TValue extends string>({
         className="select-trigger"
         id={id}
         value={value}
-        onChange={(event) => onValueChange(event.currentTarget.value as TValue)}
+        onChange={(event) => {
+          const next = event.currentTarget.value;
+          if (next) onValueChange(next as TValue);
+        }}
       >
+        {showPlaceholder && (
+          <option value="" disabled>
+            {placeholder ?? `Choose ${label.toLowerCase()}…`}
+          </option>
+        )}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

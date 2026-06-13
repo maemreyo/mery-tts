@@ -58,23 +58,25 @@ describe("PlaygroundPanel", () => {
     );
   });
 
-  it("shows validation error when submitting without selecting a voice", async () => {
+  it("auto-selects the first installed voice so Run smoke fires immediately", async () => {
     renderWithProviders(<PlaygroundPanel token="test-token" />);
 
+    // Wait for the voice picker to appear with the auto-selected voice
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Run speech smoke" }),
+        screen.getByRole("combobox", { name: "Voice" }),
       ).toBeInTheDocument(),
     );
 
+    // Auto-select means clicking Run immediately should NOT show a validation error
     await userEvent.click(
       screen.getByRole("button", { name: "Run speech smoke" }),
     );
 
     await waitFor(() =>
       expect(
-        screen.getByText("Choose a voice before running smoke."),
-      ).toBeInTheDocument(),
+        screen.queryByText("Choose a voice before running smoke."),
+      ).not.toBeInTheDocument(),
     );
   });
 
@@ -158,7 +160,9 @@ describe("PlaygroundPanel", () => {
     );
   });
 
-  it("shows validation error when advanced override is empty and no voice selected", async () => {
+  it("advanced override empty falls back to picker voice — no validation error", async () => {
+    // When Advanced is open but override is empty, activeModelId = selectedVoiceId
+    // (auto-selected), so Run smoke should fire without a validation error.
     renderWithProviders(<PlaygroundPanel token="test-token" />);
 
     await waitFor(() =>
@@ -170,14 +174,17 @@ describe("PlaygroundPanel", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Advanced options" }),
     );
+    // Override input is empty — fall through to selected voice
     await userEvent.click(
       screen.getByRole("button", { name: "Run speech smoke" }),
     );
 
     await waitFor(() =>
       expect(
-        screen.getByText("Enter an override model ID or select a voice above."),
-      ).toBeInTheDocument(),
+        screen.queryByText(
+          "Enter an override model ID or select a voice above.",
+        ),
+      ).not.toBeInTheDocument(),
     );
   });
 
@@ -235,7 +242,7 @@ describe("PlaygroundPanel", () => {
 
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent(
-        "Speech smoke failed with backend error.",
+        "Speech smoke failed. The voice may not be ready — check Health for engine status.",
       ),
     );
   });

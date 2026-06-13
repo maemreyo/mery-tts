@@ -58,6 +58,7 @@ export interface HealthResponse {
 
 export interface SpeechSmokeRequest {
   model: string;
+  voice: string;
   input: string;
   response_format: "wav";
 }
@@ -271,6 +272,7 @@ export interface SpeechMark {
 
 export interface AnnotatedSpeechRequest {
   model: string;
+  voice: string;
   input: string;
 }
 

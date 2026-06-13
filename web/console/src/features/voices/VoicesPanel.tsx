@@ -120,18 +120,25 @@ function VoicesPanelBase({ token }: VoicesPanelProps) {
         />
 
         {installJobStatus && (
-          <div>
+          <div className="install-status-row">
             <span
               className={`badge ${
                 installJobStatus === "succeeded"
                   ? "badge--success"
-                  : installJobStatus === "failed"
+                  : installJobStatus === "failed" ||
+                      installJobStatus === "cancelled"
                     ? "badge--error"
-                    : "badge--neutral"
+                    : "badge--accent"
               }`}
             >
               {installStatusLabel(installJobStatus)}
             </span>
+            {(installJobStatus === "failed" ||
+              installJobStatus === "cancelled") && (
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                — check Developer tab for diagnostics, then try installing again
+              </span>
+            )}
           </div>
         )}
 
@@ -176,40 +183,29 @@ function VoicesPanelBase({ token }: VoicesPanelProps) {
                           </td>
                         ))}
                         <td data-label="Action">
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: "var(--sp-2)",
-                              alignItems: "center",
-                            }}
-                          >
-                            {row.original.installable ? (
-                              <ConfirmDialog
-                                title="Confirm voice install"
-                                description={`Install ${row.original.title} using backend model id ${row.original.modelId}.`}
-                                onConfirm={() => installVoice(row.original)}
-                              >
-                                <Button type="button" variant="primary">
-                                  {t("installVoice")}
-                                </Button>
-                              </ConfirmDialog>
-                            ) : (
-                              <span className="badge badge--neutral">
-                                {row.original.governanceStatus}
-                              </span>
-                            )}
-                            {row.original.installed && (
-                              <ConfirmDialog
-                                title="Confirm voice uninstall"
-                                description={`Uninstall ${row.original.title} (model id: ${row.original.modelId}). This will remove the voice model files.`}
-                                onConfirm={() => uninstallVoice(row.original)}
-                              >
-                                <Button type="button" variant="secondary">
-                                  Uninstall
-                                </Button>
-                              </ConfirmDialog>
-                            )}
-                          </div>
+                          {row.original.installed ? (
+                            <ConfirmDialog
+                              title="Confirm voice uninstall"
+                              description={`Uninstall ${row.original.title}? This removes the model files from disk.`}
+                              onConfirm={() => uninstallVoice(row.original)}
+                            >
+                              <Button type="button">Uninstall</Button>
+                            </ConfirmDialog>
+                          ) : row.original.installable ? (
+                            <ConfirmDialog
+                              title="Confirm voice install"
+                              description={`Install ${row.original.title} (${row.original.modelId}).`}
+                              onConfirm={() => installVoice(row.original)}
+                            >
+                              <Button type="button" variant="primary">
+                                {t("installVoice")}
+                              </Button>
+                            </ConfirmDialog>
+                          ) : (
+                            <span className="badge badge--neutral">
+                              {row.original.governanceStatus}
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}

@@ -9,7 +9,7 @@ import { FormField } from "@shared/ui/FormField";
 import { SelectField } from "@shared/ui/SelectField";
 import { SwitchField } from "@shared/ui/SwitchField";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -45,6 +45,14 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
   const [showWordTimings, setShowWordTimings] = useState(false);
   const [validationError, setValidationError] = useState<string | undefined>();
 
+  // Auto-select the first installed voice when the list loads so the user
+  // can immediately click "Run smoke test" without an extra interaction.
+  useEffect(() => {
+    if (!selectedVoiceId && installedVoices.length > 0) {
+      setSelectedVoiceId(installedVoices[0].modelId);
+    }
+  }, [installedVoices, selectedVoiceId]);
+
   const form = useForm<PlaygroundFormValues>({
     defaultValues: { voiceOverride: "" },
     resolver: zodResolver(playgroundSchema),
@@ -60,7 +68,7 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
 
   const annotatedMutation = useMutation({
     mutationFn: (modelId: string) =>
-      api.getAnnotatedSpeech({ model: modelId, input: "Console smoke" }),
+      api.getAnnotatedSpeech({ model: "tts-1", voice: modelId, input: "Console smoke" }),
   });
 
   const activeMutation = showWordTimings ? annotatedMutation : smokeMutation;
@@ -75,7 +83,9 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
   let statusText = "Ready for backend speech smoke.";
   if (activeMutation.isPending) statusText = "Requesting speech from backend…";
   else if (isSuccess) statusText = "Speech smoke succeeded.";
-  else if (isFailure) statusText = "Speech smoke failed with backend error.";
+  else if (isFailure)
+    statusText =
+      "Speech smoke failed. The voice may not be ready — check Health for engine status.";
 
   const wordMarks: SpeechMark[] =
     showWordTimings && annotatedMutation.isSuccess
@@ -161,6 +171,7 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
           ) : (
             <SelectField
               label="Voice"
+              placeholder="Select an installed voice…"
               value={selectedVoiceId}
               onValueChange={setSelectedVoiceId}
               options={installedVoices.map((v) => ({

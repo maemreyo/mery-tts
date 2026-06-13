@@ -79,7 +79,8 @@ export function createMeryApiClient(
     },
     runSpeechSmoke(modelId) {
       return runSpeechSmoke(options, {
-        model: modelId,
+        model: "tts-1",
+        voice: modelId,
         input: "Console smoke",
         response_format: "wav",
       });
