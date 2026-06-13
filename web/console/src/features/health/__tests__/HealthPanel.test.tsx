@@ -2,6 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
+import { healthReadyV2, storageWarn } from "../../../test/fixtures/health";
 import { server } from "../../../test/handlers";
 import { renderWithProviders } from "../../../test/renderWithProviders";
 import { HealthPanel } from "../HealthPanel";
@@ -87,5 +88,80 @@ describe("HealthPanel", () => {
     renderWithProviders(<HealthPanel token="" />);
     const region = screen.getByRole("region", { name: "Health" });
     expect(region).toBeInTheDocument();
+  });
+
+  // ─── Engine health grid ──────────────────────────────────────────────────
+
+  it("renders engine cards for each engine in data.engines", async () => {
+    renderWithProviders(<HealthPanel token="test-token" />);
+    await waitFor(() => expect(screen.getByText("Ready")).toBeInTheDocument());
+    // Default fixture has two engines: kokoro (available) and espeak (degraded)
+    expect(screen.getByText("kokoro")).toBeInTheDocument();
+    expect(screen.getByText("espeak")).toBeInTheDocument();
+    // Status badges
+    expect(screen.getByText("available")).toBeInTheDocument();
+    expect(screen.getByText("degraded")).toBeInTheDocument();
+  });
+
+  it("shows degraded engine reason text", async () => {
+    renderWithProviders(<HealthPanel token="test-token" />);
+    await waitFor(() => expect(screen.getByText("Ready")).toBeInTheDocument());
+    expect(screen.getByText("Smoke test failed")).toBeInTheDocument();
+  });
+
+  it("skips engine section when engines array is empty", async () => {
+    server.use(
+      http.get("/v1/health", () =>
+        HttpResponse.json({ ...healthReadyV2, engines: [] }),
+      ),
+    );
+    renderWithProviders(<HealthPanel token="test-token" />);
+    await waitFor(() => expect(screen.getByText("Ready")).toBeInTheDocument());
+    expect(screen.queryByText("Engine Status")).not.toBeInTheDocument();
+  });
+
+  // ─── Storage section ─────────────────────────────────────────────────────
+
+  it("renders storage breakdown with formatted bytes", async () => {
+    renderWithProviders(<HealthPanel token="test-token" />);
+    await waitFor(() => expect(screen.getByText("Ready")).toBeInTheDocument());
+    // Storage query is enabled once health is connected
+    await waitFor(() =>
+      expect(screen.getByText("Total used")).toBeInTheDocument(),
+    );
+    // 52_428_800 bytes = 50.0 MB
+    expect(screen.getByText("50.0 MB")).toBeInTheDocument();
+  });
+
+  it("shows advisory warning banner when storage advisory status is warn", async () => {
+    server.use(http.get("/v1/storage", () => HttpResponse.json(storageWarn)));
+    renderWithProviders(<HealthPanel token="test-token" />);
+    await waitFor(() => expect(screen.getByText("Ready")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          "Storage is running low. Consider cleaning up cache and logs.",
+        ),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("renders cleanup buttons for cache, logs, diagnostics but not models", async () => {
+    renderWithProviders(<HealthPanel token="test-token" />);
+    await waitFor(() => expect(screen.getByText("Ready")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Clean cache" }),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("button", { name: "Clean logs" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Clean diagnostics" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Clean models" }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -25,6 +25,7 @@ export interface UseVoicesResult {
   setSortMode: (v: SortMode) => void;
   installStatus: string | undefined;
   installVoice: (voice: VoiceViewModel) => void;
+  uninstallVoice: (voice: VoiceViewModel) => void;
   installJobStatus: string | undefined;
   statusText: string;
 }
@@ -47,6 +48,15 @@ export function useVoices({ token }: { token: string }): UseVoicesResult {
     mutationFn: (voice: VoiceViewModel) =>
       startVoiceInstall(api, voice.modelId),
     onSuccess: (job) => setActiveJobId(job.job_id),
+  });
+
+  const uninstallMutation = useMutation({
+    mutationFn: (voice: VoiceViewModel) => api.deleteVoice(voice.modelId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.voices(token),
+      });
+    },
   });
 
   const installJobQuery = useQuery({
@@ -112,6 +122,7 @@ export function useVoices({ token }: { token: string }): UseVoicesResult {
     setSortMode,
     installStatus,
     installVoice: installMutation.mutate,
+    uninstallVoice: uninstallMutation.mutate,
     installJobStatus: installJobQuery.data?.status,
     statusText,
   };

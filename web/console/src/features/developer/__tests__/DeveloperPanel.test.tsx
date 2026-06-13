@@ -1,4 +1,5 @@
-import { screen } from "@testing-library/react";
+import { TokenProvider } from "@shared/auth/TokenContext";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { renderWithProviders } from "../../../test/renderWithProviders";
@@ -58,5 +59,35 @@ describe("DeveloperPanel", () => {
     expect(
       screen.getByRole("button", { name: "Hide developer tools" }),
     ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("shows a check key from diagnostics when diagnostics are loaded", async () => {
+    renderWithProviders(
+      <TokenProvider value="test-token">
+        <DeveloperPanel />
+      </TokenProvider>,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Developer tools" }),
+    );
+    await waitFor(() => {
+      const checkKeys = document.querySelectorAll(".diagnostics-check-key");
+      const keyNames = Array.from(checkKeys).map((el) => el.textContent);
+      expect(keyNames).toContain("runtime");
+    });
+  });
+
+  it("shows the Run doctor check button in expanded state", async () => {
+    renderWithProviders(
+      <TokenProvider value="test-token">
+        <DeveloperPanel />
+      </TokenProvider>,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Developer tools" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Run doctor check" }),
+    ).toBeInTheDocument();
   });
 });

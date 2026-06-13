@@ -6,9 +6,10 @@ import { ConfirmDialog } from "@shared/ui/ConfirmDialog";
 interface VoiceCardProps {
   voice: VoiceViewModel;
   onInstall: (v: VoiceViewModel) => void;
+  onUninstall?: (v: VoiceViewModel) => void;
 }
 
-export function VoiceCard({ voice, onInstall }: VoiceCardProps) {
+export function VoiceCard({ voice, onInstall, onUninstall }: VoiceCardProps) {
   return (
     <article className="voice-card" aria-label={voice.title}>
       <div className="voice-card-name">{voice.title}</div>
@@ -36,6 +37,17 @@ export function VoiceCard({ voice, onInstall }: VoiceCardProps) {
           </ConfirmDialog>
         ) : (
           <span className="badge badge--neutral">{voice.governanceStatus}</span>
+        )}
+        {voice.installed && onUninstall && (
+          <ConfirmDialog
+            title="Confirm voice uninstall"
+            description={`Uninstall ${voice.title} (model id: ${voice.modelId}). This will remove the voice model files.`}
+            onConfirm={() => onUninstall(voice)}
+          >
+            <Button type="button" variant="secondary">
+              Uninstall
+            </Button>
+          </ConfirmDialog>
         )}
       </div>
     </article>

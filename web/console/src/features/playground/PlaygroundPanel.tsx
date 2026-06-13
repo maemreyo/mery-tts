@@ -1,3 +1,4 @@
+import type { SpeechMark } from "@api/generated/client";
 import { useNavigation } from "@features/app-shell/NavigationContext";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createMeryApiClient } from "@shared/api/meryApi";
@@ -6,6 +7,7 @@ import { loadVoiceViewModels } from "@shared/api/voiceViewModels";
 import { Button } from "@shared/ui/Button";
 import { FormField } from "@shared/ui/FormField";
 import { SelectField } from "@shared/ui/SelectField";
+import { SwitchField } from "@shared/ui/SwitchField";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { memo, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -40,6 +42,7 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
 
   const [selectedVoiceId, setSelectedVoiceId] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showWordTimings, setShowWordTimings] = useState(false);
   const [validationError, setValidationError] = useState<string | undefined>();
 
   const form = useForm<PlaygroundFormValues>({
@@ -55,13 +58,33 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
     mutationFn: (modelId: string) => api.runSpeechSmoke(modelId),
   });
 
-  const isSuccess = smokeMutation.data?.ok === true;
-  const isFailure = smokeMutation.isError || smokeMutation.data?.ok === false;
+  const annotatedMutation = useMutation({
+    mutationFn: (modelId: string) =>
+      api.getAnnotatedSpeech({ model: modelId, input: "Console smoke" }),
+  });
+
+  const activeMutation = showWordTimings ? annotatedMutation : smokeMutation;
+
+  const isSuccess = showWordTimings
+    ? annotatedMutation.isSuccess
+    : smokeMutation.data?.ok === true;
+  const isFailure = showWordTimings
+    ? annotatedMutation.isError
+    : smokeMutation.isError || smokeMutation.data?.ok === false;
 
   let statusText = "Ready for backend speech smoke.";
-  if (smokeMutation.isPending) statusText = "Requesting speech from backend…";
+  if (activeMutation.isPending) statusText = "Requesting speech from backend…";
   else if (isSuccess) statusText = "Speech smoke succeeded.";
   else if (isFailure) statusText = "Speech smoke failed with backend error.";
+
+  const wordMarks: SpeechMark[] =
+    showWordTimings && annotatedMutation.isSuccess
+      ? (annotatedMutation.data?.marks ?? [])
+      : [];
+  const marksAvailable =
+    showWordTimings && annotatedMutation.isSuccess
+      ? annotatedMutation.data?.marks_available
+      : undefined;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -74,7 +97,11 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
       return;
     }
     setValidationError(undefined);
-    smokeMutation.mutate(activeModelId);
+    if (showWordTimings) {
+      annotatedMutation.mutate(activeModelId);
+    } else {
+      smokeMutation.mutate(activeModelId);
+    }
   }
 
   // No token state
@@ -143,6 +170,14 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
             />
           )}
 
+          {installedVoices.length > 0 && (
+            <SwitchField
+              checked={showWordTimings}
+              label="Show word timings"
+              onCheckedChange={setShowWordTimings}
+            />
+          )}
+
           <div className="advanced-disclosure">
             <button
               type="button"
@@ -174,10 +209,10 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
 
           <Button
             type="submit"
-            disabled={smokeMutation.isPending}
+            disabled={activeMutation.isPending}
             variant="primary"
           >
-            {smokeMutation.isPending ? "Running…" : "Run speech smoke"}
+            {activeMutation.isPending ? "Running…" : "Run speech smoke"}
           </Button>
         </form>
 
@@ -185,13 +220,36 @@ function PlaygroundPanelBase({ token }: PlaygroundPanelProps) {
           aria-live="polite"
           style={{ marginTop: 12, display: "block", fontSize: 13 }}
           className={
-            smokeMutation.status !== "idle"
+            activeMutation.status !== "idle"
               ? statusVariant(isSuccess, isFailure)
               : ""
           }
         >
           {statusText}
         </output>
+
+        {showWordTimings && annotatedMutation.isSuccess && (
+          <>
+            {marksAvailable === false && (
+              <p className="word-marks-unavailable">
+                This voice does not support word timings.
+              </p>
+            )}
+            {wordMarks.length > 0 && (
+              <div className="word-marks" aria-label="Word timings">
+                {wordMarks.map((mark, i) => (
+                  <span
+                    key={`${mark.start_ms}-${mark.end_ms}-${i}`}
+                    className="word-mark"
+                    title={`${mark.start_ms}–${mark.end_ms}ms`}
+                  >
+                    {mark.word}
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </section>
   );

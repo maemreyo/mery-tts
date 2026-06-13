@@ -236,4 +236,40 @@ describe("PlaygroundPanel", () => {
       ),
     );
   });
+
+  it("Show word timings toggle renders when voices are available", async () => {
+    renderWithProviders(<PlaygroundPanel token="test-token" />);
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Voice")).toBeInTheDocument(),
+    );
+
+    expect(
+      screen.getByRole("switch", { name: "Show word timings" }),
+    ).toBeInTheDocument();
+  });
+
+  it("Result output shows Speech smoke succeeded in normal mode", async () => {
+    renderWithProviders(<PlaygroundPanel token="test-token" />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("option", { name: "English Demo" }),
+      ).toBeInTheDocument(),
+    );
+
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Voice" }),
+      "pack.en-us",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Run speech smoke" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Speech smoke succeeded.",
+      ),
+    );
+  });
 });

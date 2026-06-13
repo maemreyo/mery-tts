@@ -1,4 +1,5 @@
 import { setupServer } from "msw/node";
+import { diagnosticsHandlers } from "./diagnostics";
 import { healthHandlers } from "./health";
 import { installHandlers } from "./install";
 import { smokeHandlers } from "./smoke";
@@ -9,4 +10,5 @@ export const server = setupServer(
   ...voicesHandlers,
   ...installHandlers,
   ...smokeHandlers,
+  ...diagnosticsHandlers,
 );

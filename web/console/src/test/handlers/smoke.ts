@@ -12,4 +12,15 @@ export const smokeHandlers = [
       headers: { "Content-Type": "audio/wav" },
     });
   }),
+  http.post("/v1/audio/speech/annotated", () => {
+    return HttpResponse.json({
+      audio_b64: "AAEC",
+      sample_rate: 22050,
+      marks_available: true,
+      marks: [
+        { word: "Console", start_ms: 0, end_ms: 420 },
+        { word: "smoke", start_ms: 450, end_ms: 780 },
+      ],
+    });
+  }),
 ];

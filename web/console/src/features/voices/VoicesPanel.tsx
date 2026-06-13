@@ -13,6 +13,7 @@ import {
 } from "@tanstack/react-table";
 import { memo, useMemo } from "react";
 import { VoiceCard } from "./VoiceCard";
+import { VoicePacksSection } from "./VoicePacksSection";
 import { VoicesToolbar } from "./VoicesToolbar";
 import { useVoices } from "./useVoices";
 
@@ -86,6 +87,7 @@ function VoicesPanelBase({ token }: VoicesPanelProps) {
     sortMode,
     setSortMode,
     installVoice,
+    uninstallVoice,
     installJobStatus,
     statusText,
   } = useVoices({ token });
@@ -174,21 +176,40 @@ function VoicesPanelBase({ token }: VoicesPanelProps) {
                           </td>
                         ))}
                         <td data-label="Action">
-                          {row.original.installable ? (
-                            <ConfirmDialog
-                              title="Confirm voice install"
-                              description={`Install ${row.original.title} using backend model id ${row.original.modelId}.`}
-                              onConfirm={() => installVoice(row.original)}
-                            >
-                              <Button type="button" variant="primary">
-                                {t("installVoice")}
-                              </Button>
-                            </ConfirmDialog>
-                          ) : (
-                            <span className="badge badge--neutral">
-                              {row.original.governanceStatus}
-                            </span>
-                          )}
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "var(--sp-2)",
+                              alignItems: "center",
+                            }}
+                          >
+                            {row.original.installable ? (
+                              <ConfirmDialog
+                                title="Confirm voice install"
+                                description={`Install ${row.original.title} using backend model id ${row.original.modelId}.`}
+                                onConfirm={() => installVoice(row.original)}
+                              >
+                                <Button type="button" variant="primary">
+                                  {t("installVoice")}
+                                </Button>
+                              </ConfirmDialog>
+                            ) : (
+                              <span className="badge badge--neutral">
+                                {row.original.governanceStatus}
+                              </span>
+                            )}
+                            {row.original.installed && (
+                              <ConfirmDialog
+                                title="Confirm voice uninstall"
+                                description={`Uninstall ${row.original.title} (model id: ${row.original.modelId}). This will remove the voice model files.`}
+                                onConfirm={() => uninstallVoice(row.original)}
+                              >
+                                <Button type="button" variant="secondary">
+                                  Uninstall
+                                </Button>
+                              </ConfirmDialog>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -203,11 +224,14 @@ function VoicesPanelBase({ token }: VoicesPanelProps) {
                   key={voice.id}
                   voice={voice}
                   onInstall={installVoice}
+                  onUninstall={uninstallVoice}
                 />
               ))}
             </div>
           </>
         )}
+
+        <VoicePacksSection token={token} />
       </div>
     </section>
   );
