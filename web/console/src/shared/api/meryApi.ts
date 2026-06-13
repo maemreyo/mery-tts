@@ -1,5 +1,7 @@
 import {
   type AnnotatedSpeechRequest,
+  type PairingChallengeResponse,
+  createPairingChallenge,
   type AnnotatedSpeechResponse,
   type DiagnosticsResponse,
   type GeneratedClientOptions,
@@ -53,6 +55,7 @@ export interface MeryApiClient {
     request: AnnotatedSpeechRequest,
   ): Promise<AnnotatedSpeechResponse>;
   synthesize(req: SpeechSmokeRequest): Promise<SpeechSynthesisResult>;
+  createPairingChallenge(): Promise<PairingChallengeResponse>;
 }
 
 export function createMeryApiClient(
@@ -118,6 +121,9 @@ export function createMeryApiClient(
     },
     synthesize(req) {
       return synthesizeSpeech(options, req);
+    },
+    createPairingChallenge() {
+      return createPairingChallenge(options);
     },
   };
 }

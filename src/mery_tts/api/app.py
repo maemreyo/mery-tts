@@ -1482,6 +1482,28 @@ def create_app(
             )
 
     @app.post(
+        "/v1/pair/challenge",
+        response_model=None,
+        responses=NATIVE_ERROR_RESPONSES,
+    )
+    def pair_generate() -> dict:  # type: ignore[return]
+        """Generate a one-time 6-character pairing code (auth-required).
+
+        The Console calls this endpoint (authenticated) to produce a code that
+        an unconnected client such as Zam Reader can claim via POST /v1/pair/claim.
+        The code expires after 10 minutes.
+        """
+        challenge = pairing_service.create_challenge()
+        return {
+            "schema_version": "v1",
+            "pairing_code": challenge.code,
+            "setup_url": challenge.setup_url,
+            "expires_at": challenge.expires_at.isoformat(),
+            "expires_in_seconds": 600,
+            "claim_endpoint": "/v1/pair/claim",
+        }
+
+    @app.post(
         "/v1/pair/claim",
         response_model=PairingResponse,
         responses=NATIVE_ERROR_RESPONSES,

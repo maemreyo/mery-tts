@@ -98,6 +98,9 @@ const stubClient: MeryApiClient = {
   async synthesize() {
     return { audioUrl: "", mimeType: "audio/wav" as const };
   },
+  async createPairingChallenge() {
+    return { schema_version: "v1" as const, pairing_code: "ABC123", setup_url: "", expires_at: "", expires_in_seconds: 600, claim_endpoint: "" };
+  },
 };
 
 describe("loadVoiceViewModels", () => {

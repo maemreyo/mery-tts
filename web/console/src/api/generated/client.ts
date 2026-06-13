@@ -404,3 +404,21 @@ export async function synthesizeSpeech(
   const blob = new Blob([buf], { type: "audio/wav" });
   return { audioUrl: URL.createObjectURL(blob), mimeType: "audio/wav" };
 }
+
+// ─── Pairing challenge ───────────────────────────────────────────────────────
+export interface PairingChallengeResponse {
+  schema_version: "v1";
+  pairing_code: string;
+  setup_url: string;
+  expires_at: string; // ISO 8601
+  expires_in_seconds: number;
+  claim_endpoint: string;
+}
+
+export function createPairingChallenge(
+  options: GeneratedClientOptions,
+): Promise<PairingChallengeResponse> {
+  return requestJson<PairingChallengeResponse>("/pair/challenge", options, {
+    method: "POST",
+  });
+}

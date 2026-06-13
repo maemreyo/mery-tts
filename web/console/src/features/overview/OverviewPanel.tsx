@@ -2,6 +2,7 @@ import { useNavigation } from "@features/app-shell/NavigationContext";
 import type { ConsoleSection } from "@features/app-shell/routes";
 import { ConnectionCard } from "@features/connection";
 import type { ConnectionStatus } from "@features/connection/types";
+import { PairingFlow } from "@features/pairing/PairingFlow";
 import { useSessionActivity } from "@features/session/SessionActivity";
 import { createMeryApiClient } from "@shared/api/meryApi";
 import { QUERY_KEYS } from "@shared/api/queryKeys";
@@ -171,6 +172,13 @@ export function OverviewPanel({
               </span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Pairing — only shown when connected so admin can generate codes for new clients */}
+      {connected && (
+        <div className="overview-pairing-section">
+          <PairingFlow token={token} />
         </div>
       )}
     </section>
